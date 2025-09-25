@@ -150,6 +150,9 @@ def create_ledger_event(event_type: str, civic_id: str, lab_source: str,
     
     return event
 
+@app.get("/") 
+def root(): return {"service":"civic-ledger-api","docs":"/docs"}
+
 @app.get("/health")
 def health():
     """Health check endpoint"""
@@ -382,3 +385,4 @@ def get_chain_info():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
