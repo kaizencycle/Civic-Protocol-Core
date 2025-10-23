@@ -1,0 +1,5 @@
+# Minimal write policy:
+#   - GET endpoints are public
+#   - POST /ingest/ledger requires X-API-Key == GIC_API_KEY
+ingest:
+  required_header: X-API-Key
