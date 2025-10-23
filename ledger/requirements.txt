@@ -2,7 +2,7 @@ fastapi
 uvicorn
 httpx
 pydantic
-sqlite3
+
 
 
 
