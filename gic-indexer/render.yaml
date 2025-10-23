@@ -2,19 +2,17 @@ services:
   - type: web
     name: gic-indexer
     env: python
-    rootDir: civic-protocol-core/gic-indexer
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    region: oregon
+    runtime: python
+    buildCommand: |
+      pip install -r requirements.txt
+    startCommand: |
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
-      - key: GIC_DB_URL
-        value: sqlite:///./gic.db
-      - key: GIC_API_KEY
+      - key: LAB4_BASE
         sync: false
-      - key: GIC_XP_TO_GIC_RATIO
-        value: "0.001"  # 1000 XP -> 1 GIC
-      - key: CORS_ALLOW_ORIGINS
-        value: "*"
-
-
-
-
+      - key: POLICY_PATH
+        value: ./policy.yaml
+      - key: INDEX_DB
+        value: ./data/index.db

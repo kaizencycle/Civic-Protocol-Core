@@ -400,15 +400,3 @@ if __name__ == "__main__":
     # Verify chain integrity
     integrity = ledger.verify_chain_integrity()
     print(f"Chain integrity: {integrity}")
-
-
-
-
-
-
-
-
-
-
-
-

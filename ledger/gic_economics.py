@@ -612,15 +612,3 @@ if __name__ == "__main__":
     bob_power = gic.calculate_governance_power("bob")
     print(f"Alice governance power: {alice_power:.2f}")
     print(f"Bob governance power: {bob_power:.2f}")
-
-
-
-
-
-
-
-
-
-
-
-

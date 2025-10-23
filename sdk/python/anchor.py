@@ -238,15 +238,3 @@ if __name__ == "__main__":
         print(f"Error: {e}")
     finally:
         anchor.close()
-
-
-
-
-
-
-
-
-
-
-
-
