@@ -5,6 +5,7 @@ services:
     plan: free
     region: oregon
     runtime: python
+    rootDir: identity
     buildCommand: |
       pip install -r requirements.txt
     startCommand: |

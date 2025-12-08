@@ -5,6 +5,7 @@ services:
     plan: free
     region: oregon
     runtime: python
+    rootDir: mic-wallet
     buildCommand: |
       pip install -r requirements.txt
     startCommand: |
