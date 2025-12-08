@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: mic-indexer
+    env: python
+    plan: free
+    region: oregon
+    runtime: python
+    buildCommand: |
+      pip install -r requirements.txt
+    startCommand: |
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: LAB4_BASE
+        sync: false
+      - key: POLICY_PATH
+        value: ./policy.yaml
+      - key: INDEX_DB
+        value: ./data/index.db
+      - key: MIC_DB_URL
+        sync: false
+      - key: MIC_API_KEY
+        sync: false

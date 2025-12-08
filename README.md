@@ -10,10 +10,12 @@ Civic Protocol Core implements a **Proof-of-Cycle (PoC)** consensus mechanism th
 
 * **Cycle**: The fundamental primitive (Seed → Sweep → Seal → Ledger)
 * **Reflections**: Private civic thoughts and insights (encrypted off-chain)
-* **GIC**: Governance Incentive Currency for civic participation
+* **MIC**: Mobius Integrity Credit for civic participation
 * **Proof-of-Cycle**: Consensus based on verifiable civic activity
 * **Shield**: Privacy-preserving layer for private reflections with zkRL
 * **Agora**: Democratic governance system with quadratic voting
+* **Identity**: Authentication and user management
+* **MII**: Mobius Integrity Index for earning multipliers
 
 ## Repository Structure
 
@@ -25,6 +27,29 @@ civic-protocol-core/
 │   │   ├── ledger.py          # Core ledger functionality
 │   │   └── verify.py          # Token and signature verification
 │   ├── requirements.txt
+│   └── README.md
+├── identity/                   # NEW: Identity & Auth Service
+│   ├── app/
+│   │   └── main.py            # FastAPI identity service
+│   ├── requirements.txt
+│   ├── render.yaml            # Render deployment config
+│   └── README.md
+├── mic-wallet/                 # NEW: MIC Wallet Service
+│   ├── app/
+│   │   └── main.py            # FastAPI wallet service
+│   ├── requirements.txt
+│   ├── render.yaml            # Render deployment config
+│   └── README.md
+├── mic-indexer/                # NEW: MIC Indexer (renamed from gic-indexer)
+│   ├── app/
+│   │   ├── main.py            # FastAPI indexer service
+│   │   ├── models.py          # SQLAlchemy models
+│   │   ├── schemas.py         # Pydantic schemas
+│   │   ├── storage.py         # Database storage
+│   │   └── config.py          # Configuration
+│   ├── policy.yaml            # MIC earning policy
+│   ├── requirements.txt
+│   ├── render.yaml            # Render deployment config
 │   └── README.md
 ├── lab6-proof/                 # Citizen Shield API
 │   ├── app/
@@ -42,57 +67,28 @@ civic-protocol-core/
 ├── integrations/               # Integration Components
 │   └── lab6-citizen-shield/   # Lab6 Citizen Shield Integration
 │       ├── app_routes_onboard.py
-│       ├── Lab6-CitizenShield.postman_collection.json
 │       └── README_UPDATE.md
 ├── tools/                      # Development Tools
 │   ├── scripts/               # Automation scripts
-│   │   ├── autocommit.ps1
-│   │   ├── detect-scope.sh
-│   │   ├── generate-commit-msg.sh
-│   │   ├── redaction-scan.sh
-│   │   └── start-autocommit.bat
 │   └── utilities/             # Utility tools
-│       ├── citizen-shield-ts-fix/  # TypeScript fixes
-│       ├── generate_checksum.py    # SHA-256 checksum generator
-│       └── get_lab4_token.py       # Lab4 token generator
 ├── consensus/                  # Quorum + ZEUS arbitration
 │   └── proof_of_cycle.py      # PoC consensus implementation
 ├── governance/                 # Festivals, Agora contracts
 │   └── agora.py               # Agora governance system
-├── gic-indexer/               # GIC balance computation
-│   ├── app/main.py            # FastAPI indexer service
-│   ├── policy.yaml            # Policy configuration
-│   ├── render.yaml            # Deployment config
-│   └── requirements.txt
+├── gic-indexer/               # Legacy GIC indexer (use mic-indexer)
 ├── docs/                      # Documentation
-│   ├── openapi.yaml           # Civic Ledger API specification
-│   ├── CIP-0001-template.md   # CIP template
-│   ├── CIP-0002-webhooks.md   # Sample CIP
-│   └── GENESIS_CUSTODIAN_GUIDE.md  # Genesis Event Guide
 ├── sdk/                       # Python & JavaScript SDKs
 │   ├── python/
-│   │   ├── devnode.py         # Enhanced dev node with anchoring
-│   │   ├── client.py          # Python SDK
-│   │   └── anchor.py          # Ledger anchoring helper
 │   └── js/
-│       └── index.js           # JavaScript SDK
 ├── registry/                  # Component Registry
-│   └── hello-reflection.manifest.json
 ├── examples/                  # Example Applications
-│   ├── hello-reflection-app/  # Example applications
-│   └── full-integration-example.py  # Complete flow test
-├── scripts/                   # Legacy Scripts (GitHub Actions)
-│   └── *.mjs                  # JavaScript automation scripts
+├── scripts/                   # Legacy Scripts
 ├── policies/                  # GitHub Policies
-│   └── copilot-verify.json   # Copilot verification policy
 ├── .github/                   # GitHub Workflows
-│   └── workflows/             # CI/CD workflows
 ├── start-all-services.py      # Service orchestration
 ├── docker-compose.yml         # Container orchestration
 ├── Dockerfile                 # Container definition
-├── generate_checksum.py       # SHA-256 checksum generator
-├── get_lab4_token.py          # Lab4 token generator
-├── GENESIS_CUSTODIAN_GUIDE.md # Genesis Event guide
+├── render.yaml                # Render blueprint (all services)
 └── requirements.txt           # Python dependencies
 ```
 
@@ -101,6 +97,9 @@ civic-protocol-core/
 ### Option 1: Start All Services (Recommended)
 
 ```bash
+# Install dependencies
+pip install -r requirements.txt
+
 # Start all services at once
 python start-all-services.py
 ```
@@ -108,7 +107,9 @@ python start-all-services.py
 This will start:
 * Civic Dev Node (port 5411)
 * Shield (port 7000)
-* GIC-Indexer (port 8000)
+* MIC-Indexer (port 8000)
+* Identity Service (port 8002)
+* MIC Wallet Service (port 8003)
 
 ### Option 2: Start Services Individually
 
@@ -117,12 +118,22 @@ This will start:
 python sdk/python/devnode.py
 
 # Terminal 2: Shield
-cd lab6-proof
-python app/main.py
+cd lab6-proof && python app/main.py
 
-# Terminal 3: GIC-Indexer
-cd gic-indexer
-python app/main.py
+# Terminal 3: MIC-Indexer
+cd mic-indexer && uvicorn app.main:app --port 8000
+
+# Terminal 4: Identity Service
+cd identity && uvicorn app.main:app --port 8002
+
+# Terminal 5: MIC Wallet Service
+cd mic-wallet && uvicorn app.main:app --port 8003
+```
+
+### Option 3: Docker Compose
+
+```bash
+docker-compose up -d
 ```
 
 ### Test the Integration
@@ -130,6 +141,25 @@ python app/main.py
 ```bash
 # Run the full integration test
 python examples/full-integration-example.py
+```
+
+### Test Authentication + MIC Flow
+
+```bash
+# 1. Signup
+curl -X POST http://localhost:8002/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"secret123","name":"Test User"}'
+
+# 2. Use the returned token to earn MIC
+curl -X POST http://localhost:8003/mic/earn \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"source":"oaa_tutor_question"}'
+
+# 3. Check wallet balance
+curl http://localhost:8003/mic/wallet \
+  -H "Authorization: Bearer <TOKEN>"
 ```
 
 ## Frontend Applications
@@ -203,33 +233,74 @@ console.log(await c.listReflections());
 
 ## Complete System Flow
 
-### 1. Ledger API - The Blockchain Kernel
+### 1. Identity Service - Authentication
+
+* **User Registration**: Email/password signup
+* **JWT Tokens**: Secure token-based authentication
+* **Civic ID**: Unique identifier for Civic Protocol
+* **Introspection**: Token validation for other services
+
+### 2. MIC Wallet Service - Earnings
+
+* **Wallet Management**: Per-user MIC balance tracking
+* **Earning Events**: Record MIC for civic actions
+* **MII Multiplier**: Integrity-based earning bonuses
+* **Leaderboards**: Global ranking of earners
+
+### 3. Ledger API - The Blockchain Kernel
 
 * **Central Event Store**: All civic activity anchored here
 * **Immutable Events**: Chained, verified, and permanent
 * **Token Verification**: Authenticated via Lab4/Lab6
-* **Event Types**: Reflections, companions, governance, GIC transactions
+* **Event Types**: Reflections, companions, governance, MIC transactions
 
-### 2. Lab6-Proof - Citizen Shield
+### 4. Lab6-Proof - Citizen Shield
 
 * **zkRL Verification**: Zero-knowledge rate limiting
 * **Shield Actions**: Privacy-preserving civic activities
 * **Citizen Attestations**: Verified civic contributions
 * **Auto-Anchoring**: Every action posts to Ledger API
 
-### 3. GIC Economics & Indexing
+### 5. MIC Indexer - Balance Computation
 
 * **Real-time Computation**: Balance calculation from ledger events
-* **Activity Rewards**: GIC earned for civic participation
-* **Staking System**: Governance participation incentives
+* **Activity Rewards**: MIC earned for civic participation
+* **XP to MIC Conversion**: Experience points converted to MIC
 * **Economic Policies**: Configurable reward schedules
 
-### 4. Complete Integration
+### 6. Complete Integration Flow
 
-* **Frontend** → **Lab6** → **Ledger API** → **GIC Indexer**
-* **Immutable Record**: All civic activity permanently stored
-* **Verifiable History**: Complete audit trail of civic participation
-* **Economic Incentives**: GIC rewards for civic engagement
+```
+Mobius Browser (Vercel)
+    ↓
+┌───────────────────────────────────┐
+│  Civic Protocol Core (Render)     │
+├───────────────────────────────────┤
+│ identity/     → /auth/*           │ ← Signup/Login
+│ mic-wallet/   → /mic/*            │ ← Earn MIC
+│ ledger/       → /ledger/*         │ ← Anchor events
+│ lab6-proof/   → /shield/*         │ ← Privacy actions
+│ mic-indexer/  → /supply, /balance │ ← Compute totals
+└───────────────────────────────────┘
+    ↓
+PostgreSQL Database (Render)
+```
+
+### MIC Earning Rules
+
+| Action | Base MIC |
+|--------|----------|
+| OAA Tutor Question | 1.0 |
+| OAA Tutor Session Complete | 5.0 |
+| Reflection Entry Created | 2.0 |
+| Reflection Phase Complete | 1.0 |
+| Reflection Entry Complete | 5.0 |
+| Shield Module Complete | 3.0 |
+| Shield Checklist Item | 1.0 |
+| Civic Radar Action | 2.0 |
+| Daily Login | 0.5 |
+| 7-Day Streak | 3.0 |
+| 30-Day Streak | 10.0 |
 
 ## Genesis Custodian Event
 
