@@ -5,7 +5,9 @@ Civic Protocol Core - Start All Services
 This script starts all the Civic Protocol services:
 - Civic Dev Node (port 5411)
 - Shield (port 7000)
-- GIC-Indexer (port 8000)
+- MIC-Indexer (port 8000)
+- Identity Service (port 8002)
+- MIC Wallet Service (port 8003)
 
 Run this to start the complete development environment.
 """
@@ -84,12 +86,32 @@ class ServiceManager:
         if not success:
             return False
         
-        # Start GIC-Indexer
+        # Start MIC-Indexer (renamed from GIC-Indexer)
         success = self.start_service(
-            "GIC-Indexer",
-            "python app/main.py",
+            "MIC-Indexer",
+            "python -m uvicorn app.main:app --host 0.0.0.0 --port 8000",
             8000,
-            "gic-indexer"
+            "mic-indexer"
+        )
+        if not success:
+            return False
+        
+        # Start Identity Service
+        success = self.start_service(
+            "Identity Service",
+            "python -m uvicorn app.main:app --host 0.0.0.0 --port 8002",
+            8002,
+            "identity"
+        )
+        if not success:
+            return False
+        
+        # Start MIC Wallet Service
+        success = self.start_service(
+            "MIC Wallet Service",
+            "python -m uvicorn app.main:app --host 0.0.0.0 --port 8003",
+            8003,
+            "mic-wallet"
         )
         if not success:
             return False
@@ -151,7 +173,10 @@ def check_dependencies():
         'pydantic',
         'sqlitedict',
         'python-dateutil',
-        'pyyaml'
+        'pyyaml',
+        'sqlalchemy',
+        'passlib',
+        'pyjwt'
     ]
     
     missing_packages = []
@@ -196,15 +221,23 @@ def main():
     print("\n" + "=" * 60)
     print("Service URLs:")
     print("=" * 60)
-    print("Civic Dev Node: http://localhost:5411")
-    print("Shield:         http://localhost:7000")
-    print("GIC-Indexer:    http://localhost:8000")
+    print("Civic Dev Node:     http://localhost:5411")
+    print("Shield:             http://localhost:7000")
+    print("MIC-Indexer:        http://localhost:8000")
+    print("Identity Service:   http://localhost:8002")
+    print("MIC Wallet Service: http://localhost:8003")
     print("\nAPI Documentation:")
-    print("Civic Dev Node: http://localhost:5411/docs")
-    print("Shield:         http://localhost:7000/docs")
-    print("GIC-Indexer:    http://localhost:8000/docs")
+    print("Civic Dev Node:     http://localhost:5411/docs")
+    print("Shield:             http://localhost:7000/docs")
+    print("MIC-Indexer:        http://localhost:8000/docs")
+    print("Identity Service:   http://localhost:8002/docs")
+    print("MIC Wallet Service: http://localhost:8003/docs")
     print("\nTest the integration:")
     print("python examples/full-integration-example.py")
+    print("\nAuthentication Flow:")
+    print("1. POST /auth/signup to Identity Service (8002)")
+    print("2. Use token to POST /mic/earn to MIC Wallet (8003)")
+    print("3. GET /mic/wallet to see balance")
     
     # Monitor services
     try:
@@ -214,4 +247,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

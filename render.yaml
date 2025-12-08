@@ -1,4 +1,5 @@
 services:
+  # Civic Ledger API - The Blockchain Kernel
   - type: web
     name: civic-ledger-api
     env: python
@@ -12,3 +13,58 @@ services:
         value: https://hive-api-2le8.onrender.com
       - key: LAB6_API_BASE
         value: https://lab6-proof-api.onrender.com
+
+  # MIC Indexer - Mobius Integrity Credit balance computation
+  - type: web
+    name: mic-indexer
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r mic-indexer/requirements.txt
+    startCommand: cd mic-indexer && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: LAB4_BASE
+        sync: false
+      - key: POLICY_PATH
+        value: ./policy.yaml
+      - key: INDEX_DB
+        value: ./data/index.db
+      - key: MIC_DB_URL
+        sync: false
+      - key: MIC_API_KEY
+        sync: false
+
+  # Identity Service - Authentication and identity management
+  - type: web
+    name: mobius-identity
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r identity/requirements.txt
+    startCommand: cd identity && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PORT
+        value: "8000"
+
+  # MIC Wallet Service - MIC earning and wallet management
+  - type: web
+    name: mobius-mic-wallet
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r mic-wallet/requirements.txt
+    startCommand: cd mic-wallet && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false  # Must match Identity Service SECRET_KEY
+      - key: PORT
+        value: "8000"
