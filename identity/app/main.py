@@ -21,7 +21,22 @@ import uuid
 
 # Configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./identity.db")
+
+# Handle common database URL formats
+if DATABASE_URL.startswith("https://") or DATABASE_URL.startswith("http://"):
+    # User likely set the Supabase API URL instead of the PostgreSQL connection string
+    # Extract project ref from URL for a helpful error message
+    raise ValueError(
+        f"Invalid DATABASE_URL format. You provided an HTTP(S) URL, but SQLAlchemy "
+        f"requires a PostgreSQL connection string.\n\n"
+        f"For Supabase, use the connection string from:\n"
+        f"  Project Settings > Database > Connection string\n\n"
+        f"Format: postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres\n"
+        f"Or direct: postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres"
+    )
+
 if DATABASE_URL.startswith("postgres://"):
+    # Heroku and some providers use postgres://, but SQLAlchemy requires postgresql://
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-in-production")
@@ -29,7 +44,24 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
 # Database setup
-engine = create_engine(DATABASE_URL)
+# For Supabase connection pooler (recommended for serverless):
+#   postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+# For direct Supabase connection:
+#   postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
+
+# Configure engine with connection pool settings optimized for serverless/Supabase
+engine_kwargs = {}
+if DATABASE_URL.startswith("postgresql"):
+    # PostgreSQL-specific settings for Supabase
+    engine_kwargs = {
+        "pool_size": 5,
+        "max_overflow": 10,
+        "pool_timeout": 30,
+        "pool_recycle": 300,  # Recycle connections after 5 minutes
+        "pool_pre_ping": True,  # Verify connections before use
+    }
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
