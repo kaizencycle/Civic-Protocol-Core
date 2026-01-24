@@ -1,9 +1,9 @@
 from sqlalchemy import create_engine, select, update, func
 from sqlalchemy.orm import sessionmaker
-from .config import settings
+from .config import settings, engine_kwargs
 from .models import Base, Account, Balance, Event
 
-engine = create_engine(settings.DB_URL, future=True)
+engine = create_engine(settings.DB_URL, future=True, **engine_kwargs)
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, future=True)
 
 def init_db():
