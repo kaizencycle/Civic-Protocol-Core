@@ -86,11 +86,17 @@ GET /ledger/chain
 Set these environment variables:
 
 ```bash
-# Lab4 API base URL (required)
+# Lab4 API base URL (required for lab_source lab4)
 LAB4_API_BASE=https://hive-api-2le8.onrender.com
 
-# Lab6 API base URL (optional)
+# Lab6 API base URL (optional; required for lab_source lab6)
 LAB6_API_BASE=https://your-lab6-api.com
+
+# Mobius Identity base URL (required for lab_source identity or terminal)
+# Token verification calls GET {base}/auth/introspect with the same Bearer token.
+IDENTITY_API_BASE=https://your-identity-service.onrender.com
+# Alias (either works):
+# IDENTITY_SERVICE_URL=https://your-identity-service.onrender.com
 
 # Ledger database path
 LEDGER_DB_PATH=./data/ledger.db
@@ -98,6 +104,15 @@ LEDGER_DB_PATH=./data/ledger.db
 # Enable signature verification
 VERIFY_SIGNATURES=true
 ```
+
+### `lab_source` and authentication
+
+| `lab_source` | Verifies JWT via |
+|--------------|------------------|
+| `lab4` | `LAB4_API_BASE` → `/auth/introspect` |
+| `lab6` | `LAB6_API_BASE` → `/auth/introspect` |
+| `identity` | `IDENTITY_API_BASE` or `IDENTITY_SERVICE_URL` → `/auth/introspect`; `civic_id` in the body must match the token’s `civic_id` |
+| `terminal` | Same as `identity`; allows `civic_id` values with prefix `mobius-` for agent actors while still requiring a valid Identity JWT |
 
 ## Database Schema
 

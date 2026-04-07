@@ -12,26 +12,32 @@ from fastapi import HTTPException
 import os
 
 class TokenVerifier:
-    """Handles token verification with Lab4 and Lab6"""
+    """Handles token verification with Lab4, Lab6, and Mobius Identity."""
     
-    def __init__(self, lab4_base: str, lab6_base: str = ""):
+    def __init__(self, lab4_base: str, lab6_base: str = "", identity_base: str = ""):
         self.lab4_base = lab4_base
         self.lab6_base = lab6_base
+        self.identity_base = identity_base
     
     def verify_token(self, token: str, lab_source: str) -> Dict[str, Any]:
-        """Verify token with the appropriate lab"""
+        """Verify token with the appropriate lab or identity service"""
         if lab_source == "lab4":
             api_base = self.lab4_base
         elif lab_source == "lab6":
             if not self.lab6_base:
                 raise HTTPException(400, "Lab6 API base not configured")
             api_base = self.lab6_base
+        elif lab_source in ("identity", "terminal"):
+            if not self.identity_base:
+                raise HTTPException(400, "Identity API base not configured")
+            api_base = self.identity_base
         else:
             raise HTTPException(400, f"Unknown lab source: {lab_source}")
         
+        base = api_base.rstrip("/")
         try:
             response = httpx.get(
-                f"{api_base}/auth/introspect", 
+                f"{base}/auth/introspect",
                 headers={"Authorization": f"Bearer {token}"},
                 timeout=10.0
             )
@@ -198,8 +204,12 @@ def create_verifiers() -> tuple[TokenVerifier, EventValidator, SignatureVerifier
     """Create verification components"""
     lab4_base = os.getenv("LAB4_API_BASE", "https://hive-api-2le8.onrender.com")
     lab6_base = os.getenv("LAB6_API_BASE", "")
+    identity_base = (
+        os.getenv("IDENTITY_API_BASE", "").strip()
+        or os.getenv("IDENTITY_SERVICE_URL", "").strip()
+    )
     
-    token_verifier = TokenVerifier(lab4_base, lab6_base)
+    token_verifier = TokenVerifier(lab4_base, lab6_base, identity_base)
     event_validator = EventValidator()
     signature_verifier = SignatureVerifier()
     

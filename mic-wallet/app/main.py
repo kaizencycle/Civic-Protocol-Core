@@ -150,6 +150,9 @@ EARNING_RULES = {
     # Community actions
     "community_contribution": 2.0,
     "peer_recognition": 1.0,
+    
+    # Mobius Terminal / agent EPICON ledger attest (MII scales via multiplier)
+    "agent_epicon_attest": 2.0,
 }
 
 
@@ -407,7 +410,8 @@ async def get_earning_rules():
             "shield": ["shield_module_complete", "shield_checklist_item"],
             "civic_radar": ["civic_radar_action_taken"],
             "engagement": ["daily_login", "streak_bonus_7", "streak_bonus_30"],
-            "community": ["community_contribution", "peer_recognition"]
+            "community": ["community_contribution", "peer_recognition"],
+            "terminal": ["agent_epicon_attest"],
         }
     }
 
