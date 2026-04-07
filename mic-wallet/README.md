@@ -52,6 +52,9 @@ MIC (Mobius Integrity Credit) earning and wallet management for the Mobius platf
     # Community actions
     "community_contribution": 2.0,
     "peer_recognition": 1.0,
+    
+    # Mobius Terminal agent ledger attest
+    "agent_epicon_attest": 2.0,
 }
 ```
 

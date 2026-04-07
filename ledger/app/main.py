@@ -61,6 +61,11 @@ LEDGER_DB_PATH = os.path.join(DATA_DIR, "ledger.db")
 # API Configuration
 LAB4_API_BASE = os.getenv("LAB4_API_BASE", "https://hive-api-2le8.onrender.com")
 LAB6_API_BASE = os.getenv("LAB6_API_BASE", "")
+# Mobius Identity (JWT from /auth/login) — used when lab_source is identity or terminal
+IDENTITY_API_BASE = (
+    os.getenv("IDENTITY_API_BASE", "").strip()
+    or os.getenv("IDENTITY_SERVICE_URL", "").strip()
+)
 
 print(f"Using data directory: {DATA_DIR}")
 print(f"Database path: {LEDGER_DB_PATH}")
@@ -71,7 +76,7 @@ class LedgerEvent:
     event_id: str
     event_type: str
     civic_id: str
-    lab_source: str  # "lab4" or "lab6"
+    lab_source: str  # "lab4", "lab6", "identity", or "terminal"
     payload: Dict[str, Any]
     timestamp: str
     previous_hash: str
@@ -130,22 +135,25 @@ def get_db_connection():
         raise HTTPException(500, f"Database connection failed: {str(e)}")
 
 def verify_token(token: str, lab_source: str) -> Dict[str, Any]:
-    """Verify token with the appropriate lab"""
+    """Verify Bearer token via Lab4, Lab6, or Mobius Identity introspection."""
     if lab_source == "lab4":
         api_base = LAB4_API_BASE
     elif lab_source == "lab6":
         api_base = LAB6_API_BASE
+    elif lab_source in ("identity", "terminal"):
+        api_base = IDENTITY_API_BASE
     else:
         raise HTTPException(400, f"Unknown lab source: {lab_source}")
     
     if not api_base:
         raise HTTPException(400, f"No API base configured for {lab_source}")
     
+    base = api_base.rstrip("/")
     try:
         with httpx.Client(timeout=10.0) as client:
             response = client.get(
-                f"{api_base}/auth/introspect", 
-                headers={"Authorization": f"Bearer {token}"}
+                f"{base}/auth/introspect",
+                headers={"Authorization": f"Bearer {token}"},
             )
             response.raise_for_status()
             return response.json()
@@ -153,6 +161,19 @@ def verify_token(token: str, lab_source: str) -> Dict[str, Any]:
         raise HTTPException(401, f"Token verification failed: {str(e)}")
     except Exception as e:
         raise HTTPException(500, f"Token verification error: {str(e)}")
+
+
+def _civic_id_allowed_for_lab(
+    request_civic_id: str, token_civic_id: Optional[str], lab_source: str
+) -> bool:
+    """Bind civic_id to the JWT for identity; allow synthetic mobius-* ids for terminal agents."""
+    if not token_civic_id:
+        return True
+    if request_civic_id == token_civic_id:
+        return True
+    if lab_source == "terminal" and request_civic_id.startswith("mobius-"):
+        return True
+    return False
 
 def get_latest_event_hash() -> str:
     """Get the hash of the latest event in the chain"""
@@ -250,6 +271,18 @@ def attest_event(request: AttestationRequest,
         raise
     except Exception as e:
         raise HTTPException(401, f"Token verification failed: {str(e)}")
+    
+    if request.lab_source in ("identity", "terminal"):
+        token_civic = token_data.get("civic_id")
+        if isinstance(token_civic, str) and token_civic:
+            if not _civic_id_allowed_for_lab(
+                request.civic_id, token_civic, request.lab_source
+            ):
+                raise HTTPException(
+                    403,
+                    "civic_id must match the authenticated user or use mobius- prefix "
+                    "when lab_source is terminal",
+                )
     
     # Create ledger event
     event = create_ledger_event(
