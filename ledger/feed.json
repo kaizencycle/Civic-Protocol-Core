@@ -1,5 +1,15 @@
 [
   {
+    "id": "EPICON-CPC-7c040433c6b9baabd41ff9249ced4ea37009471c",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-19T15:18:42-04:00",
+    "author": "Michael Judan",
+    "sha": "7c040433c6b9baabd41ff9249ced4ea37009471c",
+    "title": "Merge pull request #19 from kaizencycle/cursor/render-pythonpath-env-9dc6\n\nfix(render): PYTHONPATH=. so `uvicorn ledger.app.main:app` works when dashboard overrides start",
+    "source": "mesh-node",
+    "type": "mesh-commit"
+  },
+  {
     "id": "EPICON-CPC-e763b03a34cea0b8da31346985d8c48405c59bcd",
     "node_id": "civic-protocol-core",
     "timestamp": "2026-04-19T15:03:53-04:00",
