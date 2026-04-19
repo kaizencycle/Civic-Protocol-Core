@@ -13,6 +13,8 @@ services:
         value: https://hive-api-2le8.onrender.com
       - key: LAB6_API_BASE
         value: https://lab6-proof-api.onrender.com
+      - key: MOBIUS_MESH_TOKEN
+        sync: false
 
   # MIC Indexer - Mobius Integrity Credit balance computation
   - type: web

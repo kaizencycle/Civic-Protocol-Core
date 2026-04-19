@@ -13,13 +13,14 @@ from fastapi import FastAPI, HTTPException, Depends, Header
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
-import sqlite3
 import hashlib
 import json
 import os
-import tempfile
 import httpx
 from dataclasses import dataclass, asdict
+
+from ledger.app.db import DATA_DIR, LEDGER_DB_PATH, get_db_connection
+from ledger.app.routes import epicon, mesh
 
 app = FastAPI(
     title="Civic Ledger API",
@@ -27,36 +28,8 @@ app = FastAPI(
     version="0.1.0"
 )
 
-# Configuration - Use writable directories on Render
-def get_data_dir():
-    """Get a writable data directory for the current environment"""
-    # Try various writable locations in order of preference
-    possible_dirs = [
-        os.getenv("LEDGER_DATA_DIR"),  # Custom env var
-        "/tmp/ledger_data",            # Render temp directory
-        "./data",                      # Local development
-        tempfile.gettempdir() + "/ledger_data"  # System temp as fallback
-    ]
-    
-    for dir_path in possible_dirs:
-        if dir_path is None:
-            continue
-        try:
-            os.makedirs(dir_path, exist_ok=True)
-            # Test write permissions
-            test_file = os.path.join(dir_path, "test_write")
-            with open(test_file, "w") as f:
-                f.write("test")
-            os.remove(test_file)
-            return dir_path
-        except (OSError, PermissionError):
-            continue
-    
-    # If all else fails, use temp directory without subdirectory
-    return tempfile.gettempdir()
-
-DATA_DIR = get_data_dir()
-LEDGER_DB_PATH = os.path.join(DATA_DIR, "ledger.db")
+app.include_router(mesh.router)
+app.include_router(epicon.router)
 
 # API Configuration
 LAB4_API_BASE = os.getenv("LAB4_API_BASE", "https://hive-api-2le8.onrender.com")
@@ -100,39 +73,6 @@ class EventResponse(BaseModel):
     timestamp: str
     event_hash: str
     confirmed: bool
-
-def get_db_connection():
-    """Get database connection"""
-    try:
-        conn = sqlite3.connect(LEDGER_DB_PATH)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS events (
-                event_id TEXT PRIMARY KEY,
-                event_type TEXT NOT NULL,
-                civic_id TEXT NOT NULL,
-                lab_source TEXT NOT NULL,
-                payload TEXT NOT NULL,
-                timestamp TEXT NOT NULL,
-                previous_hash TEXT NOT NULL,
-                event_hash TEXT NOT NULL,
-                signature TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS identities (
-                civic_id TEXT PRIMARY KEY,
-                lab_source TEXT NOT NULL,
-                first_seen TEXT NOT NULL,
-                last_seen TEXT NOT NULL,
-                event_count INTEGER DEFAULT 0
-            )
-        """)
-        conn.commit()
-        return conn
-    except Exception as e:
-        print(f"Database connection error: {e}")
-        raise HTTPException(500, f"Database connection failed: {str(e)}")
 
 def verify_token(token: str, lab_source: str) -> Dict[str, Any]:
     """Verify Bearer token via Lab4, Lab6, or Mobius Identity introspection."""
