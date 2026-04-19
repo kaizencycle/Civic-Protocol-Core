@@ -1,81 +1,128 @@
-# Civic-Protocol-Core — MNS node declaration
-# Contributor tier: pushes to Substrate on merge, serves ledger feed
+# mobius.yaml — Mobius node declaration contract (schema v1, C-286)
+# Canon: this file declares identity, pulse, ingest, policy, and MCP surface.
+# It does not perform writes. Writers read targets from peer manifests / registry.
+
+version: "1.0"
 
 mesh:
+  enabled: true
   node_id: "civic-protocol-core"
-  node_type: "service"
+  node_name: "Civic Protocol Core"
+  tier: "ledger"
+  role: "ledger_node"
+
+  repository:
+    full_name: "kaizencycle/Civic-Protocol-Core"
+    default_branch: "main"
+
+  discovery:
+    enabled: true
+    registry_participation: true
+
+  # Optional keys retained for MNS registry / mesh-sync tooling (non-authoritative)
   substrate_ref: "kaizencycle/Mobius-Substrate"
-  version: "1.0.0"
-  tier: "contributor"
   covenant: "integrity"
   agent_affinity:
-    - ZEUS      # hash chain verification — ZEUS can attest to Postgres ledger integrity
-    - HERMES    # routing authority — HERMES routes EPICONs through this service
-  ledger:
-    enabled: true
-    backend: "render"
-    feed_url: "https://civic-protocol-core-ledger.onrender.com/epicon/feed"
-    push_to_substrate: true
-    push_endpoint: "https://civic-protocol-core-ledger.onrender.com/mesh/ingest"
-  mii:
-    track: true
-    baseline: 0.85
-  epicon:
-    intent_blocks_required: true
-    push_on_merge: true
-  mic:
-    participate: true
-    reward_type: "MIC_REWARD_V2"
-    node_role: "ledger-service"
+    - ZEUS
+    - HERMES
 
-  # ── MCP BRIDGE BLOCK ────────────────────────────────────────────────────
-  mcp:
-    enabled: true
-    server_url: "https://civic-protocol-core-ledger.onrender.com/api/mcp"
-    transport: "streamable-http"
-    schema_version: "MCP-2025-03-26"
-    integrity:
-      require_gi_above: 0.5
-      log_all_invocations: true
-      invocation_agent: "HERMES"
-      verification_agent: "ZEUS"
-      mic_reward_on_invocation: false
-    tools:
-      - name: "get_integrity_snapshot"
-        description: "GI snapshot plus ledger chain stats when GI_STATE_JSON is configured"
-        endpoint: "/api/mcp"
-        method: "POST"
-        auth: "none"
-        epicon_tag: "tool:integrity-read"
-      - name: "get_epicon_feed"
-        description: "Recent EPICON entries (local feed + ingested mesh)"
-        endpoint: "/api/mcp"
-        method: "POST"
-        auth: "none"
-        epicon_tag: "tool:ledger-read"
-      - name: "get_vault_status"
-        description: "MIC vault snapshot via VAULT_META_JSON or placeholder"
-        endpoint: "/api/mcp"
-        method: "POST"
-        auth: "none"
-        epicon_tag: "tool:vault-read"
-      - name: "get_agent_journal"
-        description: "Recent agent-oriented EPICON rows (mcp-bridge, mesh-node)"
-        endpoint: "/api/mcp"
-        method: "POST"
-        auth: "none"
-        epicon_tag: "tool:journal-read"
-      - name: "post_epicon_entry"
-        description: "Submit EPICON intent to SQLite civic ledger; GI gate 0.6"
-        endpoint: "/api/mcp"
-        method: "POST"
-        auth: "bearer"
-        auth_env: "AGENT_SERVICE_TOKEN"
-        epicon_tag: "tool:ledger-write"
-        requires_gi_above: 0.6
-      - name: "get_mic_readiness"
-        description: "MIC readiness JSON from MIC_READINESS_JSON or no_snapshot"
-        endpoint: "/api/mcp"
-        method: "POST"
-        auth: "none"
-        epicon_tag: "tool:mic-read"
+pulse:
+  enabled: true
+  health_url: "https://civic-protocol-core-ledger.onrender.com/health"
+  feed_url: "https://civic-protocol-core-ledger.onrender.com/epicon/feed"
+  snapshot_url: ""
+  freshness_sla_seconds: 900
+  integrity_weight: 1.25
+
+  lanes:
+    - ledger
+    - epicon
+    - mesh
+    - mcp
+
+  authoritative_for:
+    - ledger
+    - epicon_ingest
+    - durable_write
+
+  emits:
+    heartbeat: false
+    gi: false
+    mii: false
+    mic: false
+    vault: false
+    tripwire: false
+    anomalies: false
+
+ingest:
+  enabled: true
+  mode: "ledger_target"
+
+  write_url: "https://civic-protocol-core-ledger.onrender.com/mesh/ingest"
+  auth: "bearer"
+
+  accepts:
+    - EPICON_ENTRY_V1
+    - MIC_READINESS_V1
+    - MIC_SEAL_V1
+    - MIC_RESERVE_RECONCILIATION_V1
+    - MIC_GENESIS_BLOCK
+    - MOBIUS_PULSE_V1
+
+mcp:
+  enabled: true
+  server_url: "https://civic-protocol-core-ledger.onrender.com/api/mcp"
+  discovery_url: "https://civic-protocol-core-ledger.onrender.com/.well-known/mcp.json"
+  transport: "streamable-http"
+  schema_version: "MCP-2025-03-26"
+  integrity:
+    require_gi_above: 0.5
+    log_all_invocations: true
+    invocation_agent: "HERMES"
+    verification_agent: "ZEUS"
+    mic_reward_on_invocation: false
+  tools:
+    - name: "get_integrity_snapshot"
+      description: "GI snapshot plus ledger chain stats when GI_STATE_JSON is configured"
+      endpoint: "/api/mcp"
+      method: "POST"
+      auth: "none"
+      epicon_tag: "tool:integrity-read"
+    - name: "get_epicon_feed"
+      description: "Recent EPICON entries (local feed + ingested mesh)"
+      endpoint: "/api/mcp"
+      method: "POST"
+      auth: "none"
+      epicon_tag: "tool:ledger-read"
+    - name: "get_vault_status"
+      description: "MIC vault snapshot via VAULT_META_JSON or placeholder"
+      endpoint: "/api/mcp"
+      method: "POST"
+      auth: "none"
+      epicon_tag: "tool:vault-read"
+    - name: "get_agent_journal"
+      description: "Recent agent-oriented EPICON rows (mcp-bridge, mesh-node)"
+      endpoint: "/api/mcp"
+      method: "POST"
+      auth: "none"
+      epicon_tag: "tool:journal-read"
+    - name: "post_epicon_entry"
+      description: "Submit EPICON intent to civic ledger; GI gate 0.6"
+      endpoint: "/api/mcp"
+      method: "POST"
+      auth: "bearer"
+      auth_env: "AGENT_SERVICE_TOKEN"
+      epicon_tag: "tool:ledger-write"
+      requires_gi_above: 0.6
+    - name: "get_mic_readiness"
+      description: "MIC readiness JSON from MIC_READINESS_JSON or no_snapshot"
+      endpoint: "/api/mcp"
+      method: "POST"
+      auth: "none"
+      epicon_tag: "tool:mic-read"
+
+policy:
+  write_truth_locally: true
+  mirror_feed_to_repo: true
+  canonical_ledger_node: "civic-protocol-core"
+  hash_algorithm: "sha256"
