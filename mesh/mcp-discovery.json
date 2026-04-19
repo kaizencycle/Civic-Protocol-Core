@@ -1,0 +1,39 @@
+{
+  "schema": "MNS_MCP_DISCOVERY_V1",
+  "description": "Mobius Neural Substrate — MCP server index. Nodes with mesh.mcp.enabled publish here for Cursor and other MCP clients.",
+  "updated_at": "2026-04-19T00:00:00Z",
+  "servers": [
+    {
+      "node_id": "civic-protocol-core",
+      "server_url": "https://civic-protocol-core-ledger.onrender.com/api/mcp",
+      "transport": "streamable-http",
+      "tier": "contributor",
+      "covenant": "integrity",
+      "integrity_gate": 0.5,
+      "tools": [
+        "get_integrity_snapshot",
+        "get_epicon_feed",
+        "get_vault_status",
+        "get_agent_journal",
+        "post_epicon_entry",
+        "get_mic_readiness"
+      ],
+      "description": "Civic Ledger API — SQLite-backed attestations, EPICON feed, mesh ingest, integrity-governed MCP tools",
+      "cursor_config": {
+        "mcpServers": {
+          "mobius-civic-protocol-core": {
+            "url": "https://civic-protocol-core-ledger.onrender.com/api/mcp"
+          }
+        }
+      }
+    }
+  ],
+  "cursor_config_all": {
+    "mcpServers": {
+      "mobius-civic-protocol-core": {
+        "url": "https://civic-protocol-core-ledger.onrender.com/api/mcp"
+      }
+    }
+  },
+  "usage": "Paste cursor_config_all into Cursor mcp.json, or use a single server's cursor_config. Send MCP-Protocol-Version: 2025-03-26 (or 2025-06-18) on each POST."
+}

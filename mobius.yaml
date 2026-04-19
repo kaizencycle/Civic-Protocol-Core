@@ -27,3 +27,55 @@ mesh:
     participate: true
     reward_type: "MIC_REWARD_V2"
     node_role: "ledger-service"
+
+  # ── MCP BRIDGE BLOCK ────────────────────────────────────────────────────
+  mcp:
+    enabled: true
+    server_url: "https://civic-protocol-core-ledger.onrender.com/api/mcp"
+    transport: "streamable-http"
+    schema_version: "MCP-2025-03-26"
+    integrity:
+      require_gi_above: 0.5
+      log_all_invocations: true
+      invocation_agent: "HERMES"
+      verification_agent: "ZEUS"
+      mic_reward_on_invocation: false
+    tools:
+      - name: "get_integrity_snapshot"
+        description: "GI snapshot plus ledger chain stats when GI_STATE_JSON is configured"
+        endpoint: "/api/mcp"
+        method: "POST"
+        auth: "none"
+        epicon_tag: "tool:integrity-read"
+      - name: "get_epicon_feed"
+        description: "Recent EPICON entries (local feed + ingested mesh)"
+        endpoint: "/api/mcp"
+        method: "POST"
+        auth: "none"
+        epicon_tag: "tool:ledger-read"
+      - name: "get_vault_status"
+        description: "MIC vault snapshot via VAULT_META_JSON or placeholder"
+        endpoint: "/api/mcp"
+        method: "POST"
+        auth: "none"
+        epicon_tag: "tool:vault-read"
+      - name: "get_agent_journal"
+        description: "Recent agent-oriented EPICON rows (mcp-bridge, mesh-node)"
+        endpoint: "/api/mcp"
+        method: "POST"
+        auth: "none"
+        epicon_tag: "tool:journal-read"
+      - name: "post_epicon_entry"
+        description: "Submit EPICON intent to SQLite civic ledger; GI gate 0.6"
+        endpoint: "/api/mcp"
+        method: "POST"
+        auth: "bearer"
+        auth_env: "AGENT_SERVICE_TOKEN"
+        epicon_tag: "tool:ledger-write"
+        requires_gi_above: 0.6
+      - name: "get_mic_readiness"
+        description: "MIC readiness JSON from MIC_READINESS_JSON or no_snapshot"
+        endpoint: "/api/mcp"
+        method: "POST"
+        auth: "none"
+        epicon_tag: "tool:mic-read"

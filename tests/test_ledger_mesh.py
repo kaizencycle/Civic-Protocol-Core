@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("MOBIUS_MESH_TOKEN", "test-mesh-secret")
-os.environ["LEDGER_DATA_DIR"] = "/tmp/ledger_test_mesh"
+os.environ.setdefault("LEDGER_DATA_DIR", "/tmp/ledger_test_mesh")
 
 from ledger.app.main import app  # noqa: E402
 
