@@ -1,5 +1,15 @@
 [
   {
+    "id": "EPICON-CPC-0b658e5d334a85c2599d571d00ecc62e4390fc5e",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-19T13:59:09-04:00",
+    "author": "Michael Judan",
+    "sha": "0b658e5d334a85c2599d571d00ecc62e4390fc5e",
+    "title": "Merge pull request #15 from kaizencycle/cursor/mobius-yaml-v1-c286-9dc6\n\ndocs(mesh): mobius.yaml v1 \u2014 pulse, ingest, policy (C-286 ledger adoption)",
+    "source": "mesh-node",
+    "type": "mesh-commit"
+  },
+  {
     "id": "EPICON-CPC-c1e271c7f37082c70e731a2fe9b975fc6f70fe78",
     "node_id": "civic-protocol-core",
     "timestamp": "2026-04-19T13:28:59-04:00",
