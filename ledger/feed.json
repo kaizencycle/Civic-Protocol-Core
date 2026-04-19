@@ -1,5 +1,15 @@
 [
   {
+    "id": "EPICON-CPC-089d1ddc3437d89eb3abcbac18ad23427f4b6cfa",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-19T17:47:26-04:00",
+    "author": "Michael Judan",
+    "sha": "089d1ddc3437d89eb3abcbac18ad23427f4b6cfa",
+    "title": "Merge pull request #20 from kaizencycle/cursor/fix-base58-lazy-ipfs-9dc6\n\nfix(ledger): avoid base58 import at startup \u2014 lazy IPFS pin + root requirements",
+    "source": "mesh-node",
+    "type": "mesh-commit"
+  },
+  {
     "id": "EPICON-CPC-7c040433c6b9baabd41ff9249ced4ea37009471c",
     "node_id": "civic-protocol-core",
     "timestamp": "2026-04-19T15:18:42-04:00",
