@@ -44,6 +44,31 @@ _FEED_PATH_CANDIDATES = [
 ]
 
 
+def _ensure_mesh_ipfs_columns(conn: sqlite3.Connection) -> None:
+    """Additive IPFS index columns on mesh_entries (idempotent for SQLite)."""
+    cur = conn.execute("PRAGMA table_info(mesh_entries)")
+    existing = {row[1] for row in cur.fetchall()}
+    alters = [
+        ("ipfs_cid", "TEXT"),
+        ("content_addressed", "INTEGER NOT NULL DEFAULT 0"),
+        ("pinned_at", "TEXT"),
+        ("pin_count", "INTEGER NOT NULL DEFAULT 0"),
+    ]
+    for name, decl in alters:
+        if name in existing:
+            continue
+        try:
+            conn.execute(f"ALTER TABLE mesh_entries ADD COLUMN {name} {decl}")
+        except sqlite3.OperationalError:
+            pass
+    conn.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_mesh_entries_ipfs_cid
+        ON mesh_entries(ipfs_cid) WHERE ipfs_cid IS NOT NULL
+        """
+    )
+
+
 def ledger_feed_json_path() -> Optional[str]:
     for p in _FEED_PATH_CANDIDATES:
         if p and os.path.isfile(p):
@@ -104,6 +129,7 @@ def get_db_connection() -> sqlite3.Connection:
             CREATE INDEX IF NOT EXISTS idx_epicon_entries_source ON epicon_entries(source);
             """
         )
+        _ensure_mesh_ipfs_columns(conn)
         conn.commit()
         return conn
     except Exception as e:

@@ -11,3 +11,5 @@ python-dotenv==1.0.1
 sqlitedict==2.1.0
 python-dateutil==2.8.2
 PyYAML==6.0.1
+ipfshttpclient==0.7.0
+base58==2.1.1

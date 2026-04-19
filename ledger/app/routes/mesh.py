@@ -9,6 +9,12 @@ from typing import Any, List, Optional
 from fastapi import APIRouter, Header, HTTPException, Request
 
 from ledger.app.mesh.registry import load_mesh_registry, registry_cache_mtime_iso
+from ledger.app.db import LEDGER_DB_PATH
+from ledger.ipfs_bridge import (
+    hybrid_ipfs_enabled,
+    ipfs_ingest_async_enabled,
+    schedule_pin_mesh_entry,
+)
 
 router = APIRouter(prefix="/mesh", tags=["mesh"])
 
@@ -106,6 +112,8 @@ async def mesh_ingest(
                 )
                 if cur.rowcount == 1:
                     stored += 1
+                    if hybrid_ipfs_enabled() and ipfs_ingest_async_enabled():
+                        schedule_pin_mesh_entry(LEDGER_DB_PATH, str(eid))
             except Exception as e:
                 print(f"mesh_ingest entry error: {e}")
         conn.commit()
@@ -121,6 +129,52 @@ async def mesh_ingest(
         "stored": stored,
         "node": x_mns_node,
         "proof_hash": proof_hash,
+        "timestamp": _utc_iso(),
+    }
+
+
+@router.get("/entries/ipfs")
+async def mesh_entries_ipfs(
+    limit: int = 100,
+    offset: int = 0,
+    content_addressed: Optional[int] = None,
+):
+    """
+    List mesh rows with IPFS CIDs (for MIC indexer / sovereign sync).
+    `content_addressed=1` filters rows that have been pinned.
+    """
+    from ledger.app.db import get_db_connection
+
+    lim = max(1, min(limit, 500))
+    off = max(0, offset)
+    with get_db_connection() as conn:
+        if content_addressed == 1:
+            cur = conn.execute(
+                """
+                SELECT id, node_id, ipfs_cid, pinned_at, pin_count, timestamp
+                FROM mesh_entries
+                WHERE content_addressed = 1 AND ipfs_cid IS NOT NULL
+                ORDER BY datetime(COALESCE(pinned_at, timestamp)) DESC
+                LIMIT ? OFFSET ?
+                """,
+                (lim, off),
+            )
+        else:
+            cur = conn.execute(
+                """
+                SELECT id, node_id, ipfs_cid, pinned_at, pin_count, timestamp
+                FROM mesh_entries
+                ORDER BY datetime(timestamp) DESC
+                LIMIT ? OFFSET ?
+                """,
+                (lim, off),
+            )
+        rows = [dict(r) for r in cur.fetchall()]
+    return {
+        "ok": True,
+        "schema": "MNS_MESH_IPFS_INDEX_V1",
+        "count": len(rows),
+        "entries": rows,
         "timestamp": _utc_iso(),
     }
 

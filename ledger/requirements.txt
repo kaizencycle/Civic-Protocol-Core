@@ -3,6 +3,8 @@ uvicorn
 httpx
 pydantic
 fastapi-mcp-router>=0.3.0
+ipfshttpclient>=0.7.0,<0.8
+base58>=2.1.1
 
 
 
