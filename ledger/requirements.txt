@@ -2,6 +2,7 @@ fastapi
 uvicorn
 httpx
 pydantic
+fastapi-mcp-router>=0.3.0
 
 
 

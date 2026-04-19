@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "mesh": "kaizencycle/Mobius-Substrate",
+  "protocol": "MNS-v1",
+  "mcp_index": "https://raw.githubusercontent.com/kaizencycle/Civic-Protocol-Core/main/mesh/mcp-discovery.json",
+  "integrity_doctrine": "https://raw.githubusercontent.com/kaizencycle/Civic-Protocol-Core/main/docs/09-MESH/MNS_MCP_BRIDGE.md",
+  "servers": [
+    {
+      "node_id": "civic-protocol-core",
+      "url": "https://civic-protocol-core-ledger.onrender.com/api/mcp",
+      "transport": "streamable-http"
+    }
+  ],
+  "note": "This file is hosted on Civic-Protocol-Core for discovery of this repo’s MCP bridge. Substrate may aggregate multiple nodes into a combined mcp_index. Tool invocations can be logged to EPICON when mesh.mcp.integrity.log_all_invocations is true."
+}

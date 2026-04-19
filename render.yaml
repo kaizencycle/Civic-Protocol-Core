@@ -15,6 +15,10 @@ services:
         value: https://lab6-proof-api.onrender.com
       - key: MOBIUS_MESH_TOKEN
         sync: false
+      - key: AGENT_SERVICE_TOKEN
+        sync: false
+      - key: GI_STATE_JSON
+        sync: false
 
   # MIC Indexer - Mobius Integrity Credit balance computation
   - type: web

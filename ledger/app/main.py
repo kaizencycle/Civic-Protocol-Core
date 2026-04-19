@@ -9,6 +9,8 @@ Every reflection, shield action, companion event, and governance decision
 gets anchored here as an immutable event in the ledger.
 """
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException, Depends, Header
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
@@ -21,15 +23,25 @@ from dataclasses import dataclass, asdict
 
 from ledger.app.db import DATA_DIR, LEDGER_DB_PATH, get_db_connection
 from ledger.app.routes import epicon, mesh
+from ledger.app.routes import mcp_tools
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    yield
+    await mcp_tools.mcp.shutdown()
+
 
 app = FastAPI(
     title="Civic Ledger API",
     description="The blockchain kernel for Civic Protocol - immutable event anchoring",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=_lifespan,
 )
 
 app.include_router(mesh.router)
 app.include_router(epicon.router)
+app.include_router(mcp_tools.mcp, prefix="/api/mcp")
 
 # API Configuration
 LAB4_API_BASE = os.getenv("LAB4_API_BASE", "https://hive-api-2le8.onrender.com")
