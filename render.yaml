@@ -7,6 +7,10 @@ services:
     startCommand: python3 scripts/render_start_ledger.py
     healthCheckPath: /health
     envVars:
+      # Ensures `import ledger` works when Start Command is overridden to
+      # `uvicorn ledger.app.main:app` (cwd may not be the repo root).
+      - key: PYTHONPATH
+        value: .
       - key: LEDGER_DATA_DIR
         value: /tmp/ledger_data
       - key: LAB4_API_BASE
