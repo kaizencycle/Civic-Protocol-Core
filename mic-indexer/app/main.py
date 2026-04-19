@@ -13,6 +13,11 @@ from .schemas import HealthOut, IngestEvent, BalanceOut, SupplyOut, EventOut
 from .models import Balance, Event, Account
 from sqlalchemy import select, desc
 
+try:
+    import ipfs_sync
+except ImportError:
+    ipfs_sync = None
+
 LAB4 = os.getenv("LAB4_BASE", "").rstrip("/")
 POLICY_PATH = os.getenv("POLICY_PATH", "./policy.yaml")
 INDEX_DB_PATH = os.getenv("INDEX_DB", "./data/index.db")
@@ -293,6 +298,22 @@ def ingest_event(body: IngestEvent, _: str = Depends(verify_api_key)):
         apply_event(db, body.kind, body.amount, body.unit, body.actor, body.target, body.meta)
         db.commit()
     return {"ok": True, "event": body.model_dump()}
+
+
+@app.post("/ipfs/sync")
+def ipfs_sync_from_ledger(_: str = Depends(verify_api_key)):
+    """
+    Pull CID index from Civic Ledger `GET /mesh/entries/ipfs` into local SqliteDict.
+    Requires LEDGER_MESH_IPFS_URL (see docker-compose.sovereign.yml).
+    """
+    if ipfs_sync is None:
+        raise HTTPException(status_code=501, detail="ipfs_sync module unavailable")
+    try:
+        n = ipfs_sync.sync_cids_to_local_index(INDEX_DB_PATH, limit=500)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+    return {"ok": True, "indexed_rows": n}
+
 
 if __name__ == "__main__":
     import uvicorn

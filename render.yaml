@@ -19,6 +19,12 @@ services:
         sync: false
       - key: GI_STATE_JSON
         sync: false
+      - key: HYBRID_LEDGER_MODE
+        sync: false
+      - key: IPFS_API_ADDR
+        sync: false
+      - key: IPFS_PIN_ON_INGEST
+        value: "true"
 
   # MIC Indexer - Mobius Integrity Credit balance computation
   - type: web
@@ -31,6 +37,10 @@ services:
     healthCheckPath: /health
     envVars:
       - key: LAB4_BASE
+        sync: false
+      - key: LEDGER_MESH_IPFS_URL
+        sync: false
+      - key: IPFS_API_ADDR
         sync: false
       - key: POLICY_PATH
         value: ./policy.yaml

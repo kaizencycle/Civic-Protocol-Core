@@ -1,0 +1,64 @@
+# Sovereign / hybrid profile — Kubo IPFS + Civic Ledger (optional local stack)
+# Usage: docker compose -f docker-compose.sovereign.yml --profile sovereign up -d
+#
+# Ledger listens on host port 8800; IPFS API on 5001. Set MOBIUS_MESH_TOKEN and
+# call POST /mesh/ingest to populate rows; HYBRID_LEDGER_MODE pins each new row to IPFS.
+
+version: "3.8"
+
+services:
+  ipfs:
+    image: ipfs/kubo:v0.29.0
+    profiles: ["sovereign"]
+    ports:
+      - "5001:5001"
+    volumes:
+      - ipfs_sovereign_data:/data/ipfs
+    environment:
+      - IPFS_PROFILE=server
+
+  civic-ledger-sovereign:
+    image: python:3.12-slim
+    profiles: ["sovereign"]
+    working_dir: /app
+    volumes:
+      - .:/app
+      - ledger_sovereign_data:/data/ledger
+    ports:
+      - "8800:8000"
+    environment:
+      - PYTHONPATH=/app
+      - LEDGER_DATA_DIR=/data/ledger
+      - HYBRID_LEDGER_MODE=true
+      - IPFS_API_ADDR=http://ipfs:5001
+      - IPFS_PIN_ON_INGEST=true
+    command: >-
+      bash -c "pip install --no-cache-dir -q -r ledger/requirements.txt
+      && uvicorn ledger.app.main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      - ipfs
+
+  mic-indexer-sovereign:
+    image: python:3.12-slim
+    profiles: ["sovereign"]
+    working_dir: /app/mic-indexer
+    volumes:
+      - .:/app
+      - mic_indexer_sovereign_data:/app/mic-indexer/data
+    ports:
+      - "8801:8000"
+    environment:
+      - PYTHONPATH=/app/mic-indexer:/app
+      - INDEX_DB=/app/mic-indexer/data/index.db
+      - LEDGER_MESH_IPFS_URL=http://civic-ledger-sovereign:8000/mesh/entries/ipfs
+      - LAB4_BASE=
+    command: >-
+      bash -c "pip install --no-cache-dir -q -r requirements.txt
+      && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    depends_on:
+      - civic-ledger-sovereign
+
+volumes:
+  ipfs_sovereign_data:
+  ledger_sovereign_data:
+  mic_indexer_sovereign_data:
