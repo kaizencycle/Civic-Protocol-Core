@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "id": "EPICON-CPC-a93c5f2c7540cf57465cfc9b1f2df3ae23d9dfc3",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-19T11:36:43-04:00",
+    "author": "Michael Judan",
+    "sha": "a93c5f2c7540cf57465cfc9b1f2df3ae23d9dfc3",
+    "title": "Merge pull request #12 from kaizencycle/cursor/c-286-mns-mesh-9dc6\n\nfeat(mesh): MNS node registration \u2014 mobius.yaml, ledger/feed.json, POST /mesh/ingest",
+    "source": "mesh-node",
+    "type": "mesh-commit"
+  }
+]
