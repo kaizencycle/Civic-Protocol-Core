@@ -11,13 +11,27 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from ledger.app.mesh.registry import load_mesh_registry, registry_cache_mtime_iso
 from ledger.app.db import LEDGER_DB_PATH
 from ledger.app.routes.oaa_memory import persist_oaa_entries_from_body
-from ledger.ipfs_bridge import (
-    hybrid_ipfs_enabled,
-    ipfs_ingest_async_enabled,
-    schedule_pin_mesh_entry,
-)
 
 router = APIRouter(prefix="/mesh", tags=["mesh"])
+
+
+def _hybrid_ipfs_enabled() -> bool:
+    """Mirror ledger.ipfs_bridge.hybrid_ipfs_enabled without importing ipfs_bridge at startup."""
+    return os.getenv("HYBRID_LEDGER_MODE", "").lower() in ("1", "true", "yes")
+
+
+def _ipfs_pin_on_ingest() -> bool:
+    """Mirror ledger.ipfs_bridge.ipfs_ingest_async_enabled."""
+    return os.getenv("IPFS_PIN_ON_INGEST", "true").lower() in ("1", "true", "yes")
+
+
+def _schedule_pin_if_hybrid(entry_id: str) -> None:
+    """Lazy import: avoids base58/ipfshttpclient when hybrid IPFS is off (e.g. Render)."""
+    if not _hybrid_ipfs_enabled() or not _ipfs_pin_on_ingest():
+        return
+    from ledger.ipfs_bridge import schedule_pin_mesh_entry
+
+    schedule_pin_mesh_entry(LEDGER_DB_PATH, entry_id)
 
 
 def _mesh_token_expected() -> str:
@@ -135,8 +149,7 @@ async def mesh_ingest(
                 )
                 if cur.rowcount == 1:
                     stored += 1
-                    if hybrid_ipfs_enabled() and ipfs_ingest_async_enabled():
-                        schedule_pin_mesh_entry(LEDGER_DB_PATH, str(eid))
+                    _schedule_pin_if_hybrid(str(eid))
             except Exception as e:
                 print(f"mesh_ingest entry error: {e}")
         conn.commit()
