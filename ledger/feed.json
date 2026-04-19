@@ -1,5 +1,15 @@
 [
   {
+    "id": "EPICON-CPC-be23fd991525f879c20332d0cfc4d4f5ea274a03",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-19T12:00:29-04:00",
+    "author": "Michael Judan",
+    "sha": "be23fd991525f879c20332d0cfc4d4f5ea274a03",
+    "title": "Merge pull request #13 from kaizencycle/cursor/c-286-mcp-bridge-9dc6",
+    "source": "mesh-node",
+    "type": "mesh-commit"
+  },
+  {
     "id": "EPICON-CPC-a93c5f2c7540cf57465cfc9b1f2df3ae23d9dfc3",
     "node_id": "civic-protocol-core",
     "timestamp": "2026-04-19T11:36:43-04:00",
