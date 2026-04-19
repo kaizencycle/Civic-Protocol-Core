@@ -1,5 +1,15 @@
 [
   {
+    "id": "EPICON-CPC-03dc9faa32ced0f067f5d35d8a07a242017fde8a",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-19T14:57:48-04:00",
+    "author": "Michael Judan",
+    "sha": "03dc9faa32ced0f067f5d35d8a07a242017fde8a",
+    "title": "Merge pull request #17 from kaizencycle/cursor/render-ledger-pythonpath-9dc6\n\nfix(render): resolve ModuleNotFoundError: ledger on Civic Ledger deploy",
+    "source": "mesh-node",
+    "type": "mesh-commit"
+  },
+  {
     "id": "EPICON-CPC-c3b70714092796d165bb55dc3a8c218e8ed1a72c",
     "node_id": "civic-protocol-core",
     "timestamp": "2026-04-19T14:40:20-04:00",
