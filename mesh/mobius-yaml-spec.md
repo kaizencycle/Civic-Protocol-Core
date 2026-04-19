@@ -75,6 +75,7 @@ Legacy manifests nested everything under `mesh:` only. **v1** uses **top-level**
 
 ### Payload vocabulary (v1)
 
+- `OAA_MEMORY_ENTRY_V1` — OAA journal line sealed on the ledger (`POST /api/oaa/memory` or `POST /mesh/ingest` as `oaa-api-library`)
 - `EPICON_ENTRY_V1`
 - `MIC_READINESS_V1`
 - `MIC_SEAL_V1`

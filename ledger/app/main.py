@@ -22,7 +22,7 @@ import httpx
 from dataclasses import dataclass, asdict
 
 from ledger.app.db import DATA_DIR, LEDGER_DB_PATH, get_db_connection
-from ledger.app.routes import epicon, mesh
+from ledger.app.routes import epicon, mesh, oaa_memory
 from ledger.app.routes import mcp_tools
 
 
@@ -41,6 +41,7 @@ app = FastAPI(
 
 app.include_router(mesh.router)
 app.include_router(epicon.router)
+app.include_router(oaa_memory.router, prefix="/api")
 app.include_router(mcp_tools.mcp, prefix="/api/mcp")
 
 # API Configuration
