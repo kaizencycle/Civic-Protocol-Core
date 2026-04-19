@@ -1,5 +1,15 @@
 [
   {
+    "id": "EPICON-CPC-c3b70714092796d165bb55dc3a8c218e8ed1a72c",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-19T14:40:20-04:00",
+    "author": "Michael Judan",
+    "sha": "c3b70714092796d165bb55dc3a8c218e8ed1a72c",
+    "title": "Merge pull request #16 from kaizencycle/cursor/c286-oaa-proof-ingest-9dc6",
+    "source": "mesh-node",
+    "type": "mesh-commit"
+  },
+  {
     "id": "EPICON-CPC-0b658e5d334a85c2599d571d00ecc62e4390fc5e",
     "node_id": "civic-protocol-core",
     "timestamp": "2026-04-19T13:59:09-04:00",
