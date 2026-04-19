@@ -10,6 +10,7 @@ from fastapi import APIRouter, Header, HTTPException, Request
 
 from ledger.app.mesh.registry import load_mesh_registry, registry_cache_mtime_iso
 from ledger.app.db import LEDGER_DB_PATH
+from ledger.app.routes.oaa_memory import persist_oaa_entries_from_body
 from ledger.ipfs_bridge import (
     hybrid_ipfs_enabled,
     ipfs_ingest_async_enabled,
@@ -51,7 +52,10 @@ async def mesh_ingest(
         (n for n in registry.get("nodes", []) if n.get("node_id") == x_mns_node),
         None,
     )
-    if fetch_ok and not node:
+    # OAA journal forwarder may not appear in Substrate registry yet
+    if x_mns_node == "oaa-api-library":
+        node = node or {"tier": "service"}
+    elif fetch_ok and not node:
         raise HTTPException(
             status_code=403, detail=f"node_not_registered: {x_mns_node}"
         )
@@ -78,10 +82,29 @@ async def mesh_ingest(
     stored = 0
     capped = entries[:100]
 
+    oaa_batch: List[dict] = []
+    mesh_batch: List[dict] = []
+    for entry in capped:
+        if not isinstance(entry, dict):
+            continue
+        ptype = entry.get("type") or entry.get("payload_type")
+        if ptype == "OAA_MEMORY_ENTRY_V1":
+            oaa_batch.append(entry)
+        else:
+            mesh_batch.append(entry)
+
+    oaa_result: dict = {"stored": 0, "duplicates": 0, "errors": []}
+    if oaa_batch:
+        if x_mns_node != "oaa-api-library":
+            raise HTTPException(
+                status_code=400,
+                detail="OAA_MEMORY_ENTRY_V1 requires X-MNS-Node: oaa-api-library",
+            )
+        oaa_result = persist_oaa_entries_from_body(oaa_batch, source="oaa-api-library")
+        stored += int(oaa_result.get("stored", 0))
+
     with get_db_connection() as conn:
-        for entry in capped:
-            if not isinstance(entry, dict):
-                continue
+        for entry in mesh_batch:
             eid = entry.get("id") or generate_id(entry)
             ts = entry.get("timestamp") or _utc_iso()
             title = entry.get("title", "")
@@ -119,11 +142,17 @@ async def mesh_ingest(
         conn.commit()
 
     proof_input = json.dumps(
-        {"node": x_mns_node, "count": stored, "at": _utc_iso()}, sort_keys=True
+        {
+            "node": x_mns_node,
+            "count": stored,
+            "oaa": oaa_result,
+            "at": _utc_iso(),
+        },
+        sort_keys=True,
     )
     proof_hash = hashlib.sha256(proof_input.encode()).hexdigest()
 
-    return {
+    out: dict = {
         "ok": True,
         "received": len(entries),
         "stored": stored,
@@ -131,6 +160,9 @@ async def mesh_ingest(
         "proof_hash": proof_hash,
         "timestamp": _utc_iso(),
     }
+    if oaa_batch:
+        out["oaa_memory"] = oaa_result
+    return out
 
 
 @router.get("/entries/ipfs")

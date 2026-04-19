@@ -62,6 +62,7 @@ ingest:
   auth: "bearer"
 
   accepts:
+    - OAA_MEMORY_ENTRY_V1
     - EPICON_ENTRY_V1
     - MIC_READINESS_V1
     - MIC_SEAL_V1
