@@ -4,7 +4,7 @@ services:
     name: civic-ledger-api
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn ledger.app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn asgi:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: LEDGER_DATA_DIR
