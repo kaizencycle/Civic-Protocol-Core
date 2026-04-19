@@ -1,0 +1,63 @@
+name: MNS Mesh Sync (Civic-Protocol-Core)
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  mesh-sync:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build EPICON entry and update ledger/feed.json
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          HEAD_TIMESTAMP: ${{ github.event.head_commit.timestamp }}
+          HEAD_AUTHOR: ${{ github.event.head_commit.author.name }}
+          HEAD_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          mkdir -p ledger
+          [ -f ledger/feed.json ] || echo "[]" > ledger/feed.json
+          python3 << 'PY'
+          import json
+          import os
+
+          with open("ledger/feed.json", encoding="utf-8") as f:
+              feed = json.load(f)
+          entry = {
+              "id": f"EPICON-CPC-{os.environ['GITHUB_SHA']}",
+              "node_id": "civic-protocol-core",
+              "timestamp": os.environ.get("HEAD_TIMESTAMP", ""),
+              "author": os.environ.get("HEAD_AUTHOR", ""),
+              "sha": os.environ["GITHUB_SHA"],
+              "title": os.environ.get("HEAD_MESSAGE", ""),
+              "source": "mesh-node",
+              "type": "mesh-commit",
+          }
+          feed.insert(0, entry)
+          del feed[100:]
+          with open("ledger/feed.json", "w", encoding="utf-8") as f:
+              json.dump(feed, f, indent=2)
+              f.write("\n")
+          PY
+
+      - name: Commit ledger update
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "mobius-bot"
+          git config user.email "bot@mobius.substrate"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git add ledger/feed.json
+          if git diff --staged --quiet; then
+            echo "No feed changes"
+          else
+            git commit -m "chore(ledger): mesh sync [skip ci]"
+            git push
+          fi
