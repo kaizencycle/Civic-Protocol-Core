@@ -34,7 +34,7 @@ services:
       - IPFS_PIN_ON_INGEST=true
     command: >-
       bash -c "pip install --no-cache-dir -q -r ledger/requirements.txt
-      && uvicorn asgi:app --host 0.0.0.0 --port 8000"
+      && python3 scripts/render_start_ledger.py"
     depends_on:
       - ipfs
 
