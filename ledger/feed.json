@@ -1,5 +1,15 @@
 [
   {
+    "id": "EPICON-CPC-c1e271c7f37082c70e731a2fe9b975fc6f70fe78",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-19T13:28:59-04:00",
+    "author": "Michael Judan",
+    "sha": "c1e271c7f37082c70e731a2fe9b975fc6f70fe78",
+    "title": "Merge pull request #14 from kaizencycle/cursor/decentralization-phase1-9dc6\n\nfeat(decentralization): Phase 1 IPFS hybrid bridge \u2014 mesh CIDs, indexer sync, sovereign compose",
+    "source": "mesh-node",
+    "type": "mesh-commit"
+  },
+  {
     "id": "EPICON-CPC-be23fd991525f879c20332d0cfc4d4f5ea274a03",
     "node_id": "civic-protocol-core",
     "timestamp": "2026-04-19T12:00:29-04:00",
