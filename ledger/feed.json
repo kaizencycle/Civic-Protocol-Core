@@ -1,5 +1,15 @@
 [
   {
+    "id": "EPICON-CPC-8bc407679272766b625615b1b1b218f666b24079",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-20T13:06:17-04:00",
+    "author": "Michael Judan",
+    "sha": "8bc407679272766b625615b1b1b218f666b24079",
+    "title": "Merge pull request #22 from kaizencycle/cursor/c287-mesh-workflow-hive-9dc6\n\nfeat(mesh): C-287 HIVE mesh workflow \u2014 jobs, governance, ledger pulse snapshot",
+    "source": "mesh-node",
+    "type": "mesh-commit"
+  },
+  {
     "id": "EPICON-CPC-039bb6886637b0c9dc60de9ed54b7c489fd54eb3",
     "node_id": "civic-protocol-core",
     "timestamp": "2026-04-19T20:30:55-04:00",
