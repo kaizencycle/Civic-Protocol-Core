@@ -6,10 +6,9 @@ import hashlib
 import json
 import os
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, TypeVar
 
-from fastapi_mcp_router import MCPRouter
-from fastapi_mcp_router.types import ServerInfo
+from fastapi import APIRouter
 
 from ledger.app.db import get_db_connection, sync_ledger_feed_json_to_epicon_entries
 from ledger.app.mcp_integrity import (
@@ -17,6 +16,41 @@ from ledger.app.mcp_integrity import (
     load_gi_state,
     log_mcp_invocation,
 )
+
+F = TypeVar("F", bound=Callable[..., Any])
+
+try:
+    from fastapi_mcp_router import MCPRouter as _MCPRouter
+    from fastapi_mcp_router.types import ServerInfo
+
+    MCPRouter = _MCPRouter  # type: ignore[misc,assignment]
+    _MCP_ROUTER_AVAILABLE = True
+except ImportError:  # pragma: no cover - exercised when optional dep missing on host
+    _MCP_ROUTER_AVAILABLE = False
+
+    class MCPRouter(APIRouter):
+        """Fallback when fastapi-mcp-router is not installed (ledger still boots)."""
+
+        def __init__(self, **kwargs: Any) -> None:
+            super().__init__(tags=["mcp"])
+
+        def tool(
+            self,
+            name: str | None = None,
+            description: str | None = None,
+            input_schema: dict[str, object] | None = None,
+            annotations: dict[str, object] | None = None,
+        ) -> Callable[[F], F]:
+            def decorator(func: F) -> F:
+                return func
+
+            return decorator
+
+        async def shutdown(self) -> None:
+            return None
+
+    ServerInfo = dict  # type: ignore[misc,assignment]
+
 
 async def _public_mcp_auth(api_key: str | None, bearer_token: str | None) -> bool:
     """Allow public MCP tools; GI / write gates are enforced inside tools."""
@@ -382,3 +416,24 @@ async def get_mic_readiness() -> str:
         body = {"ok": False, "error": "no_snapshot"}
     _maybe_log("get_mic_readiness", {}, bool(raw), gate.gi)
     return json.dumps(body, indent=2)
+
+
+def register_mcp_status_route() -> None:
+    """When MCP stack is stubbed, expose a clear JSON at /api/mcp."""
+    if _MCP_ROUTER_AVAILABLE:
+        return
+
+    async def mcp_unavailable_stub() -> Dict[str, Any]:
+        return {
+            "ok": False,
+            "error": "mcp_router_unavailable",
+            "message": (
+                "Install PyPI package fastapi-mcp-router (import name fastapi_mcp_router) "
+                "or use a build that runs: pip install -r ledger/requirements.txt"
+            ),
+        }
+
+    mcp.add_api_route("", mcp_unavailable_stub, methods=["GET", "POST", "DELETE"])
+
+
+register_mcp_status_route()

@@ -3,7 +3,9 @@ services:
   - type: web
     name: civic-ledger-api
     env: python
+    # Ledger deps live in ledger/requirements.txt; root requirements.txt also lists them for single-pip installs.
     buildCommand: pip install -r requirements.txt && pip install -r ledger/requirements.txt
+    # Clear dashboard "Start Command" so this runs; override may use: uvicorn ledger.app.main:app --host 0.0.0.0 --port $PORT (no trailing dot on host).
     startCommand: python3 scripts/render_start_ledger.py
     healthCheckPath: /health
     envVars:
