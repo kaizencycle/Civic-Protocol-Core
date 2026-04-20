@@ -1,5 +1,15 @@
 [
   {
+    "id": "EPICON-CPC-039bb6886637b0c9dc60de9ed54b7c489fd54eb3",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-19T20:30:55-04:00",
+    "author": "Michael Judan",
+    "sha": "039bb6886637b0c9dc60de9ed54b7c489fd54eb3",
+    "title": "Merge pull request #21 from kaizencycle/cursor/fix-mcp-router-render-9dc6\n\nfix(ledger): fastapi-mcp-router in root requirements + optional MCP fallback for Render",
+    "source": "mesh-node",
+    "type": "mesh-commit"
+  },
+  {
     "id": "EPICON-CPC-089d1ddc3437d89eb3abcbac18ad23427f4b6cfa",
     "node_id": "civic-protocol-core",
     "timestamp": "2026-04-19T17:47:26-04:00",
