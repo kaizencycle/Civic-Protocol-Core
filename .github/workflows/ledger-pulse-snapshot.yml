@@ -1,0 +1,84 @@
+# C-287 / C-288 — Mesh execution fabric (ledger node): snapshot public pulse inputs
+# Declared in mobius.yaml → jobs.workflows[]. Declares no writes to remote services;
+# only commits a JSON artifact for Substrate / HIVE / browser-shell consumers.
+
+name: Ledger Pulse Snapshot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 */1 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ledger-pulse-snapshot
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    env:
+      # Optional repo variable LEDGER_PUBLIC_URL; Python falls back to Render default.
+      LEDGER_PUBLIC_URL: ${{ vars.LEDGER_PUBLIC_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch health and EPICON feed head
+        run: |
+          set -e
+          mkdir -p ledger
+          python3 << 'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+          from datetime import datetime, timezone
+
+          base = (
+              os.environ.get("LEDGER_PUBLIC_URL") or ""
+          ).strip() or "https://civic-protocol-core-ledger.onrender.com"
+          base = base.rstrip("/")
+
+          def get_json(url: str):
+              req = urllib.request.Request(url, headers={"User-Agent": "mobius-ledger-pulse-snapshot/1.0"})
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as r:
+                      return json.loads(r.read().decode())
+              except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
+                  return {"ok": False, "error": str(e), "url": url}
+
+          health = get_json(f"{base}/health")
+          feed = get_json(f"{base}/epicon/feed?limit=10")
+
+          out = {
+              "schema": "MNS_LEDGER_PULSE_SNAPSHOT_V1",
+              "node_id": "civic-protocol-core",
+              "captured_at": datetime.now(timezone.utc).isoformat(),
+              "ledger_base_url": base,
+              "health": health,
+              "epicon_feed": feed,
+          }
+          path = "ledger/mesh-pulse-snapshot.json"
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(out, f, indent=2)
+              f.write("\n")
+          print("Wrote", path)
+          PY
+
+      - name: Commit snapshot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "mobius-bot"
+          git config user.email "bot@mobius.substrate"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git add ledger/mesh-pulse-snapshot.json
+          if git diff --staged --quiet; then
+            echo "No snapshot changes"
+          else
+            git commit -m "chore(ledger): mesh pulse snapshot [skip ci]"
+            git push
+          fi

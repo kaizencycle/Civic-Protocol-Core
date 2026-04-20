@@ -122,6 +122,27 @@ mcp:
       auth: "none"
       epicon_tag: "tool:mic-read"
 
+# C-287 / C-288 — Mesh execution fabric (declared jobs; GitHub Actions is the runner)
+jobs:
+  enabled: true
+  workflows:
+    - id: "ledger-pulse-snapshot"
+      file: ".github/workflows/ledger-pulse-snapshot.yml"
+      trigger: "schedule"
+      cron: "15 */1 * * *"
+    - id: "ledger-mesh-feed-on-push"
+      file: ".github/workflows/mesh-sync.yml"
+      trigger: "push"
+      branches: ["main"]
+
+# Agent / Sentinel governance for repo changes (merge policy is human + branch protection)
+governance:
+  agent_prs_allowed: true
+  auto_merge_allowed: false
+  required_reviewers:
+    - "ZEUS"
+    - "ATLAS"
+
 policy:
   write_truth_locally: true
   mirror_feed_to_repo: true

@@ -11,6 +11,8 @@
 | `pulse` | What the node exposes for health / feeds / aggregation |
 | `ingest` | What payloads it accepts or where it forwards writes |
 | `mcp` | Optional MCP bridge (tools, URLs, integrity hints) |
+| `jobs` | **C-287+** — Declared GitHub Actions workflows (id, file, trigger, cron) |
+| `governance` | **C-287+** — Agent PR policy (`agent_prs_allowed`, `auto_merge_allowed`, `required_reviewers`) |
 | `policy` | Trust boundaries: canonical ledger, hashing, mirroring |
 
 Legacy manifests nested everything under `mesh:` only. **v1** uses **top-level** `pulse`, `ingest`, `mcp`, and `policy` for clarity. Older keys may remain under `mesh` for backward compatibility (e.g. `substrate_ref`, `agent_affinity`).
@@ -113,6 +115,29 @@ See also `docs/09-MESH/MNS_MCP_BRIDGE.md` and `mesh/mcp-discovery.json`.
 | `mirror_feed_to_repo` | Whether `ledger/feed.json` (or equivalent) is mirrored in git |
 | `canonical_ledger_node` | `node_id` of the durable ledger |
 | `hash_algorithm` | e.g. `sha256` for pre-ingest payload hashing |
+
+---
+
+## `jobs` (C-287 / mesh execution fabric)
+
+| Field | Description |
+|-------|-------------|
+| `jobs.enabled` | Whether this repo lists automated workflows in `mobius.yaml` |
+| `jobs.workflows[]` | Each item: `id`, `file` (path to `.github/workflows/*.yml`), `trigger` (`schedule` \| `push` \| `workflow_dispatch`), optional `cron`, optional `branches` |
+
+**Canon:** `mobius.yaml` does not run jobs — it **names** them; GitHub Actions executes the referenced files.
+
+Full mesh + HIVE loop doctrine: `docs/09-MESH/MNS_MESH_WORKFLOW_HIVE.md`.
+
+---
+
+## `governance` (C-287 / agent-built world updates)
+
+| Field | Description |
+|-------|-------------|
+| `agent_prs_allowed` | Sentinel / agents may open PRs with generated content |
+| `auto_merge_allowed` | Should be `false` for integrity — merges require review |
+| `required_reviewers` | Sentinel labels (ZEUS, ATLAS, …) — pair with branch protection |
 
 ---
 
