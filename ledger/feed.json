@@ -1,5 +1,15 @@
 [
   {
+    "id": "EPICON-CPC-d1ba1e61e96166a621e70c77606861571035b810",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-23T21:04:55-04:00",
+    "author": "Michael Judan",
+    "sha": "d1ba1e61e96166a621e70c77606861571035b810",
+    "title": "Merge pull request #23 from kaizencycle/codex/fix-seal-reconciliation-and-add-re-attestation-flow\n\nfix(seal): reconcile quarantined first seal and add re-attestation flow",
+    "source": "mesh-node",
+    "type": "mesh-commit"
+  },
+  {
     "id": "EPICON-CPC-8bc407679272766b625615b1b1b218f666b24079",
     "node_id": "civic-protocol-core",
     "timestamp": "2026-04-20T13:06:17-04:00",
