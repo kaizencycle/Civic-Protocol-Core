@@ -1,8 +1,8 @@
-# mobius.yaml — Mobius node declaration contract (schema v1, C-286)
-# Canon: this file declares identity, pulse, ingest, policy, and MCP surface.
+# mobius.yaml — Mobius node declaration contract (schema v1.1, C-292)
+# Canon: this file declares identity, pulse, ingest, proof policy, and MCP surface.
 # It does not perform writes. Writers read targets from peer manifests / registry.
 
-version: "1.0"
+version: "1.1"
 
 mesh:
   enabled: true
@@ -19,12 +19,19 @@ mesh:
     enabled: true
     registry_participation: true
 
-  # Optional keys retained for MNS registry / mesh-sync tooling (non-authoritative)
+  civic_mesh:
+    phase: 2
+    role: "proof_spine"
+    upstream_memory: "kaizencycle/Mobius-Substrate"
+    upstream_pulse: "kaizencycle/mobius-civic-ai-terminal"
+    canon: "Ledger proves selectively. It does not store the whole river."
+
   substrate_ref: "kaizencycle/Mobius-Substrate"
   covenant: "integrity"
   agent_affinity:
     - ZEUS
     - HERMES
+    - JADE
 
 pulse:
   enabled: true
@@ -33,18 +40,17 @@ pulse:
   snapshot_url: ""
   freshness_sla_seconds: 900
   integrity_weight: 1.25
-
   lanes:
     - ledger
     - epicon
     - mesh
     - mcp
-
+    - proof
   authoritative_for:
     - ledger
     - epicon_ingest
     - durable_write
-
+    - proof_attestation
   emits:
     heartbeat: false
     gi: false
@@ -53,14 +59,37 @@ pulse:
     vault: false
     tripwire: false
     anomalies: false
+    proof: true
 
 ingest:
   enabled: true
   mode: "ledger_target"
-
   write_url: "https://civic-protocol-core-ledger.onrender.com/mesh/ingest"
   auth: "bearer"
-
+  idempotency:
+    required: true
+    key_fields:
+      - node_id
+      - event_type
+      - cycle
+      - source_hash
+      - workflow_id
+    duplicate_policy: "ignore_existing_key"
+  proof_policy:
+    accept_only_proof_worthy: true
+    terminal_hot_rows_direct_to_ledger: false
+    substrate_memory_required_for_bulk_journals: true
+    proof_worthy_events:
+      - EPICON_ENTRY_V1
+      - MIC_READINESS_V1
+      - MIC_SEAL_V1
+      - MIC_RESERVE_RECONCILIATION_V1
+      - MIC_GENESIS_BLOCK
+      - MOBIUS_PULSE_V1
+      - OAA_MEMORY_ENTRY_V1
+      - MESH_STATE_V1
+      - HIVE_WORLD_PULSE_V1
+      - WORLD_UPDATE_V1
   accepts:
     - OAA_MEMORY_ENTRY_V1
     - EPICON_ENTRY_V1
@@ -69,6 +98,9 @@ ingest:
     - MIC_RESERVE_RECONCILIATION_V1
     - MIC_GENESIS_BLOCK
     - MOBIUS_PULSE_V1
+    - MESH_STATE_V1
+    - HIVE_WORLD_PULSE_V1
+    - WORLD_UPDATE_V1
 
 mcp:
   enabled: true
@@ -122,20 +154,31 @@ mcp:
       auth: "none"
       epicon_tag: "tool:mic-read"
 
-# C-287 / C-288 — Mesh execution fabric (declared jobs; GitHub Actions is the runner)
 jobs:
   enabled: true
+  status_values:
+    - active
+    - manual
+    - planned
+    - archived
   workflows:
     - id: "ledger-pulse-snapshot"
       file: ".github/workflows/ledger-pulse-snapshot.yml"
+      status: "active"
       trigger: "schedule"
       cron: "15 */1 * * *"
+      role: "ledger_health_snapshot"
+      output:
+        - "ledger/mesh-pulse-snapshot.json"
     - id: "ledger-mesh-feed-on-push"
       file: ".github/workflows/mesh-sync.yml"
+      status: "active"
       trigger: "push"
       branches: ["main"]
+      role: "repo_commit_to_epicon_feed"
+      output:
+        - "ledger/feed.json"
 
-# Agent / Sentinel governance for repo changes (merge policy is human + branch protection)
 governance:
   agent_prs_allowed: true
   auto_merge_allowed: false
@@ -148,3 +191,7 @@ policy:
   mirror_feed_to_repo: true
   canonical_ledger_node: "civic-protocol-core"
   hash_algorithm: "sha256"
+  terminal_is_storage: false
+  substrate_is_memory: true
+  ledger_is_proof: true
+  human_merge_required_for_canon: true
