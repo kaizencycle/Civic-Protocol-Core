@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-92e4e3e3be5f3b214ad212ab2078994565c07c81",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:5ae9f4f1b3c891c7:mesh-sync",
+    "source_hash": "5ae9f4f1b3c891c7985ed6c77ee91902d7fa9fc68c48812cc6975a605560e019",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-25T16:08:41-04:00",
+    "author": "Michael Judan",
+    "sha": "92e4e3e3be5f3b214ad212ab2078994565c07c81",
+    "title": "Merge pull request #25 from kaizencycle/c292-phase4-civic-core-mcp-write-auth\n\nC-292 Phase 4 Civic Core MCP Write Auth",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-d7f8422f4400c9b353ad5d63afa0da126e79a8b4",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:c284fef69aecaf6c:mesh-sync",
     "source_hash": "c284fef69aecaf6cf8d29002b3510ce2bbca2a1bea2133859195e460eb1c199e",
