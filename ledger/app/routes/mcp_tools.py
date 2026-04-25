@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 from datetime import datetime, timezone
@@ -52,8 +53,56 @@ except ImportError:  # pragma: no cover - exercised when optional dep missing on
     ServerInfo = dict  # type: ignore[misc,assignment]
 
 
+WRITE_TOKEN_ENVS = ("AGENT_SERVICE_TOKEN", "CIVIC_LEDGER_TOKEN", "LEDGER_ADMIN_TOKEN")
+MIN_WRITE_TOKEN_LENGTH = 24
+
+
+def _normalize_token_material(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    token = value.strip()
+    if not token:
+        return None
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+    if (token.startswith('"') and token.endswith('"')) or (
+        token.startswith("'") and token.endswith("'")
+    ):
+        token = token[1:-1].strip()
+    return token or None
+
+
+def _configured_write_tokens() -> List[str]:
+    tokens: List[str] = []
+    for key in WRITE_TOKEN_ENVS:
+        token = _normalize_token_material(os.getenv(key))
+        if token:
+            tokens.append(token)
+    return tokens
+
+
+def _has_configured_write_token() -> bool:
+    return bool(_configured_write_tokens())
+
+
+def _verify_write_token(candidate: Optional[str]) -> bool:
+    token = _normalize_token_material(candidate)
+    if not token:
+        return False
+    token_digest = hashlib.sha256(token.encode()).hexdigest()
+    for expected in _configured_write_tokens():
+        expected_digest = hashlib.sha256(expected.encode()).hexdigest()
+        if hmac.compare_digest(token_digest, expected_digest):
+            return True
+    return False
+
+
+def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
+    return _normalize_token_material(authorization)
+
+
 async def _public_mcp_auth(api_key: str | None, bearer_token: str | None) -> bool:
-    """Allow public MCP tools; GI / write gates are enforced inside tools."""
+    """Keep MCP reads public; write-capable tools fail closed inside the tool."""
     return True
 
 
@@ -281,7 +330,7 @@ async def get_agent_journal(limit: int = 10) -> str:
     name="post_epicon_entry",
     description=(
         "Submit an EPICON-style intent entry to this node's civic ledger. "
-        "Requires GI > 0.6 when GI is known. Optional bearer via AGENT_SERVICE_TOKEN."
+        "Requires GI > 0.6 when GI is known and a valid write token."
     ),
     input_schema={
         "type": "object",
@@ -301,10 +350,10 @@ async def get_agent_journal(limit: int = 10) -> str:
             "confidence": {"type": "number", "minimum": 0, "maximum": 1},
             "authorization": {
                 "type": "string",
-                "description": "Bearer token when AGENT_SERVICE_TOKEN is configured",
+                "description": "Bearer token matching AGENT_SERVICE_TOKEN / CIVIC_LEDGER_TOKEN / LEDGER_ADMIN_TOKEN",
             },
         },
-        "required": ["title", "category", "rationale", "confidence"],
+        "required": ["title", "category", "rationale", "confidence", "authorization"],
     },
 )
 async def post_epicon_entry(
@@ -314,30 +363,34 @@ async def post_epicon_entry(
     confidence: float,
     authorization: Optional[str] = None,
 ) -> str:
-    expected = os.getenv("AGENT_SERVICE_TOKEN", "").strip()
-    if expected:
-        if not authorization or not authorization.startswith("Bearer "):
-            _maybe_log("post_epicon_entry", {"title": title}, False, None)
-            return json.dumps(
-                {
-                    "ok": False,
-                    "error": "unauthorized",
-                    "message": "Bearer AGENT_SERVICE_TOKEN required for writes.",
-                }
-            )
-        token = authorization[7:].strip()
-        if token != expected:
-            _maybe_log("post_epicon_entry", {"title": title}, False, None)
-            return json.dumps({"ok": False, "error": "unauthorized"})
+    safe_args = {"title": title, "category": category, "confidence": confidence}
+
+    if not _has_configured_write_token():
+        _maybe_log("post_epicon_entry", safe_args, False, None)
+        return json.dumps(
+            {
+                "ok": False,
+                "error": "write_auth_not_configured",
+                "message": (
+                    "Set AGENT_SERVICE_TOKEN, CIVIC_LEDGER_TOKEN, or LEDGER_ADMIN_TOKEN "
+                    "before enabling MCP ledger writes."
+                ),
+            }
+        )
+
+    if not _verify_write_token(_extract_bearer_token(authorization)):
+        _maybe_log("post_epicon_entry", safe_args, False, None)
+        return json.dumps(
+            {
+                "ok": False,
+                "error": "write_auth_required",
+                "message": "A valid bearer write token is required for ledger writes.",
+            }
+        )
 
     gate = check_integrity_gate(0.6)
     if not gate.allowed:
-        _maybe_log(
-            "post_epicon_entry",
-            {"title": title, "category": category},
-            False,
-            gate.gi,
-        )
+        _maybe_log("post_epicon_entry", safe_args, False, gate.gi)
         return json.dumps(
             {
                 "ok": False,
@@ -380,12 +433,7 @@ async def post_epicon_entry(
         )
         conn.commit()
 
-    _maybe_log(
-        "post_epicon_entry",
-        {"title": title, "category": category, "confidence": confidence},
-        True,
-        gate.gi,
-    )
+    _maybe_log("post_epicon_entry", safe_args, True, gate.gi)
     return json.dumps(
         {
             "ok": True,
