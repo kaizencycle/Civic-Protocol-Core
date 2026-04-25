@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-d7f8422f4400c9b353ad5d63afa0da126e79a8b4",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:c284fef69aecaf6c:mesh-sync",
+    "source_hash": "c284fef69aecaf6cf8d29002b3510ce2bbca2a1bea2133859195e460eb1c199e",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-25T13:22:14-04:00",
+    "author": "Michael Judan",
+    "sha": "d7f8422f4400c9b353ad5d63afa0da126e79a8b4",
+    "title": "Merge pull request #24 from kaizencycle/c292-phase2-ledger-proof-contract\n\nC-292 Phase 2 Ledger Proof Contract",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-d1ba1e61e96166a621e70c77606861571035b810",
     "node_id": "civic-protocol-core",
     "timestamp": "2026-04-23T21:04:55-04:00",
