@@ -1,12 +1,15 @@
 {
   "schema": "MNS_LEDGER_PULSE_SNAPSHOT_V1",
   "node_id": "civic-protocol-core",
-  "captured_at": "2026-04-25T21:54:45.004042+00:00",
+  "captured_at": "2026-04-25T22:57:34.478176+00:00",
   "ledger_base_url": "https://civic-protocol-core-ledger.onrender.com",
   "health": {
-    "ok": false,
-    "error": "The read operation timed out",
-    "url": "https://civic-protocol-core-ledger.onrender.com/health"
+    "ok": true,
+    "service": "civic-ledger-api",
+    "timestamp": "2026-04-25T22:57:34.309898+00:00",
+    "data_dir": "/tmp/ledger_data",
+    "event_count": 0,
+    "db_accessible": true
   },
   "epicon_feed": {
     "ok": true,
@@ -125,6 +128,6 @@
         "type": "mesh-commit"
       }
     ],
-    "timestamp": "2026-04-25T21:54:44.961696+00:00"
+    "timestamp": "2026-04-25T22:57:34.449972+00:00"
   }
 }
