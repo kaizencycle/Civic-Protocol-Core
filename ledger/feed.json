@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-c1996d381ddc38706b334d552caba2608754636e",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:657e87e28df480c3:mesh-sync",
+    "source_hash": "657e87e28df480c35130a765e7add075774613e4d47fbccd96e2ef5545de9a24",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-26T21:15:32-04:00",
+    "author": "Michael Judan",
+    "sha": "c1996d381ddc38706b334d552caba2608754636e",
+    "title": "Merge pull request #26 from kaizencycle/c293-phase8-canon-ledger-savepoint\n\nSave Phase 8 canon alignment to civic ledger",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-92e4e3e3be5f3b214ad212ab2078994565c07c81",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:5ae9f4f1b3c891c7:mesh-sync",
     "source_hash": "5ae9f4f1b3c891c7985ed6c77ee91902d7fa9fc68c48812cc6975a605560e019",
