@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-3374562b6af81c7f6abb949402e7bc7ea4e607c9",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:8d546ee9a8137a70:mesh-sync",
+    "source_hash": "8d546ee9a8137a70d6f8893a242b78852d4a8d8ec92fa271ae99f1eecb187f2f",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-05-07T10:38:24-04:00",
+    "author": "Michael Judan",
+    "sha": "3374562b6af81c7f6abb949402e7bc7ea4e607c9",
+    "title": "Merge pull request #27 from kaizencycle/codex/fix-cors-wildcard-in-mic-indexer\n\nfix(ci+security+deps): C-303 \u2014 Civic-Protocol-Core CI, pin deps, CORS fix",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-c1996d381ddc38706b334d552caba2608754636e",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:657e87e28df480c3:mesh-sync",
     "source_hash": "657e87e28df480c35130a765e7add075774613e4d47fbccd96e2ef5545de9a24",
