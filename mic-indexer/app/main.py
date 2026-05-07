@@ -29,18 +29,21 @@ app = FastAPI(
 )
 
 # CORS
+# C-303: removed wildcard "*" from allow_origins — it negates the entire list.
+ALLOWED_ORIGINS = [
+    "https://mobius-browser-shell.vercel.app",
+    "https://mobius-civic-ai-terminal.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://mobius-browser-shell.vercel.app",
-        "https://mobius-browser-shell-*.vercel.app",
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "*"
-    ],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https://mobius-browser-shell-[a-z0-9-]+\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
 
 os.makedirs(os.path.dirname(INDEX_DB_PATH), exist_ok=True)

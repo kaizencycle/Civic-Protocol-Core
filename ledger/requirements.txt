@@ -1,20 +1,7 @@
-fastapi
-uvicorn
-httpx
-pydantic
-fastapi-mcp-router>=0.3.0
+fastapi>=0.134.0,<0.140.0   # was ==0.112.2 — incompatible with fastapi-mcp-router>=0.3.0
+uvicorn[standard]==0.30.5
+httpx==0.27.2
+pydantic==2.9.1
+fastapi-mcp-router>=0.3.0,<0.4.0
 ipfshttpclient>=0.7.0,<0.8
 base58>=2.1.1
-
-
-
-
-
-
-
-
-
-
-
-
-
