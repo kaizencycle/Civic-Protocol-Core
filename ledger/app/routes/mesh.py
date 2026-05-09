@@ -8,9 +8,9 @@ from typing import Any, List, Optional
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
-from ledger.app.mesh.registry import load_mesh_registry, registry_cache_mtime_iso
-from ledger.app.db import LEDGER_DB_PATH
-from ledger.app.routes.oaa_memory import persist_oaa_entries_from_body
+from ..mesh.registry import load_mesh_registry, registry_cache_mtime_iso
+from ..db import LEDGER_DB_PATH
+from .oaa_memory import persist_oaa_entries_from_body
 
 router = APIRouter(prefix="/mesh", tags=["mesh"])
 
@@ -52,7 +52,7 @@ async def mesh_ingest(
     x_mns_node: Optional[str] = Header(None, alias="X-MNS-Node"),
 ):
     """Receive EPICON ledger feed from a mesh node."""
-    from ledger.app.db import get_db_connection
+    from ..db import get_db_connection
 
     expected = _mesh_token_expected()
     if not expected or not authorization or authorization != expected:
@@ -188,7 +188,7 @@ async def mesh_entries_ipfs(
     List mesh rows with IPFS CIDs (for MIC indexer / sovereign sync).
     `content_addressed=1` filters rows that have been pinned.
     """
-    from ledger.app.db import get_db_connection
+    from ..db import get_db_connection
 
     lim = max(1, min(limit, 500))
     off = max(0, offset)

@@ -10,10 +10,11 @@ for the Civic Protocol ecosystem.
 import sqlite3
 import hashlib
 import json
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, asdict
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import os
+
 
 @dataclass
 class LedgerEvent:
@@ -29,6 +30,7 @@ class LedgerEvent:
     signature: Optional[str] = None
     block_height: Optional[int] = None
 
+
 @dataclass
 class LedgerBlock:
     """A block containing multiple events (for batching)"""
@@ -39,6 +41,7 @@ class LedgerBlock:
     events: List[LedgerEvent]
     timestamp: str
     merkle_root: str
+
 
 class LedgerCore:
     """Core ledger functionality - the blockchain kernel"""
@@ -165,7 +168,7 @@ class LedgerCore:
             print(f"Error adding event: {e}")
             return False
     
-    def get_events(self, civic_id: Optional[str] = None, 
+    def get_events(self, civic_id: Optional[str] = None,
                   event_type: Optional[str] = None,
                   lab_source: Optional[str] = None,
                   limit: int = 100,
@@ -372,6 +375,7 @@ class LedgerCore:
         
         return True
 
+
 # Example usage
 if __name__ == "__main__":
     # Test the ledger core
@@ -400,4 +404,3 @@ if __name__ == "__main__":
     # Verify chain integrity
     integrity = ledger.verify_chain_integrity()
     print(f"Chain integrity: {integrity}")
-

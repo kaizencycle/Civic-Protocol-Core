@@ -11,19 +11,19 @@ gets anchored here as an immutable event in the ledger.
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 import hashlib
 import json
 import os
 import httpx
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
-from ledger.app.db import DATA_DIR, LEDGER_DB_PATH, get_db_connection
-from ledger.app.routes import epicon, mesh, oaa_memory
-from ledger.app.routes import mcp_tools
+from .db import DATA_DIR, LEDGER_DB_PATH, get_db_connection
+from .routes import epicon, mesh, oaa_memory, seal_reconciliation
+from .routes import mcp_tools
 
 
 @asynccontextmanager
@@ -42,6 +42,7 @@ app = FastAPI(
 app.include_router(mesh.router)
 app.include_router(epicon.router)
 app.include_router(oaa_memory.router, prefix="/api")
+app.include_router(seal_reconciliation.router)
 app.include_router(mcp_tools.mcp, prefix="/api/mcp")
 
 # API Configuration
@@ -56,6 +57,7 @@ IDENTITY_API_BASE = (
 print(f"Using data directory: {DATA_DIR}")
 print(f"Database path: {LEDGER_DB_PATH}")
 
+
 @dataclass
 class LedgerEvent:
     """Immutable ledger event"""
@@ -69,6 +71,7 @@ class LedgerEvent:
     event_hash: str
     signature: Optional[str] = None
 
+
 class AttestationRequest(BaseModel):
     """Request to attest an event to the ledger"""
     event_type: str
@@ -76,6 +79,7 @@ class AttestationRequest(BaseModel):
     lab_source: str
     payload: Dict[str, Any]
     signature: Optional[str] = None
+
 
 class EventResponse(BaseModel):
     """Response for ledger events"""
@@ -86,6 +90,7 @@ class EventResponse(BaseModel):
     timestamp: str
     event_hash: str
     confirmed: bool
+
 
 def verify_token(token: str, lab_source: str) -> Dict[str, Any]:
     """Verify Bearer token via Lab4, Lab6, or Mobius Identity introspection."""
@@ -128,6 +133,7 @@ def _civic_id_allowed_for_lab(
         return True
     return False
 
+
 def get_latest_event_hash() -> str:
     """Get the hash of the latest event in the chain"""
     try:
@@ -142,12 +148,14 @@ def get_latest_event_hash() -> str:
         print(f"Error getting latest hash: {e}")
         return "0" * 64
 
+
 def calculate_event_hash(event: LedgerEvent) -> str:
     """Calculate SHA-256 hash of the event"""
     event_data = f"{event.event_id}{event.event_type}{event.civic_id}{event.lab_source}{json.dumps(event.payload, sort_keys=True)}{event.timestamp}{event.previous_hash}"
     return hashlib.sha256(event_data.encode()).hexdigest()
 
-def create_ledger_event(event_type: str, civic_id: str, lab_source: str, 
+
+def create_ledger_event(event_type: str, civic_id: str, lab_source: str,
                        payload: Dict[str, Any], signature: Optional[str] = None) -> LedgerEvent:
     """Create a new ledger event"""
     event_id = f"evt_{int(datetime.now().timestamp() * 1000)}_{hashlib.sha256(f'{civic_id}{event_type}'.encode()).hexdigest()[:8]}"
@@ -171,14 +179,16 @@ def create_ledger_event(event_type: str, civic_id: str, lab_source: str,
     
     return event
 
-@app.get("/") 
-def root(): 
+
+@app.get("/")
+def root():
     return {
         "service": "civic-ledger-api",
         "docs": "/docs",
         "data_dir": DATA_DIR,
         "db_path": LEDGER_DB_PATH
     }
+
 
 @app.get("/health")
 def health():
@@ -207,8 +217,9 @@ def health():
             "db_accessible": False
         }
 
+
 @app.post("/ledger/attest")
-def attest_event(request: AttestationRequest, 
+def attest_event(request: AttestationRequest,
                 authorization: Optional[str] = Header(None)):
     """Attest an event to the immutable ledger"""
     
@@ -283,8 +294,9 @@ def attest_event(request: AttestationRequest,
         confirmed=True
     )
 
+
 @app.get("/ledger/events")
-def get_events(civic_id: Optional[str] = None, 
+def get_events(civic_id: Optional[str] = None,
                event_type: Optional[str] = None,
                lab_source: Optional[str] = None,
                limit: int = 100,
@@ -332,6 +344,7 @@ def get_events(civic_id: Optional[str] = None,
     
     return {"events": events, "count": len(events)}
 
+
 @app.get("/ledger/identity/{civic_id}")
 def get_identity(civic_id: str):
     """Get identity information and stats"""
@@ -373,6 +386,7 @@ def get_identity(civic_id: str):
         "event_count": identity_row[4],
         "recent_events": recent_events
     }
+
 
 @app.get("/ledger/stats")
 def get_ledger_stats():
@@ -423,6 +437,7 @@ def get_ledger_stats():
         } if latest_event else None
     }
 
+
 @app.get("/ledger/chain")
 def get_chain_info():
     """Get blockchain-like chain information"""
@@ -458,9 +473,7 @@ def get_chain_info():
         "is_genesis": chain_length == 0
     }
 
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
-
-
