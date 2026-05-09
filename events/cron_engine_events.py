@@ -4,6 +4,7 @@
 
 CRON_EVENT_TYPES = {
 
+    # ── Heartbeat ──────────────────────────────────────
     "cron_heartbeat": {
         "description": "CRON Engine fired and completed one pulse cycle",
         "required_fields": ["cycle", "gi", "agent_activations", "ts"],
@@ -11,6 +12,7 @@ CRON_EVENT_TYPES = {
         "frequency": "every_5_min",
     },
 
+    # ── Service mesh ───────────────────────────────────
     "service_registered": {
         "description": "A Render service registered in the service registry",
         "required_fields": ["service_id", "owner_agent", "url", "tier"],
@@ -20,7 +22,7 @@ CRON_EVENT_TYPES = {
     "service_health_attested": {
         "description": "A service responded healthy to a health check",
         "required_fields": ["service_id", "health_path", "status_code", "latency_ms"],
-        "ledger_write": False,
+        "ledger_write": False,  # KV only unless degraded
         "frequency": "every_5_min",
     },
     "service_degraded": {
@@ -30,6 +32,7 @@ CRON_EVENT_TYPES = {
         "frequency": "on_event",
     },
 
+    # ── Agent activation ───────────────────────────────
     "agent_activated": {
         "description": "An agent's activation condition was met and it ran",
         "required_fields": ["agent_id", "tier", "trigger", "cost_usd"],
@@ -43,6 +46,7 @@ CRON_EVENT_TYPES = {
         "frequency": "on_event",
     },
 
+    # ── Escalation ─────────────────────────────────────
     "escalation_state_changed": {
         "description": "System moved to a new escalation tier",
         "required_fields": ["from_state", "to_state", "trigger", "gi"],
@@ -62,6 +66,7 @@ CRON_EVENT_TYPES = {
         "frequency": "on_event",
     },
 
+    # ── Budget ─────────────────────────────────────────
     "budget_warning": {
         "description": "Daily LLM budget >80% consumed",
         "required_fields": ["spent_usd", "limit_usd", "cycle"],

@@ -1,11 +1,11 @@
 # Mobius Auth Contract
-**EPICON:** C-306 / DAEDALUS / auth-contract
+**EPICON:** C-306 / DAEDALUS / auth-contract  
 **CC0 Public Domain**
 
 ## Token Map
 
 | Service | Token Name | Permission Level | Used By |
-|---------|-----------|-----------------|---------|
+|---------|-----------|-----------------|--------|
 | civic-ledger | SUBSTRATE_TOKEN | attest, write, seal | Terminal, CRON Engine |
 | thought-broker | CRON_SECRET | loop/start, status | CRON Engine, Terminal |
 | broker-api | API_KEY | deliberate, mii | CRON Engine |
@@ -25,6 +25,8 @@
 
 ## Missing / Unset (C-306)
 
-- CIVIC_LEDGER_URL not set in Terminal Vercel env (CRITICAL)
-- NEXT_PUBLIC_TERMINAL_URL not set in Terminal Vercel env (CRITICAL)
-- SUBSTRATE_TOKEN verify set in Terminal Vercel env
+```
+CIVIC_LEDGER_URL        → not set in Terminal Vercel env  (CRITICAL)
+NEXT_PUBLIC_TERMINAL_URL → not set in Terminal Vercel env  (CRITICAL)
+SUBSTRATE_TOKEN         → verify set in Terminal Vercel env
+```

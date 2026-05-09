@@ -1,5 +1,5 @@
 # Mobius Agent Ownership Map
-**EPICON:** C-306 / AUREA / agent-ownership
+**EPICON:** C-306 / AUREA / agent-ownership  
 **CC0 Public Domain**
 
 | Agent | DVA Tier | Owns Service | Activation | LLM Tier |
@@ -17,7 +17,7 @@
 
 ## Current Live State (C-306)
 
-- seal-C-306-032: ATLAS ✓ ZEUS ✓ EVE ✓ JADE ✓ AUREA ✓ (cautionary)
-- GI: 0.727 (yellow / stressed)
-- 8 seals quarantined — substrate write blocked (env var gap)
-- Vault: 32/40 attested, healthy underneath the write failure
+- **seal-C-306-032**: ATLAS ✓ ZEUS ✓ EVE ✓ JADE ✓ AUREA ✓ (cautionary)
+- **GI**: 0.727 (yellow / stressed)
+- **8 seals quarantined** — substrate write blocked (env var gap)
+- **Vault**: 32/40 attested, healthy underneath the write failure
