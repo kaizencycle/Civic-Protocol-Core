@@ -1,0 +1,25 @@
+{
+  "version": "c306",
+  "network": "mobius-render-mesh",
+  "description": "Canonical registry scaffold for Mobius Render services",
+  "services": [
+    {
+      "service": "thought-broker",
+      "role": "deliberation-consensus",
+      "owner_agent": "AUREA",
+      "health": "/v1/loop/health"
+    },
+    {
+      "service": "civic-ledger",
+      "role": "durable-truth-layer",
+      "owner_agent": "ZEUS",
+      "health": "/health"
+    },
+    {
+      "service": "oaa-api-library",
+      "role": "memory-attestation",
+      "owner_agent": "ECHO",
+      "health": "/health"
+    }
+  ]
+}
