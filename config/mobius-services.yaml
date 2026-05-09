@@ -1,0 +1,223 @@
+# Mobius Service Registry — Civic Protocol Core
+# EPICON: C-306 / AUREA / service-registry / genesis
+# CC0 Public Domain
+
+version: "1.0"
+generated_cycle: "C-306"
+generated_at: "2026-05-09"
+canonical_owner: AUREA
+
+services:
+
+  # ── Core Ledger ───────────────────────────────────────
+  - id: civic-protocol-core-ledger
+    label: Civic Protocol Core Ledger
+    render_service: civic-protocol-core-ledger
+    url: https://civic-protocol-core-ledger.onrender.com
+    health_path: /health
+    owner_agent: JADE
+    tier: substrate
+    ledger_role: canonical_truth_store
+    auth_type: SUBSTRATE_TOKEN
+    writes_ledger: true
+    is_canonical: true
+    endpoints:
+      - path: /api/attest
+        method: POST
+        purpose: attestation write
+      - path: /api/events
+        method: GET
+        purpose: EPICON event fetch
+      - path: /api/journal
+        method: POST
+        purpose: journal bridge
+      - path: /api/vault/seal
+        method: POST
+        purpose: vault seal write
+      - path: /api/journal/canonize
+        method: POST
+        purpose: journal canonization
+
+  # ── Thought Broker ────────────────────────────────────
+  - id: thought-broker
+    label: Thought Broker
+    render_service: thought-broker
+    url: https://thought-broker.onrender.com
+    health_path: /v1/loop/health
+    owner_agent: HERMES
+    tier: deliberation
+    ledger_role: bounded_reasoning_relay
+    auth_type: CRON_SECRET
+    writes_ledger: false
+    is_canonical: false
+    endpoints:
+      - path: /v1/loop/start
+        method: POST
+        purpose: initiate bounded deliberation
+        activation_condition: gi_drop OR quorum_stall OR seal_blocked OR agent_disagreement
+      - path: /v1/loop/:id/status
+        method: GET
+        purpose: deliberation status
+      - path: /v1/loop/:id/consensus
+        method: GET
+        purpose: consensus result
+      - path: /v1/loop/:id/audit
+        method: GET
+        purpose: deliberation audit trail
+
+  # ── Broker API ────────────────────────────────────────
+  - id: broker-api
+    label: Multi-Agent Deliberation Broker
+    render_service: broker-api
+    url: https://broker-api.onrender.com
+    health_path: /healthz
+    owner_agent: ATLAS
+    tier: coordination
+    ledger_role: inter_agent_routing
+    auth_type: API_KEY
+    writes_ledger: true
+    is_canonical: false
+    endpoints:
+      - path: /deliberate
+        method: POST
+        purpose: multi-agent deliberation (ATLAS, AUREA, HERMES, EVE, JADE, ZEUS)
+      - path: /mii
+        method: GET
+        purpose: MII grading
+      - path: /ws
+        method: WS
+        purpose: real-time WebSocket updates
+
+  # ── OAA API Library ───────────────────────────────────
+  - id: oaa-api-library
+    label: OAA API Library
+    render_service: oaa-api-library
+    url: https://oaa-api-library.onrender.com
+    health_path: /health
+    owner_agent: DAEDALUS
+    tier: infrastructure
+    ledger_role: signing_and_attestation
+    auth_type: OAA_BEARER
+    writes_ledger: true
+    is_canonical: false
+    capabilities:
+      - Ed25519 signing
+      - nonce Redis
+      - admin token validation
+
+  # ── Mobius Terminal ───────────────────────────────────
+  - id: mobius-civic-ai-terminal
+    label: Mobius Civic AI Terminal
+    render_service: vercel_hosted
+    url: https://mobius-civic-ai-terminal.vercel.app
+    health_path: /api/health/heartbeats
+    owner_agent: ATLAS
+    tier: operator_surface
+    ledger_role: display_and_cron_trigger
+    auth_type: CRON_SECRET
+    writes_ledger: false
+    is_canonical: false
+    cron_endpoints:
+      - path: /api/cron/swarm
+        schedule: "*/5 * * * *"
+        owner: ATLAS
+      - path: /api/cron/reattest-seals
+        schedule: "*/30 * * * *"
+        owner: ZEUS
+      - path: /api/cron/journal-canonize
+        schedule: "*/30 * * * *"
+        owner: JADE
+
+  # ── Mobius Browser Shell ──────────────────────────────
+  - id: mobius-browser-shell
+    label: Mobius Browser Shell
+    render_service: vercel_hosted
+    url: https://mobius-browser-shell.vercel.app
+    health_path: /api/health
+    owner_agent: ECHO
+    tier: citizen_surface
+    ledger_role: citizen_entry_point
+    auth_type: none
+    writes_ledger: false
+
+  # ── Scheduler Worker ──────────────────────────────────
+  - id: thought-broker-scheduler
+    label: Thought Broker Scheduler (Render Worker)
+    render_service: thought-broker-scheduler
+    url: null  # long-running worker, no HTTP surface
+    health_path: null
+    owner_agent: ECHO
+    tier: heartbeat
+    ledger_role: pulse_propagation
+    auth_type: CRON_SECRET + TERMINAL_URL
+    writes_ledger: false
+    is_canonical: false
+    note: "Triggers Terminal endpoints. Will become Mobius CRON Engine in Phase 2."
+
+  # ── Integrity Pulse ───────────────────────────────────
+  - id: integrity-pulse
+    label: Integrity Pulse Telemetry
+    render_service: integrity-pulse
+    url: https://integrity-pulse.onrender.com
+    health_path: /health
+    owner_agent: AUREA
+    tier: telemetry
+    ledger_role: gi_visualization
+    auth_type: API_KEY
+    writes_ledger: false
+    gap: "Requires /ws/gi-stream from civic-ledger — not yet implemented"
+
+  # ── MIC Gateway ───────────────────────────────────────
+  - id: mic-gateway
+    label: MIC Token Gateway
+    render_service: mic-gateway
+    url: https://mic-gateway.onrender.com
+    health_path: /health
+    owner_agent: JADE
+    tier: economy
+    ledger_role: mic_token_routing
+    auth_type: GATEWAY_HMAC_SECRET
+    writes_ledger: true
+
+mesh_gaps:
+  - id: gap-001
+    label: No unified service health endpoint
+    severity: high
+    owner: AUREA
+    fix: "Add /api/mesh/health to Terminal that reads all service health paths"
+
+  - id: gap-002
+    label: CIVIC_LEDGER_URL not set in Terminal Vercel env
+    severity: critical
+    owner: ATLAS
+    fix: "Set CIVIC_LEDGER_URL=https://civic-protocol-core-ledger.onrender.com in Vercel dashboard"
+
+  - id: gap-003
+    label: NEXT_PUBLIC_TERMINAL_URL not set
+    severity: critical
+    owner: ATLAS
+    fix: "Set NEXT_PUBLIC_TERMINAL_URL=https://mobius-civic-ai-terminal.vercel.app"
+
+  - id: gap-004
+    label: GI WebSocket stream not implemented
+    severity: high
+    owner: AUREA
+    fix: "Implement /ws/gi-stream on civic-ledger, wire to integrity-pulse"
+
+  - id: gap-005
+    label: No shared auth contract document
+    severity: medium
+    owner: DAEDALUS
+    fix: "Add docs/operations/MOBIUS_AUTH_CONTRACT.md"
+
+  - id: gap-006
+    label: thought-broker-scheduler not yet full CRON Engine
+    severity: medium
+    owner: ECHO
+    fix: "Upgrade to Mobius CRON Engine per MOBIUS_CRON_ENGINE_SPEC.md"
+
+  - id: gap-007
+    label: No failure escalation ladder shared across services
+    severity: medium
+    owner: ZEUS
+    fix: "Implement shared degradation state machine"
