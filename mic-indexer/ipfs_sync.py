@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import httpx
 
@@ -27,7 +27,7 @@ def fetch_mesh_ipfs_index(
     limit: int = 200,
     content_addressed: bool = True,
     timeout: float = 15.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     params = {"limit": limit}
     if content_addressed:
         params["content_addressed"] = 1
@@ -50,9 +50,9 @@ def sync_cids_to_local_index(
     from sqlitedict import SqliteDict
 
     body = fetch_mesh_ipfs_index(limit=limit, content_addressed=True)
-    entries: List[Dict[str, Any]] = body.get("entries") or []
+    entries: list[dict[str, Any]] = body.get("entries") or []
     with SqliteDict(index_db_path, autocommit=True) as db:
-        idx: Dict[str, Any] = db.get("ipfs_cid_index", {})
+        idx: dict[str, Any] = db.get("ipfs_cid_index", {})
         for row in entries:
             cid = row.get("ipfs_cid")
             if not cid:
@@ -68,7 +68,7 @@ def sync_cids_to_local_index(
     return len(entries)
 
 
-def resolve_entry_from_ipfs(cid: str) -> Optional[Dict[str, Any]]:
+def resolve_entry_from_ipfs(cid: str) -> dict[str, Any] | None:
     """Fetch JSON object from Kubo when IPFS_API_ADDR is reachable."""
     addr = os.getenv("IPFS_API_ADDR", "").strip()
     if not addr:

@@ -6,9 +6,9 @@ import pytest
 
 from ledger.ipfs_bridge import (
     canonical_mesh_payload,
+    cidv0_to_digest_hex,
     content_digest_sha256,
     digest_to_cidv0,
-    cidv0_to_digest_hex,
 )
 
 

@@ -1,8 +1,9 @@
+import hashlib
+from datetime import datetime, timezone
+from typing import Any
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
-from datetime import datetime, timezone
-import os, hashlib
 
 app = FastAPI(title="Citizen Shield", version="0.1.0")
 
@@ -16,7 +17,7 @@ REFLECTIONS_PER_DAY = 12
 
 class EnrollPayload(BaseModel):
     id_commit: str  # hex string commitment (generated client-side)
-    proof_of_human: Optional[str] = None  # placeholder for future checks
+    proof_of_human: str | None = None  # placeholder for future checks
 
 @app.post("/enroll")
 def enroll(p: EnrollPayload):
@@ -40,7 +41,7 @@ class ReflectionPayload(BaseModel):
     content: str
     visibility: str = "private"  # or "public"
     zk: ZkEnvelope
-    meta: Optional[Dict[str, Any]] = None
+    meta: dict[str, Any] | None = None
 
 def _today() -> str:
     return datetime.now(timezone.utc).date().isoformat()

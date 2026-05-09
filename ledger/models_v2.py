@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -14,13 +14,13 @@ class MeshEntryV2(BaseModel):
     node_id: str
     node_tier: str = "observer"
     timestamp: str
-    title: Optional[str] = None
-    sha: Optional[str] = None
+    title: str | None = None
+    sha: str | None = None
     source: str = "mesh-node"
     raw: Any = None
-    ipfs_cid: Optional[str] = None
+    ipfs_cid: str | None = None
     content_addressed: bool = False
-    pinned_at: Optional[str] = None
+    pinned_at: str | None = None
     pin_count: int = Field(default=0, ge=0)
 
 
@@ -29,7 +29,7 @@ class MeshIPFSIndexRow(BaseModel):
 
     id: str
     node_id: str
-    ipfs_cid: Optional[str] = None
-    pinned_at: Optional[str] = None
+    ipfs_cid: str | None = None
+    pinned_at: str | None = None
     pin_count: int = 0
     timestamp: str

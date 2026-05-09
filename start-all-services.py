@@ -12,22 +12,21 @@ This script starts all the Civic Protocol services:
 Run this to start the complete development environment.
 """
 
-import subprocess
-import time
 import signal
+import subprocess
 import sys
-import os
-from threading import Thread
+import time
+
 
 class ServiceManager:
     def __init__(self):
         self.processes = []
         self.running = True
-        
+
     def start_service(self, name, command, port, cwd=None):
         """Start a service in a separate process"""
         print(f"Starting {name} on port {port}...")
-        
+
         try:
             if cwd:
                 process = subprocess.Popen(
@@ -46,27 +45,27 @@ class ServiceManager:
                     stderr=subprocess.PIPE,
                     text=True
                 )
-            
+
             self.processes.append({
                 'name': name,
                 'process': process,
                 'port': port,
                 'command': command
             })
-            
+
             print(f"✓ {name} started (PID: {process.pid})")
             return True
-            
+
         except Exception as e:
             print(f"✗ Failed to start {name}: {e}")
             return False
-    
+
     def start_all_services(self):
         """Start all Civic Protocol services"""
         print("=" * 60)
         print("Civic Protocol Core - Starting All Services")
         print("=" * 60)
-        
+
         # Start Civic Dev Node
         success = self.start_service(
             "Civic Dev Node",
@@ -75,7 +74,7 @@ class ServiceManager:
         )
         if not success:
             return False
-        
+
         # Start Shield
         success = self.start_service(
             "Shield",
@@ -85,7 +84,7 @@ class ServiceManager:
         )
         if not success:
             return False
-        
+
         # Start MIC-Indexer (renamed from GIC-Indexer)
         success = self.start_service(
             "MIC-Indexer",
@@ -95,7 +94,7 @@ class ServiceManager:
         )
         if not success:
             return False
-        
+
         # Start Identity Service
         success = self.start_service(
             "Identity Service",
@@ -105,7 +104,7 @@ class ServiceManager:
         )
         if not success:
             return False
-        
+
         # Start MIC Wallet Service
         success = self.start_service(
             "MIC Wallet Service",
@@ -113,35 +112,32 @@ class ServiceManager:
             8003,
             "mic-wallet"
         )
-        if not success:
-            return False
-        
-        return True
-    
+        return success
+
     def monitor_services(self):
         """Monitor running services"""
         print("\n" + "=" * 60)
         print("Services Running - Press Ctrl+C to stop all")
         print("=" * 60)
-        
+
         while self.running:
             time.sleep(5)
-            
+
             # Check if any process has died
             for service in self.processes[:]:
                 if service['process'].poll() is not None:
                     print(f"⚠ {service['name']} has stopped unexpectedly")
                     self.processes.remove(service)
-            
+
             if not self.processes:
                 print("All services have stopped")
                 break
-    
+
     def stop_all_services(self):
         """Stop all running services"""
         print("\nStopping all services...")
         self.running = False
-        
+
         for service in self.processes:
             try:
                 print(f"Stopping {service['name']}...")
@@ -153,9 +149,9 @@ class ServiceManager:
                 service['process'].kill()
             except Exception as e:
                 print(f"Error stopping {service['name']}: {e}")
-        
+
         print("All services stopped")
-    
+
     def signal_handler(self, signum, frame):
         """Handle shutdown signals"""
         print(f"\nReceived signal {signum}")
@@ -165,7 +161,7 @@ class ServiceManager:
 def check_dependencies():
     """Check if required dependencies are installed"""
     print("Checking dependencies...")
-    
+
     required_packages = [
         'fastapi',
         'uvicorn',
@@ -178,20 +174,20 @@ def check_dependencies():
         'passlib',
         'pyjwt'
     ]
-    
+
     missing_packages = []
-    
+
     for package in required_packages:
         try:
             __import__(package.replace('-', '_'))
         except ImportError:
             missing_packages.append(package)
-    
+
     if missing_packages:
         print(f"✗ Missing packages: {', '.join(missing_packages)}")
         print("Install with: pip install -r requirements.txt")
         return False
-    
+
     print("✓ All dependencies available")
     return True
 
@@ -200,23 +196,23 @@ def main():
     # Check dependencies
     if not check_dependencies():
         sys.exit(1)
-    
+
     # Create service manager
     manager = ServiceManager()
-    
+
     # Set up signal handlers
     signal.signal(signal.SIGINT, manager.signal_handler)
     signal.signal(signal.SIGTERM, manager.signal_handler)
-    
+
     # Start all services
     if not manager.start_all_services():
         print("Failed to start all services")
         sys.exit(1)
-    
+
     # Wait a moment for services to start
     print("\nWaiting for services to initialize...")
     time.sleep(3)
-    
+
     # Show service URLs
     print("\n" + "=" * 60)
     print("Service URLs:")
@@ -238,7 +234,7 @@ def main():
     print("1. POST /auth/signup to Identity Service (8002)")
     print("2. Use token to POST /mic/earn to MIC Wallet (8003)")
     print("3. GET /mic/wallet to see balance")
-    
+
     # Monitor services
     try:
         manager.monitor_services()

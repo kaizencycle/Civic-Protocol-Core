@@ -6,7 +6,7 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 REGISTRY_URL = os.getenv(
     "MOBIUS_MESH_REGISTRY_URL",
@@ -16,12 +16,12 @@ CACHE_PATH = os.getenv("MNS_REGISTRY_CACHE_PATH", "/tmp/mns_registry_cache.json"
 CACHE_AGE_SEC = int(os.getenv("MNS_REGISTRY_CACHE_SECONDS", "3600"))
 
 
-def _read_cache_file(path: str) -> Dict[str, Any]:
+def _read_cache_file(path: str) -> dict[str, Any]:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def load_mesh_registry() -> Tuple[Dict[str, Any], bool]:
+def load_mesh_registry() -> tuple[dict[str, Any], bool]:
     """
     Return (registry dict, fetch_ok).
 
@@ -58,7 +58,7 @@ def load_mesh_registry() -> Tuple[Dict[str, Any], bool]:
         return {"nodes": []}, False
 
 
-def registry_cache_mtime_iso() -> Optional[str]:
+def registry_cache_mtime_iso() -> str | None:
     if not os.path.exists(CACHE_PATH):
         return None
     return datetime.fromtimestamp(

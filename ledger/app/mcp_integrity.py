@@ -7,7 +7,7 @@ import json
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any
 
 from .db import get_db_connection
 
@@ -16,7 +16,7 @@ def _utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def load_gi_state() -> Optional[Dict[str, Any]]:
+def load_gi_state() -> dict[str, Any] | None:
     """Load optional GI snapshot from env JSON, file path, or data dir file."""
     raw = os.getenv("GI_STATE_JSON", "").strip()
     if raw:
@@ -42,8 +42,8 @@ def load_gi_state() -> Optional[Dict[str, Any]]:
 @dataclass
 class IntegrityGateResult:
     allowed: bool
-    gi: Optional[float]
-    reason: Optional[str] = None
+    gi: float | None
+    reason: str | None = None
 
 
 def check_integrity_gate(min_gi: float = 0.0) -> IntegrityGateResult:
@@ -81,9 +81,9 @@ def check_integrity_gate(min_gi: float = 0.0) -> IntegrityGateResult:
 
 def log_mcp_invocation(
     tool: str,
-    args: Dict[str, Any],
+    args: dict[str, Any],
     result_ok: bool,
-    gi: Optional[float],
+    gi: float | None,
     cycle: str,
 ) -> None:
     """Persist MCP tool invocation as an EPICON row when integrity.logging is on."""

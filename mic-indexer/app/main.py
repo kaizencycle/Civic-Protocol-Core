@@ -1,17 +1,18 @@
-from fastapi import FastAPI, Query, HTTPException, Header, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from sqlitedict import SqliteDict
-from dateutil import parser as dtp
-import os, httpx, json, math, time
+import os
+import time
 from collections import defaultdict
-from typing import Optional, List
+
+import httpx
+from dateutil import parser as dtp
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import desc, select
+from sqlitedict import SqliteDict
 
 from .config import settings
-from .storage import SessionLocal, init_db, apply_event, compute_supply, get_or_create_account
-from .schemas import HealthOut, IngestEvent, BalanceOut, SupplyOut, EventOut
-from .models import Balance, Event, Account
-from sqlalchemy import select, desc
+from .models import Account, Balance, Event
+from .schemas import BalanceOut, EventOut, HealthOut, IngestEvent, SupplyOut
+from .storage import SessionLocal, apply_event, compute_supply, init_db
 
 try:
     import ipfs_sync
@@ -51,7 +52,7 @@ os.makedirs(os.path.dirname(INDEX_DB_PATH), exist_ok=True)
 def load_policy():
     import yaml
     try:
-        with open(POLICY_PATH, "r", encoding="utf-8") as f:
+        with open(POLICY_PATH, encoding="utf-8") as f:
             return yaml.safe_load(f)
     except FileNotFoundError:
         return {
@@ -187,7 +188,7 @@ def recompute(from_date: str = Query(None), to_date: str = Query(None)):
             done.append(date_str)
 
         # enforce per-user daily cap
-        cap = POL.get("rewards", {}).get("daily_user_cap_mic", 50)
+        POL.get("rewards", {}).get("daily_user_cap_mic", 50)
         # (Simple demo: not implemented per-day-per-user here; add when you promote to prod.)
 
         # save
@@ -223,10 +224,10 @@ def stats():
     with SqliteDict(INDEX_DB_PATH, autocommit=False) as db:
         balances = db.get("balances", {})
         events = db.get("events", {})
-        
+
         total_balance = sum(balances.values())
         total_events = sum(len(day_events) for day_events in events.values())
-        
+
         return {
             "total_balance": total_balance,
             "total_events": total_events,
@@ -265,7 +266,7 @@ def get_scores(handle: str):
     """Alias for balances (for compatibility)"""
     return get_balance(handle)
 
-@app.get("/events", response_model=List[EventOut])
+@app.get("/events", response_model=list[EventOut])
 def list_events(limit: int = Query(50, le=500), offset: int = 0):
     """List recent events"""
     with SessionLocal() as db:

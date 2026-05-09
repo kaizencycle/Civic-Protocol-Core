@@ -1,6 +1,5 @@
 """OAA memory proof seal API and mesh ingest bridge."""
 
-import json
 import os
 import uuid
 from unittest.mock import patch

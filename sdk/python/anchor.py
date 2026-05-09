@@ -6,11 +6,13 @@ This module provides a simple interface for Lab4 and Lab6 to post events
 to the Civic Ledger API. It handles authentication, validation, and retry logic.
 """
 
-import httpx
-import time
-from typing import Dict, Any, Optional, List
-from dataclasses import dataclass
 import os
+import time
+from dataclasses import dataclass
+from typing import Any
+
+import httpx
+
 
 @dataclass
 class AnchorConfig:
@@ -23,23 +25,23 @@ class AnchorConfig:
 
 class CivicAnchor:
     """Helper class for anchoring events to the Civic Ledger"""
-    
+
     def __init__(self, config: AnchorConfig):
         self.config = config
         self.client = httpx.Client(timeout=config.timeout)
-    
-    def anchor_event(self, event_type: str, civic_id: str, payload: Dict[str, Any],
-                    token: str, signature: Optional[str] = None) -> Dict[str, Any]:
+
+    def anchor_event(self, event_type: str, civic_id: str, payload: dict[str, Any],
+                    token: str, signature: str | None = None) -> dict[str, Any]:
         """
         Anchor an event to the Civic Ledger
-        
+
         Args:
             event_type: Type of event (e.g., 'reflection_created')
             civic_id: Civic ID of the user
             payload: Event payload data
             token: Authentication token
             signature: Optional signature for the event
-            
+
         Returns:
             Response from the ledger API
         """
@@ -58,63 +60,63 @@ class CivicAnchor:
                 )
                 response.raise_for_status()
                 return response.json()
-                
+
             except httpx.HTTPStatusError as e:
                 if e.response.status_code == 401:
-                    raise Exception(f"Authentication failed: {e.response.text}")
+                    raise Exception(f"Authentication failed: {e.response.text}") from e
                 elif e.response.status_code == 400:
-                    raise Exception(f"Invalid event data: {e.response.text}")
+                    raise Exception(f"Invalid event data: {e.response.text}") from e
                 elif e.response.status_code >= 500:
                     # Server error, retry
                     if attempt < self.config.retry_attempts - 1:
                         time.sleep(self.config.retry_delay * (2 ** attempt))
                         continue
-                    raise Exception(f"Server error: {e.response.text}")
+                    raise Exception(f"Server error: {e.response.text}") from e
                 else:
-                    raise Exception(f"HTTP error {e.response.status_code}: {e.response.text}")
-                    
+                    raise Exception(f"HTTP error {e.response.status_code}: {e.response.text}") from e
+
             except httpx.RequestError as e:
                 # Network error, retry
                 if attempt < self.config.retry_attempts - 1:
                     time.sleep(self.config.retry_delay * (2 ** attempt))
                     continue
-                raise Exception(f"Network error: {str(e)}")
-        
+                raise Exception(f"Network error: {str(e)}") from e
+
         raise Exception("Max retry attempts exceeded")
-    
-    def get_events(self, civic_id: Optional[str] = None, 
-                  event_type: Optional[str] = None,
-                  limit: int = 100, offset: int = 0) -> Dict[str, Any]:
+
+    def get_events(self, civic_id: str | None = None,
+                  event_type: str | None = None,
+                  limit: int = 100, offset: int = 0) -> dict[str, Any]:
         """Get events from the ledger"""
         params = {"limit": limit, "offset": offset}
         if civic_id:
             params["civic_id"] = civic_id
         if event_type:
             params["event_type"] = event_type
-        
+
         response = self.client.get(
             f"{self.config.ledger_api_base}/ledger/events",
             params=params
         )
         response.raise_for_status()
         return response.json()
-    
-    def get_identity(self, civic_id: str) -> Dict[str, Any]:
+
+    def get_identity(self, civic_id: str) -> dict[str, Any]:
         """Get identity information from the ledger"""
         response = self.client.get(
             f"{self.config.ledger_api_base}/ledger/identity/{civic_id}"
         )
         response.raise_for_status()
         return response.json()
-    
-    def get_ledger_stats(self) -> Dict[str, Any]:
+
+    def get_ledger_stats(self) -> dict[str, Any]:
         """Get ledger statistics"""
         response = self.client.get(
             f"{self.config.ledger_api_base}/ledger/stats"
         )
         response.raise_for_status()
         return response.json()
-    
+
     def close(self):
         """Close the HTTP client"""
         self.client.close()
@@ -124,7 +126,7 @@ def create_lab4_anchor(ledger_api_base: str = None) -> CivicAnchor:
     """Create an anchor helper for Lab4"""
     if not ledger_api_base:
         ledger_api_base = os.getenv("LEDGER_API_BASE", "http://localhost:8000")
-    
+
     config = AnchorConfig(
         ledger_api_base=ledger_api_base,
         lab_source="lab4"
@@ -135,7 +137,7 @@ def create_lab6_anchor(ledger_api_base: str = None) -> CivicAnchor:
     """Create an anchor helper for Lab6"""
     if not ledger_api_base:
         ledger_api_base = os.getenv("LEDGER_API_BASE", "http://localhost:8000")
-    
+
     config = AnchorConfig(
         ledger_api_base=ledger_api_base,
         lab_source="lab6"
@@ -145,7 +147,7 @@ def create_lab6_anchor(ledger_api_base: str = None) -> CivicAnchor:
 # Convenience functions for common events
 def anchor_reflection_created(anchor: CivicAnchor, civic_id: str, token: str,
                             title: str, content: str, visibility: str = "private",
-                            tags: List[str] = None) -> Dict[str, Any]:
+                            tags: list[str] = None) -> dict[str, Any]:
     """Anchor a reflection creation event"""
     payload = {
         "title": title,
@@ -156,7 +158,7 @@ def anchor_reflection_created(anchor: CivicAnchor, civic_id: str, token: str,
     return anchor.anchor_event("reflection_created", civic_id, payload, token)
 
 def anchor_companion_created(anchor: CivicAnchor, civic_id: str, token: str,
-                           companion_id: str, name: str, capabilities: List[str] = None) -> Dict[str, Any]:
+                           companion_id: str, name: str, capabilities: list[str] = None) -> dict[str, Any]:
     """Anchor a companion creation event"""
     payload = {
         "companion_id": companion_id,
@@ -166,7 +168,7 @@ def anchor_companion_created(anchor: CivicAnchor, civic_id: str, token: str,
     return anchor.anchor_event("companion_created", civic_id, payload, token)
 
 def anchor_memory_created(anchor: CivicAnchor, civic_id: str, token: str,
-                         memory_id: str, content: str, memory_type: str = "reflection") -> Dict[str, Any]:
+                         memory_id: str, content: str, memory_type: str = "reflection") -> dict[str, Any]:
     """Anchor a memory creation event"""
     payload = {
         "memory_id": memory_id,
@@ -176,7 +178,7 @@ def anchor_memory_created(anchor: CivicAnchor, civic_id: str, token: str,
     return anchor.anchor_event("memory_created", civic_id, payload, token)
 
 def anchor_agora_vote(anchor: CivicAnchor, civic_id: str, token: str,
-                     proposal_id: str, choice: str, weight: float) -> Dict[str, Any]:
+                     proposal_id: str, choice: str, weight: float) -> dict[str, Any]:
     """Anchor an Agora vote event"""
     payload = {
         "proposal_id": proposal_id,
@@ -186,8 +188,8 @@ def anchor_agora_vote(anchor: CivicAnchor, civic_id: str, token: str,
     return anchor.anchor_event("agora_vote_cast", civic_id, payload, token)
 
 def anchor_shield_verification(anchor: CivicAnchor, civic_id: str, token: str,
-                              verification_type: str, result: str, 
-                              metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+                              verification_type: str, result: str,
+                              metadata: dict[str, Any] = None) -> dict[str, Any]:
     """Anchor a shield verification event"""
     payload = {
         "verification_type": verification_type,
@@ -198,7 +200,7 @@ def anchor_shield_verification(anchor: CivicAnchor, civic_id: str, token: str,
 
 def anchor_gic_transaction(anchor: CivicAnchor, civic_id: str, token: str,
                          tx_type: str, amount: int, from_civic_id: str = None,
-                         to_civic_id: str = None) -> Dict[str, Any]:
+                         to_civic_id: str = None) -> dict[str, Any]:
     """Anchor a GIC transaction event"""
     payload = {
         "tx_type": tx_type,
@@ -212,7 +214,7 @@ def anchor_gic_transaction(anchor: CivicAnchor, civic_id: str, token: str,
 if __name__ == "__main__":
     # Create anchor for Lab4
     anchor = create_lab4_anchor("http://localhost:8000")
-    
+
     try:
         # Anchor a reflection creation
         result = anchor_reflection_created(
@@ -225,15 +227,15 @@ if __name__ == "__main__":
             tags=["test", "demo"]
         )
         print(f"Reflection anchored: {result}")
-        
+
         # Get events for this civic ID
         events = anchor.get_events(civic_id="civic_test_001")
         print(f"Events: {events}")
-        
+
         # Get identity info
         identity = anchor.get_identity("civic_test_001")
         print(f"Identity: {identity}")
-        
+
     except Exception as e:
         print(f"Error: {e}")
     finally:

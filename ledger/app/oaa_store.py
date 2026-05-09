@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sqlite3
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 
 def ensure_oaa_table(conn: sqlite3.Connection) -> None:
@@ -38,10 +39,10 @@ def ensure_oaa_table(conn: sqlite3.Connection) -> None:
 
 def insert_oaa_proof(
     conn: sqlite3.Connection,
-    row: Dict[str, Any],
+    row: dict[str, Any],
     *,
     source: str = "oaa-api-library",
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     Insert one OAA_MEMORY_ENTRY_V1 (or compatible) proof row.
 
@@ -62,10 +63,7 @@ def insert_oaa_proof(
     if intent is not None:
         intent = str(intent)
     prev = row.get("previous_hash")
-    if prev is not None and prev != "":
-        prev = str(prev)
-    else:
-        prev = None
+    prev = str(prev) if prev is not None and prev != "" else None
     raw = json.dumps(row, sort_keys=True, separators=(",", ":"))
     cur = conn.execute(
         """
@@ -80,7 +78,7 @@ def insert_oaa_proof(
     return inserted, h
 
 
-def get_proof_by_hash(conn: sqlite3.Connection, h: str) -> Optional[Dict[str, Any]]:
+def get_proof_by_hash(conn: sqlite3.Connection, h: str) -> dict[str, Any] | None:
     ensure_oaa_table(conn)
     cur = conn.execute(
         "SELECT * FROM oaa_memory_proofs WHERE hash = ?", (h,)
@@ -89,21 +87,19 @@ def get_proof_by_hash(conn: sqlite3.Connection, h: str) -> Optional[Dict[str, An
     if not r:
         return None
     d = dict(r)
-    try:
+    with contextlib.suppress(json.JSONDecodeError):
         d["raw"] = json.loads(d["raw"])
-    except json.JSONDecodeError:
-        pass
     return d
 
 
 def list_proofs(
     conn: sqlite3.Connection,
     *,
-    source: Optional[str] = None,
-    key_prefix: Optional[str] = None,
+    source: str | None = None,
+    key_prefix: str | None = None,
     limit: int = 50,
     offset: int = 0,
-) -> list[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     ensure_oaa_table(conn)
     lim = max(1, min(limit, 200))
     off = max(0, offset)

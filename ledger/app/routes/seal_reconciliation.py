@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -43,8 +43,8 @@ ALLOWED_STATUSES = {
 class SealSeedRequest(BaseModel):
     """Seed or return an existing seal record (immutable artifact + runtime status)."""
 
-    seal: Dict[str, Any]
-    quarantine_reason: Optional[str] = "attestation_timeout"
+    seal: dict[str, Any]
+    quarantine_reason: str | None = "attestation_timeout"
 
 
 class SealActionRequest(BaseModel):
@@ -56,12 +56,12 @@ class SealActionRequest(BaseModel):
 @dataclass
 class _SealRow:
     seal_id: str
-    artifact: Dict[str, Any]
+    artifact: dict[str, Any]
     status: str
-    quarantine_reason: Optional[str]
-    reconciliation: Dict[str, Any]
+    quarantine_reason: str | None
+    reconciliation: dict[str, Any]
     reserve_accounted: bool
-    finalized_event_id: Optional[str]
+    finalized_event_id: str | None
 
 
 
@@ -70,14 +70,14 @@ def _utc_iso() -> str:
 
 
 
-def _validate_artifact(seal: Dict[str, Any]) -> None:
+def _validate_artifact(seal: dict[str, Any]) -> None:
     missing = sorted(k for k in ("seal_id", "cycle_at_seal", "sealed_at", "reserve", "seal_hash") if k not in seal)
     if missing:
         raise HTTPException(status_code=400, detail=f"seal missing required fields: {', '.join(missing)}")
 
 
 
-def _default_reconciliation() -> Dict[str, Any]:
+def _default_reconciliation() -> dict[str, Any]:
     return {
         "attempt_count": 0,
         "last_attempt_at": None,
@@ -88,7 +88,7 @@ def _default_reconciliation() -> Dict[str, Any]:
 
 
 
-def _load_row(conn, seal_id: str) -> Optional[_SealRow]:
+def _load_row(conn, seal_id: str) -> _SealRow | None:
     row = conn.execute(
         """
         SELECT seal_id, artifact_json, status, quarantine_reason,
@@ -137,7 +137,7 @@ def _store_row(conn, row: _SealRow) -> None:
 
 
 
-def _build_response(row: _SealRow) -> Dict[str, Any]:
+def _build_response(row: _SealRow) -> dict[str, Any]:
     return {
         "seal_id": row.seal_id,
         "cycle_at_seal": row.artifact.get("cycle_at_seal"),
@@ -152,7 +152,7 @@ def _build_response(row: _SealRow) -> Dict[str, Any]:
 
 
 
-def _merge_attestations(artifact: Dict[str, Any], attempt_ts: str) -> Dict[str, Any]:
+def _merge_attestations(artifact: dict[str, Any], attempt_ts: str) -> dict[str, Any]:
     existing = artifact.get("attestations") or {}
     merged = dict(existing)
     for agent in ATTEST_REQUIRED:

@@ -1,9 +1,11 @@
-from fastapi import FastAPI, Query
-from pydantic import BaseModel
-from sqlitedict import SqliteDict
-from dateutil import parser as dtp
-import os, httpx, json, math, time
+import os
+import time
 from collections import defaultdict
+
+import httpx
+from dateutil import parser as dtp
+from fastapi import FastAPI, Query
+from sqlitedict import SqliteDict
 
 LAB4 = os.getenv("LAB4_BASE", "").rstrip("/")
 POLICY_PATH = os.getenv("POLICY_PATH", "./policy.yaml")
@@ -14,7 +16,7 @@ os.makedirs(os.path.dirname(INDEX_DB_PATH), exist_ok=True)
 
 def load_policy():
     import yaml
-    with open(POLICY_PATH, "r", encoding="utf-8") as f:
+    with open(POLICY_PATH, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 POL = load_policy()
@@ -116,7 +118,7 @@ def recompute(from_date: str = Query(None), to_date: str = Query(None)):
             done.append(date_str)
 
         # enforce per-user daily cap
-        cap = POL["rewards"]["daily_user_cap_gic"]
+        POL["rewards"]["daily_user_cap_gic"]
         # (Simple demo: not implemented per-day-per-user here; add when you promote to prod.)
 
         # save
@@ -152,10 +154,10 @@ def stats():
     with SqliteDict(INDEX_DB_PATH, autocommit=False) as db:
         balances = db.get("balances", {})
         events = db.get("events", {})
-        
+
         total_balance = sum(balances.values())
         total_events = sum(len(day_events) for day_events in events.values())
-        
+
         return {
             "total_balance": total_balance,
             "total_events": total_events,

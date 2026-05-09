@@ -6,21 +6,22 @@ Authentication and identity management for the Mobius platform.
 Provides email/password signup, login, JWT token-based authentication.
 """
 
-from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr
-from sqlalchemy import create_engine, Column, String, DateTime
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from passlib.context import CryptContext
+import logging
+import os
+import socket
+import uuid
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
-import socket
-import logging
+
 import jwt
-import os
-import uuid
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from passlib.context import CryptContext
+from pydantic import BaseModel, EmailStr
+from sqlalchemy import Column, DateTime, String, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +47,10 @@ def resolve_hostname_to_ipv4(hostname: str) -> str | None:
 def get_engine_kwargs(database_url: str) -> dict:
     """Get engine kwargs with IPv4 forcing for PostgreSQL connections."""
     kwargs = {}
-    
+
     if not database_url.startswith("postgresql"):
         return kwargs
-    
+
     # Connection pool settings optimized for serverless/Supabase
     kwargs.update({
         "pool_size": 5,
@@ -58,12 +59,12 @@ def get_engine_kwargs(database_url: str) -> dict:
         "pool_recycle": 300,  # Recycle connections after 5 minutes
         "pool_pre_ping": True,  # Verify connections before use
     })
-    
+
     # Force IPv4 connections to fix Render.com/Supabase connectivity
     try:
         parsed = urlparse(database_url)
         hostname = parsed.hostname
-        
+
         if hostname and hostname not in ("localhost", "127.0.0.1", "::1"):
             ipv4_addr = resolve_hostname_to_ipv4(hostname)
             if ipv4_addr:
@@ -72,7 +73,7 @@ def get_engine_kwargs(database_url: str) -> dict:
                 logger.info(f"Configured IPv4 connection to {hostname} via {ipv4_addr}")
     except Exception as e:
         logger.warning(f"Error configuring IPv4 connection: {e}")
-    
+
     return kwargs
 
 # Configuration
@@ -82,12 +83,12 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./identity.db")
 if DATABASE_URL.startswith("https://") or DATABASE_URL.startswith("http://"):
     # User likely set the Supabase API URL instead of the PostgreSQL connection string
     raise ValueError(
-        f"Invalid DATABASE_URL format. You provided an HTTP(S) URL, but SQLAlchemy "
-        f"requires a PostgreSQL connection string.\n\n"
-        f"For Supabase, use the connection string from:\n"
-        f"  Project Settings > Database > Connection string\n\n"
-        f"Format: postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres\n"
-        f"Or direct: postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres"
+        "Invalid DATABASE_URL format. You provided an HTTP(S) URL, but SQLAlchemy "
+        "requires a PostgreSQL connection string.\n\n"
+        "For Supabase, use the connection string from:\n"
+        "  Project Settings > Database > Connection string\n\n"
+        "Format: postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres\n"
+        "Or direct: postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres"
     )
 
 if DATABASE_URL.startswith("postgres://"):
@@ -113,7 +114,7 @@ Base = declarative_base()
 # Models
 class User(Base):
     __tablename__ = "users"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
@@ -188,9 +189,9 @@ def verify_token(token: str):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload.get("user_id")
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
+        raise HTTPException(status_code=401, detail="Token expired") from None
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, detail="Invalid token") from None
 
 
 def get_current_user(
@@ -200,11 +201,11 @@ def get_current_user(
     user_id = verify_token(credentials.credentials)
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid authentication")
-    
+
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     return user
 
 
@@ -260,16 +261,16 @@ async def health():
 @app.post("/auth/signup", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def signup(request: SignupRequest, db: Session = Depends(get_db)):
     """Create a new user account"""
-    
+
     # Check if user exists
     existing_user = db.query(User).filter(User.email == request.email.lower()).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
-    
+
     # Create user
     user_id = str(uuid.uuid4())
     civic_id = generate_civic_id(user_id)
-    
+
     user = User(
         id=user_id,
         email=request.email.lower(),
@@ -277,14 +278,14 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
         name=request.name,
         civic_id=civic_id
     )
-    
+
     db.add(user)
     db.commit()
     db.refresh(user)
-    
+
     # Create token
     token = create_access_token({"user_id": user.id, "civic_id": civic_id})
-    
+
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -295,19 +296,19 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
 @app.post("/auth/login", response_model=TokenResponse)
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
     """Login with email and password"""
-    
+
     # Find user
     user = db.query(User).filter(User.email == request.email.lower()).first()
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
+
     # Verify password
     if not pwd_context.verify(request.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
+
     # Create token
     token = create_access_token({"user_id": user.id, "civic_id": user.civic_id})
-    
+
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -330,11 +331,11 @@ async def update_me(
     """Update current user profile"""
     if request.name is not None:
         current_user.name = request.name
-    
+
     current_user.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(current_user)
-    
+
     return current_user
 
 
@@ -362,7 +363,7 @@ async def verify_civic_id(civic_id: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.civic_id == civic_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Civic ID not found")
-    
+
     return {
         "valid": True,
         "civic_id": civic_id,

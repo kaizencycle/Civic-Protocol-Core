@@ -4,8 +4,8 @@ import os
 import sys
 from pathlib import Path
 
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -13,7 +13,6 @@ os.environ["LEDGER_DATA_DIR"] = "/tmp/ledger_test_seal_reconciliation"
 
 from ledger.app.db import get_db_connection  # noqa: E402
 from ledger.app.main import app  # noqa: E402
-
 
 client = TestClient(app)
 

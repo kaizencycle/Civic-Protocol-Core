@@ -1,10 +1,10 @@
 """SQLite connection and schema for Civic Ledger API."""
 
+import contextlib
 import json
 import os
 import sqlite3
 import tempfile
-from typing import Optional
 
 from fastapi import HTTPException
 
@@ -57,10 +57,8 @@ def _ensure_mesh_ipfs_columns(conn: sqlite3.Connection) -> None:
     for name, decl in alters:
         if name in existing:
             continue
-        try:
+        with contextlib.suppress(sqlite3.OperationalError):
             conn.execute(f"ALTER TABLE mesh_entries ADD COLUMN {name} {decl}")
-        except sqlite3.OperationalError:
-            pass
     conn.execute(
         """
         CREATE UNIQUE INDEX IF NOT EXISTS idx_mesh_entries_ipfs_cid
@@ -69,7 +67,7 @@ def _ensure_mesh_ipfs_columns(conn: sqlite3.Connection) -> None:
     )
 
 
-def ledger_feed_json_path() -> Optional[str]:
+def ledger_feed_json_path() -> str | None:
     for p in _FEED_PATH_CANDIDATES:
         if p and os.path.isfile(p):
             return os.path.abspath(p)

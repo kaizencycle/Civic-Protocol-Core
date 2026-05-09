@@ -6,8 +6,9 @@ import hashlib
 import hmac
 import json
 import os
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Any, TypeVar
 
 from fastapi import APIRouter
 
@@ -57,7 +58,7 @@ WRITE_TOKEN_ENVS = ("AGENT_SERVICE_TOKEN", "CIVIC_LEDGER_TOKEN", "LEDGER_ADMIN_T
 MIN_WRITE_TOKEN_LENGTH = 24
 
 
-def _normalize_token_material(value: Optional[str]) -> Optional[str]:
+def _normalize_token_material(value: str | None) -> str | None:
     if not value:
         return None
     token = value.strip()
@@ -72,8 +73,8 @@ def _normalize_token_material(value: Optional[str]) -> Optional[str]:
     return token or None
 
 
-def _configured_write_tokens() -> List[str]:
-    tokens: List[str] = []
+def _configured_write_tokens() -> list[str]:
+    tokens: list[str] = []
     for key in WRITE_TOKEN_ENVS:
         token = _normalize_token_material(os.getenv(key))
         if token:
@@ -85,7 +86,7 @@ def _has_configured_write_token() -> bool:
     return bool(_configured_write_tokens())
 
 
-def _verify_write_token(candidate: Optional[str]) -> bool:
+def _verify_write_token(candidate: str | None) -> bool:
     token = _normalize_token_material(candidate)
     if not token:
         return False
@@ -97,7 +98,7 @@ def _verify_write_token(candidate: Optional[str]) -> bool:
     return False
 
 
-def _extract_bearer_token(authorization: Optional[str]) -> Optional[str]:
+def _extract_bearer_token(authorization: str | None) -> str | None:
     return _normalize_token_material(authorization)
 
 
@@ -136,9 +137,9 @@ def _mcp_log_enabled() -> bool:
 
 def _maybe_log(
     tool: str,
-    args: Dict[str, Any],
+    args: dict[str, Any],
     ok: bool,
-    gi: Optional[float],
+    gi: float | None,
 ) -> None:
     if _mcp_log_enabled():
         log_mcp_invocation(tool, args, ok, gi, _cycle())
@@ -160,7 +161,7 @@ def _new_mcp_entry_id(title: str) -> str:
 async def get_integrity_snapshot() -> str:
     gate = check_integrity_gate(0.0)
     gi_state = load_gi_state() or {}
-    snapshot: Dict[str, Any] = {
+    snapshot: dict[str, Any] = {
         "ok": True,
         "node_id": _NODE_ID,
         "gi": gi_state.get("global_integrity"),
@@ -222,9 +223,9 @@ async def get_epicon_feed(limit: int = 10) -> str:
         )
         rows = cur.fetchall()
 
-    entries: List[Dict[str, Any]] = []
+    entries: list[dict[str, Any]] = []
     for row in rows:
-        raw_obj: Dict[str, Any] = {}
+        raw_obj: dict[str, Any] = {}
         if row["raw"]:
             try:
                 raw_obj = json.loads(row["raw"])
@@ -306,7 +307,7 @@ async def get_agent_journal(limit: int = 10) -> str:
         rows = cur.fetchall()
     items = []
     for row in rows:
-        raw_obj: Dict[str, Any] = {}
+        raw_obj: dict[str, Any] = {}
         if row["raw"]:
             try:
                 raw_obj = json.loads(row["raw"])
@@ -361,7 +362,7 @@ async def post_epicon_entry(
     category: str,
     rationale: str,
     confidence: float,
-    authorization: Optional[str] = None,
+    authorization: str | None = None,
 ) -> str:
     safe_args = {"title": title, "category": category, "confidence": confidence}
 
@@ -471,7 +472,7 @@ def register_mcp_status_route() -> None:
     if _MCP_ROUTER_AVAILABLE:
         return
 
-    async def mcp_unavailable_stub() -> Dict[str, Any]:
+    async def mcp_unavailable_stub() -> dict[str, Any]:
         return {
             "ok": False,
             "error": "mcp_router_unavailable",

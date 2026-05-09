@@ -10,25 +10,23 @@ same bytes. Postgres deployments can use the same canonical payload via
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
 import sqlite3
 import threading
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import base58
 
 _CANON_SEP = (",", ":")
 
 
-def canonical_mesh_payload(row: sqlite3.Row | Dict[str, Any]) -> bytes:
+def canonical_mesh_payload(row: sqlite3.Row | dict[str, Any]) -> bytes:
     """Deterministic JSON for a mesh row (id + node + tier + time + title + sha + source + raw JSON)."""
-    if isinstance(row, sqlite3.Row):
-        d = dict(row)
-    else:
-        d = row
+    d = dict(row) if isinstance(row, sqlite3.Row) else row
     raw_obj: Any
     raw_s = d.get("raw")
     if isinstance(raw_s, str):
@@ -78,7 +76,7 @@ class IPFSAddResult:
 class IPFSLedgerBridge:
     """Thin wrapper over Kubo HTTP API (ipfshttpclient)."""
 
-    def __init__(self, ipfs_addr: Optional[str] = None):
+    def __init__(self, ipfs_addr: str | None = None):
         addr = (ipfs_addr or os.getenv("IPFS_API_ADDR", "")).strip()
         if not addr:
             addr = "/ip4/127.0.0.1/tcp/5001"
@@ -96,10 +94,8 @@ class IPFSLedgerBridge:
 
     def close(self) -> None:
         if self._client is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._client.close()
-            except Exception:
-                pass
             self._client = None
 
     def add_canonical_bytes(self, data: bytes) -> IPFSAddResult:
@@ -117,14 +113,14 @@ class IPFSLedgerBridge:
     def pin_cid(self, cid: str) -> None:
         self._client_lazy().pin.add(cid)
 
-    def cat_json(self, cid: str) -> Dict[str, Any]:
+    def cat_json(self, cid: str) -> dict[str, Any]:
         raw = self._client_lazy().cat(cid)
         if isinstance(raw, bytes):
             return json.loads(raw.decode("utf-8"))
         return json.loads(raw)
 
 
-def mesh_row_by_id(conn: sqlite3.Connection, entry_id: str) -> Optional[sqlite3.Row]:
+def mesh_row_by_id(conn: sqlite3.Connection, entry_id: str) -> sqlite3.Row | None:
     cur = conn.execute("SELECT * FROM mesh_entries WHERE id = ?", (entry_id,))
     return cur.fetchone()
 
@@ -135,7 +131,7 @@ def pin_mesh_entry_sqlite(
     entry_id: str,
     *,
     do_pin: bool = True,
-) -> Optional[Tuple[str, str]]:
+) -> tuple[str, str] | None:
     """
     Pin one mesh row to IPFS; update ipfs_cid / content_addressed / pinned_at.
 
@@ -169,13 +165,13 @@ def pin_mesh_entry_sqlite(
 def schedule_pin_mesh_entry(
     db_path: str,
     entry_id: str,
-    ipfs_addr: Optional[str] = None,
+    ipfs_addr: str | None = None,
 ) -> None:
     """Fire-and-forget background pin (hybrid mode)."""
 
     def _run() -> None:
         bridge = IPFSLedgerBridge(ipfs_addr)
-        conn: Optional[sqlite3.Connection] = None
+        conn: sqlite3.Connection | None = None
         try:
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row

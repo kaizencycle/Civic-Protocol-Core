@@ -9,21 +9,20 @@ Every reflection, shield action, companion event, and governance decision
 gets anchored here as an immutable event in the ledger.
 """
 
-from contextlib import asynccontextmanager
-
-from fastapi import FastAPI, HTTPException, Header
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
-from datetime import datetime, timezone
 import hashlib
 import json
 import os
-import httpx
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Any
+
+import httpx
+from fastapi import FastAPI, Header, HTTPException
+from pydantic import BaseModel
 
 from .db import DATA_DIR, LEDGER_DB_PATH, get_db_connection
-from .routes import epicon, mesh, oaa_memory, seal_reconciliation
-from .routes import mcp_tools
+from .routes import epicon, mcp_tools, mesh, oaa_memory, seal_reconciliation
 
 
 @asynccontextmanager
@@ -65,11 +64,11 @@ class LedgerEvent:
     event_type: str
     civic_id: str
     lab_source: str  # "lab4", "lab6", "identity", or "terminal"
-    payload: Dict[str, Any]
+    payload: dict[str, Any]
     timestamp: str
     previous_hash: str
     event_hash: str
-    signature: Optional[str] = None
+    signature: str | None = None
 
 
 class AttestationRequest(BaseModel):
@@ -77,8 +76,8 @@ class AttestationRequest(BaseModel):
     event_type: str
     civic_id: str
     lab_source: str
-    payload: Dict[str, Any]
-    signature: Optional[str] = None
+    payload: dict[str, Any]
+    signature: str | None = None
 
 
 class EventResponse(BaseModel):
@@ -92,7 +91,7 @@ class EventResponse(BaseModel):
     confirmed: bool
 
 
-def verify_token(token: str, lab_source: str) -> Dict[str, Any]:
+def verify_token(token: str, lab_source: str) -> dict[str, Any]:
     """Verify Bearer token via Lab4, Lab6, or Mobius Identity introspection."""
     if lab_source == "lab4":
         api_base = LAB4_API_BASE
@@ -102,10 +101,10 @@ def verify_token(token: str, lab_source: str) -> Dict[str, Any]:
         api_base = IDENTITY_API_BASE
     else:
         raise HTTPException(400, f"Unknown lab source: {lab_source}")
-    
+
     if not api_base:
         raise HTTPException(400, f"No API base configured for {lab_source}")
-    
+
     base = api_base.rstrip("/")
     try:
         with httpx.Client(timeout=10.0) as client:
@@ -116,22 +115,20 @@ def verify_token(token: str, lab_source: str) -> Dict[str, Any]:
             response.raise_for_status()
             return response.json()
     except httpx.HTTPError as e:
-        raise HTTPException(401, f"Token verification failed: {str(e)}")
+        raise HTTPException(401, f"Token verification failed: {str(e)}") from e
     except Exception as e:
-        raise HTTPException(500, f"Token verification error: {str(e)}")
+        raise HTTPException(500, f"Token verification error: {str(e)}") from e
 
 
 def _civic_id_allowed_for_lab(
-    request_civic_id: str, token_civic_id: Optional[str], lab_source: str
+    request_civic_id: str, token_civic_id: str | None, lab_source: str
 ) -> bool:
     """Bind civic_id to the JWT for identity; allow synthetic mobius-* ids for terminal agents."""
     if not token_civic_id:
         return True
     if request_civic_id == token_civic_id:
         return True
-    if lab_source == "terminal" and request_civic_id.startswith("mobius-"):
-        return True
-    return False
+    return bool(lab_source == "terminal" and request_civic_id.startswith("mobius-"))
 
 
 def get_latest_event_hash() -> str:
@@ -139,7 +136,7 @@ def get_latest_event_hash() -> str:
     try:
         with get_db_connection() as conn:
             cursor = conn.execute("""
-                SELECT event_hash FROM events 
+                SELECT event_hash FROM events
                 ORDER BY created_at DESC LIMIT 1
             """)
             result = cursor.fetchone()
@@ -156,12 +153,12 @@ def calculate_event_hash(event: LedgerEvent) -> str:
 
 
 def create_ledger_event(event_type: str, civic_id: str, lab_source: str,
-                       payload: Dict[str, Any], signature: Optional[str] = None) -> LedgerEvent:
+                       payload: dict[str, Any], signature: str | None = None) -> LedgerEvent:
     """Create a new ledger event"""
     event_id = f"evt_{int(datetime.now().timestamp() * 1000)}_{hashlib.sha256(f'{civic_id}{event_type}'.encode()).hexdigest()[:8]}"
     timestamp = datetime.now(timezone.utc).isoformat()
     previous_hash = get_latest_event_hash()
-    
+
     event = LedgerEvent(
         event_id=event_id,
         event_type=event_type,
@@ -173,10 +170,10 @@ def create_ledger_event(event_type: str, civic_id: str, lab_source: str,
         event_hash="",  # Will be calculated
         signature=signature
     )
-    
+
     # Calculate event hash
     event.event_hash = calculate_event_hash(event)
-    
+
     return event
 
 
@@ -198,10 +195,10 @@ def health():
         with get_db_connection() as conn:
             cursor = conn.execute("SELECT COUNT(*) FROM events")
             event_count = cursor.fetchone()[0]
-        
+
         return {
-            "ok": True, 
-            "service": "civic-ledger-api", 
+            "ok": True,
+            "service": "civic-ledger-api",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "data_dir": DATA_DIR,
             "event_count": event_count,
@@ -220,34 +217,33 @@ def health():
 
 @app.post("/ledger/attest")
 def attest_event(request: AttestationRequest,
-                authorization: Optional[str] = Header(None)):
+                authorization: str | None = Header(None)):
     """Attest an event to the immutable ledger"""
-    
+
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(401, "Missing or invalid authorization header")
-    
+
     token = authorization[7:]  # Remove "Bearer " prefix
-    
+
     # Verify token with the appropriate lab
     try:
         token_data = verify_token(token, request.lab_source)
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(401, f"Token verification failed: {str(e)}")
-    
+        raise HTTPException(401, f"Token verification failed: {str(e)}") from e
+
     if request.lab_source in ("identity", "terminal"):
         token_civic = token_data.get("civic_id")
-        if isinstance(token_civic, str) and token_civic:
-            if not _civic_id_allowed_for_lab(
-                request.civic_id, token_civic, request.lab_source
-            ):
-                raise HTTPException(
-                    403,
-                    "civic_id must match the authenticated user or use mobius- prefix "
-                    "when lab_source is terminal",
-                )
-    
+        if isinstance(token_civic, str) and token_civic and not _civic_id_allowed_for_lab(
+            request.civic_id, token_civic, request.lab_source
+        ):
+            raise HTTPException(
+                403,
+                "civic_id must match the authenticated user or use mobius- prefix "
+                "when lab_source is terminal",
+            )
+
     # Create ledger event
     event = create_ledger_event(
         event_type=request.event_type,
@@ -256,12 +252,12 @@ def attest_event(request: AttestationRequest,
         payload=request.payload,
         signature=request.signature
     )
-    
+
     # Store in database
     try:
         with get_db_connection() as conn:
             conn.execute("""
-                INSERT INTO events (event_id, event_type, civic_id, lab_source, 
+                INSERT INTO events (event_id, event_type, civic_id, lab_source,
                                   payload, timestamp, previous_hash, event_hash, signature)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
@@ -269,21 +265,21 @@ def attest_event(request: AttestationRequest,
                 json.dumps(event.payload), event.timestamp, event.previous_hash,
                 event.event_hash, event.signature
             ))
-            
+
             # Update identity stats
             conn.execute("""
                 INSERT OR REPLACE INTO identities (civic_id, lab_source, first_seen, last_seen, event_count)
-                VALUES (?, ?, 
+                VALUES (?, ?,
                         COALESCE((SELECT first_seen FROM identities WHERE civic_id = ?), ?),
-                        ?, 
+                        ?,
                         COALESCE((SELECT event_count FROM identities WHERE civic_id = ?), 0) + 1)
             """, (event.civic_id, event.lab_source, event.civic_id, event.timestamp,
                   event.timestamp, event.civic_id))
-            
+
             conn.commit()
     except Exception as e:
-        raise HTTPException(500, f"Database error: {str(e)}")
-    
+        raise HTTPException(500, f"Database error: {str(e)}") from e
+
     return EventResponse(
         event_id=event.event_id,
         event_type=event.event_type,
@@ -296,36 +292,36 @@ def attest_event(request: AttestationRequest,
 
 
 @app.get("/ledger/events")
-def get_events(civic_id: Optional[str] = None,
-               event_type: Optional[str] = None,
-               lab_source: Optional[str] = None,
+def get_events(civic_id: str | None = None,
+               event_type: str | None = None,
+               lab_source: str | None = None,
                limit: int = 100,
                offset: int = 0):
     """Get events from the ledger with optional filtering"""
-    
+
     query = "SELECT * FROM events WHERE 1=1"
     params = []
-    
+
     if civic_id:
         query += " AND civic_id = ?"
         params.append(civic_id)
-    
+
     if event_type:
         query += " AND event_type = ?"
         params.append(event_type)
-    
+
     if lab_source:
         query += " AND lab_source = ?"
         params.append(lab_source)
-    
+
     query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
-    
+
     try:
         with get_db_connection() as conn:
             cursor = conn.execute(query, params)
             rows = cursor.fetchall()
-            
+
             events = []
             for row in rows:
                 events.append({
@@ -340,15 +336,15 @@ def get_events(civic_id: Optional[str] = None,
                     "signature": row[8]
                 })
     except Exception as e:
-        raise HTTPException(500, f"Database error: {str(e)}")
-    
+        raise HTTPException(500, f"Database error: {str(e)}") from e
+
     return {"events": events, "count": len(events)}
 
 
 @app.get("/ledger/identity/{civic_id}")
 def get_identity(civic_id: str):
     """Get identity information and stats"""
-    
+
     try:
         with get_db_connection() as conn:
             # Get identity stats
@@ -356,18 +352,18 @@ def get_identity(civic_id: str):
                 SELECT civic_id, lab_source, first_seen, last_seen, event_count
                 FROM identities WHERE civic_id = ?
             """, (civic_id,))
-            
+
             identity_row = cursor.fetchone()
             if not identity_row:
                 raise HTTPException(404, f"Identity {civic_id} not found")
-            
+
             # Get recent events
             cursor = conn.execute("""
                 SELECT event_type, timestamp, event_hash
                 FROM events WHERE civic_id = ?
                 ORDER BY created_at DESC LIMIT 10
             """, (civic_id,))
-            
+
             recent_events = []
             for row in cursor.fetchall():
                 recent_events.append({
@@ -376,8 +372,8 @@ def get_identity(civic_id: str):
                     "event_hash": row[2]
                 })
     except Exception as e:
-        raise HTTPException(500, f"Database error: {str(e)}")
-    
+        raise HTTPException(500, f"Database error: {str(e)}") from e
+
     return {
         "civic_id": identity_row[0],
         "lab_source": identity_row[1],
@@ -391,40 +387,40 @@ def get_identity(civic_id: str):
 @app.get("/ledger/stats")
 def get_ledger_stats():
     """Get ledger statistics"""
-    
+
     try:
         with get_db_connection() as conn:
             # Total events
             cursor = conn.execute("SELECT COUNT(*) FROM events")
             total_events = cursor.fetchone()[0]
-            
+
             # Total identities
             cursor = conn.execute("SELECT COUNT(*) FROM identities")
             total_identities = cursor.fetchone()[0]
-            
+
             # Events by type
             cursor = conn.execute("""
-                SELECT event_type, COUNT(*) FROM events 
+                SELECT event_type, COUNT(*) FROM events
                 GROUP BY event_type ORDER BY COUNT(*) DESC
             """)
             events_by_type = {row[0]: row[1] for row in cursor.fetchall()}
-            
+
             # Events by lab
             cursor = conn.execute("""
-                SELECT lab_source, COUNT(*) FROM events 
+                SELECT lab_source, COUNT(*) FROM events
                 GROUP BY lab_source ORDER BY COUNT(*) DESC
             """)
             events_by_lab = {row[0]: row[1] for row in cursor.fetchall()}
-            
+
             # Latest event
             cursor = conn.execute("""
-                SELECT event_id, timestamp, event_type FROM events 
+                SELECT event_id, timestamp, event_type FROM events
                 ORDER BY created_at DESC LIMIT 1
             """)
             latest_event = cursor.fetchone()
     except Exception as e:
-        raise HTTPException(500, f"Database error: {str(e)}")
-    
+        raise HTTPException(500, f"Database error: {str(e)}") from e
+
     return {
         "total_events": total_events,
         "total_identities": total_identities,
@@ -441,31 +437,31 @@ def get_ledger_stats():
 @app.get("/ledger/chain")
 def get_chain_info():
     """Get blockchain-like chain information"""
-    
+
     try:
         with get_db_connection() as conn:
             # Get chain length
             cursor = conn.execute("SELECT COUNT(*) FROM events")
             chain_length = cursor.fetchone()[0]
-            
+
             # Get latest block hash
             cursor = conn.execute("""
-                SELECT event_hash FROM events 
+                SELECT event_hash FROM events
                 ORDER BY created_at DESC LIMIT 1
             """)
             latest_hash = cursor.fetchone()
             latest_hash = latest_hash[0] if latest_hash else "0" * 64
-            
+
             # Get genesis hash
             cursor = conn.execute("""
-                SELECT event_hash FROM events 
+                SELECT event_hash FROM events
                 ORDER BY created_at ASC LIMIT 1
             """)
             genesis_hash = cursor.fetchone()
             genesis_hash = genesis_hash[0] if genesis_hash else "0" * 64
     except Exception as e:
-        raise HTTPException(500, f"Database error: {str(e)}")
-    
+        raise HTTPException(500, f"Database error: {str(e)}") from e
+
     return {
         "chain_length": chain_length,
         "latest_hash": latest_hash,

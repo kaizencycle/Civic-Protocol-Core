@@ -1,7 +1,8 @@
-from sqlalchemy import create_engine, select, update, func
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import sessionmaker
-from .config import settings, engine_kwargs
-from .models import Base, Account, Balance, Event
+
+from .config import engine_kwargs, settings
+from .models import Account, Balance, Base, Event
 
 engine = create_engine(settings.DB_URL, future=True, **engine_kwargs)
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False, future=True)
@@ -13,7 +14,8 @@ def get_or_create_account(db, handle: str) -> Account:
     acct = db.scalar(select(Account).where(Account.handle == handle))
     if not acct:
         acct = Account(handle=handle)
-        db.add(acct); db.flush()
+        db.add(acct)
+        db.flush()
         db.add(Balance(account_id=acct.id, xp=0.0, gic=0.0))
     return acct
 
@@ -26,7 +28,6 @@ def apply_event(db, kind: str, amount: float, unit: str, actor: str | None, targ
                meta=meta or {})
     db.add(ev)
     # Adjust balances
-    ratio = settings.XP_TO_GIC_RATIO
     def bump(handle, dx_xp=0.0, dx_gic=0.0):
         acct = get_or_create_account(db, handle)
         bal = db.scalar(select(Balance).where(Balance.account_id==acct.id))
@@ -40,7 +41,8 @@ def apply_event(db, kind: str, amount: float, unit: str, actor: str | None, targ
     elif kind == "burn" and actor and unit=="GIC":
         bump(actor, dx_gic= -amount)
     elif kind == "transfer" and actor and target and unit=="GIC":
-        bump(actor, dx_gic= -amount); bump(target, dx_gic= amount)
+        bump(actor, dx_gic= -amount)
+        bump(target, dx_gic= amount)
 
 def compute_supply(db):
     xp_pool = db.scalar(select(func.sum(Balance.xp))) or 0.0
