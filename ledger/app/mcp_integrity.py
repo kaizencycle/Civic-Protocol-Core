@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
-from ledger.app.db import get_db_connection
+from .db import get_db_connection
 
 
 def _utc_iso() -> str:

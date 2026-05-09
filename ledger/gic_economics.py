@@ -8,9 +8,9 @@ GIC issuance, staking, burning, and reward distribution mechanisms.
 
 import hashlib
 import time
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 import math
 
@@ -612,4 +612,3 @@ if __name__ == "__main__":
     bob_power = gic.calculate_governance_power("bob")
     print(f"Alice governance power: {alice_power:.2f}")
     print(f"Bob governance power: {bob_power:.2f}")
-

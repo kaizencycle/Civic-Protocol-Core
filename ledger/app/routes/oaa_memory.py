@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Literal, Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from ledger.app.db import get_db_connection
-from ledger.app.oaa_store import get_proof_by_hash, insert_oaa_proof, list_proofs
+from ..db import get_db_connection
+from ..oaa_store import get_proof_by_hash, insert_oaa_proof, list_proofs
 
 router = APIRouter(prefix="/oaa", tags=["oaa"])
 

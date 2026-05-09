@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter
 
-from ledger.app.db import get_db_connection, sync_ledger_feed_json_to_epicon_entries
+from ..db import get_db_connection, sync_ledger_feed_json_to_epicon_entries
 
 router = APIRouter(tags=["epicon"])
 
