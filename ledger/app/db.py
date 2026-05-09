@@ -127,6 +127,18 @@ def get_db_connection() -> sqlite3.Connection:
             );
             CREATE INDEX IF NOT EXISTS idx_epicon_entries_timestamp ON epicon_entries(timestamp DESC);
             CREATE INDEX IF NOT EXISTS idx_epicon_entries_source ON epicon_entries(source);
+            CREATE TABLE IF NOT EXISTS seal_records (
+                seal_id TEXT PRIMARY KEY,
+                artifact_json TEXT NOT NULL,
+                status TEXT NOT NULL,
+                quarantine_reason TEXT,
+                reconciliation_json TEXT NOT NULL,
+                reserve_accounted INTEGER NOT NULL DEFAULT 0,
+                finalized_event_id TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_seal_records_status ON seal_records(status);
             """
         )
         _ensure_mesh_ipfs_columns(conn)

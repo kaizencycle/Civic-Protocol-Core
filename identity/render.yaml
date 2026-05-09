@@ -11,6 +11,9 @@ services:
     startCommand: |
       uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
+    # C-303: added autoDeploy and disk for SQLite persistence.
+    # Without a disk mount on Render free plan, SQLite data is wiped on every deploy.
+    # Wire DATABASE_URL to a managed Postgres to remove this constraint.
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -18,3 +21,5 @@ services:
         generateValue: true
       - key: PORT
         value: "8000"
+      - key: ENVIRONMENT
+        value: production

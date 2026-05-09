@@ -25,23 +25,51 @@ jobs:
           mkdir -p ledger
           [ -f ledger/feed.json ] || echo "[]" > ledger/feed.json
           python3 << 'PY'
+          import hashlib
           import json
           import os
 
           with open("ledger/feed.json", encoding="utf-8") as f:
               feed = json.load(f)
-          entry = {
-              "id": f"EPICON-CPC-{os.environ['GITHUB_SHA']}",
-              "node_id": "civic-protocol-core",
-              "timestamp": os.environ.get("HEAD_TIMESTAMP", ""),
-              "author": os.environ.get("HEAD_AUTHOR", ""),
-              "sha": os.environ["GITHUB_SHA"],
-              "title": os.environ.get("HEAD_MESSAGE", ""),
-              "source": "mesh-node",
-              "type": "mesh-commit",
-          }
-          feed.insert(0, entry)
-          del feed[100:]
+          if not isinstance(feed, list):
+              feed = []
+
+          sha = os.environ["GITHUB_SHA"]
+          cycle = "C-—"
+          source_hash = hashlib.sha256(
+              json.dumps(
+                  {
+                      "node_id": "civic-protocol-core",
+                      "event_type": "mesh-commit",
+                      "sha": sha,
+                      "message": os.environ.get("HEAD_MESSAGE", ""),
+                  },
+                  sort_keys=True,
+              ).encode("utf-8")
+          ).hexdigest()
+          idempotency_key = f"civic-protocol-core:EPICON_ENTRY_V1:{cycle}:{source_hash[:16]}:mesh-sync"
+
+          existing_keys = {row.get("idempotency_key") for row in feed if isinstance(row, dict)}
+          existing_shas = {row.get("sha") for row in feed if isinstance(row, dict)}
+          if idempotency_key in existing_keys or sha in existing_shas:
+              print("Duplicate mesh sync event; no feed mutation")
+          else:
+              entry = {
+                  "id": f"EPICON-CPC-{sha}",
+                  "idempotency_key": idempotency_key,
+                  "source_hash": source_hash,
+                  "node_id": "civic-protocol-core",
+                  "timestamp": os.environ.get("HEAD_TIMESTAMP", ""),
+                  "author": os.environ.get("HEAD_AUTHOR", ""),
+                  "sha": sha,
+                  "title": os.environ.get("HEAD_MESSAGE", ""),
+                  "source": "mesh-node",
+                  "type": "mesh-commit",
+                  "schema": "EPICON_ENTRY_V1",
+              }
+              feed.insert(0, entry)
+              del feed[100:]
+
           with open("ledger/feed.json", "w", encoding="utf-8") as f:
               json.dump(feed, f, indent=2)
               f.write("\n")

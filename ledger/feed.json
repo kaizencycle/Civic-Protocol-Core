@@ -1,5 +1,87 @@
 [
   {
+    "id": "EPICON-CPC-3374562b6af81c7f6abb949402e7bc7ea4e607c9",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:8d546ee9a8137a70:mesh-sync",
+    "source_hash": "8d546ee9a8137a70d6f8893a242b78852d4a8d8ec92fa271ae99f1eecb187f2f",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-05-07T10:38:24-04:00",
+    "author": "Michael Judan",
+    "sha": "3374562b6af81c7f6abb949402e7bc7ea4e607c9",
+    "title": "Merge pull request #27 from kaizencycle/codex/fix-cors-wildcard-in-mic-indexer\n\nfix(ci+security+deps): C-303 \u2014 Civic-Protocol-Core CI, pin deps, CORS fix",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
+    "id": "EPICON-CPC-c1996d381ddc38706b334d552caba2608754636e",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:657e87e28df480c3:mesh-sync",
+    "source_hash": "657e87e28df480c35130a765e7add075774613e4d47fbccd96e2ef5545de9a24",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-26T21:15:32-04:00",
+    "author": "Michael Judan",
+    "sha": "c1996d381ddc38706b334d552caba2608754636e",
+    "title": "Merge pull request #26 from kaizencycle/c293-phase8-canon-ledger-savepoint\n\nSave Phase 8 canon alignment to civic ledger",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
+    "id": "EPICON-CPC-92e4e3e3be5f3b214ad212ab2078994565c07c81",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:5ae9f4f1b3c891c7:mesh-sync",
+    "source_hash": "5ae9f4f1b3c891c7985ed6c77ee91902d7fa9fc68c48812cc6975a605560e019",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-25T16:08:41-04:00",
+    "author": "Michael Judan",
+    "sha": "92e4e3e3be5f3b214ad212ab2078994565c07c81",
+    "title": "Merge pull request #25 from kaizencycle/c292-phase4-civic-core-mcp-write-auth\n\nC-292 Phase 4 Civic Core MCP Write Auth",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
+    "id": "EPICON-CPC-d7f8422f4400c9b353ad5d63afa0da126e79a8b4",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:c284fef69aecaf6c:mesh-sync",
+    "source_hash": "c284fef69aecaf6cf8d29002b3510ce2bbca2a1bea2133859195e460eb1c199e",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-25T13:22:14-04:00",
+    "author": "Michael Judan",
+    "sha": "d7f8422f4400c9b353ad5d63afa0da126e79a8b4",
+    "title": "Merge pull request #24 from kaizencycle/c292-phase2-ledger-proof-contract\n\nC-292 Phase 2 Ledger Proof Contract",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
+    "id": "EPICON-CPC-d1ba1e61e96166a621e70c77606861571035b810",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-23T21:04:55-04:00",
+    "author": "Michael Judan",
+    "sha": "d1ba1e61e96166a621e70c77606861571035b810",
+    "title": "Merge pull request #23 from kaizencycle/codex/fix-seal-reconciliation-and-add-re-attestation-flow\n\nfix(seal): reconcile quarantined first seal and add re-attestation flow",
+    "source": "mesh-node",
+    "type": "mesh-commit"
+  },
+  {
+    "id": "EPICON-CPC-8bc407679272766b625615b1b1b218f666b24079",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-20T13:06:17-04:00",
+    "author": "Michael Judan",
+    "sha": "8bc407679272766b625615b1b1b218f666b24079",
+    "title": "Merge pull request #22 from kaizencycle/cursor/c287-mesh-workflow-hive-9dc6\n\nfeat(mesh): C-287 HIVE mesh workflow \u2014 jobs, governance, ledger pulse snapshot",
+    "source": "mesh-node",
+    "type": "mesh-commit"
+  },
+  {
+    "id": "EPICON-CPC-039bb6886637b0c9dc60de9ed54b7c489fd54eb3",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-04-19T20:30:55-04:00",
+    "author": "Michael Judan",
+    "sha": "039bb6886637b0c9dc60de9ed54b7c489fd54eb3",
+    "title": "Merge pull request #21 from kaizencycle/cursor/fix-mcp-router-render-9dc6\n\nfix(ledger): fastapi-mcp-router in root requirements + optional MCP fallback for Render",
+    "source": "mesh-node",
+    "type": "mesh-commit"
+  },
+  {
     "id": "EPICON-CPC-089d1ddc3437d89eb3abcbac18ad23427f4b6cfa",
     "node_id": "civic-protocol-core",
     "timestamp": "2026-04-19T17:47:26-04:00",
