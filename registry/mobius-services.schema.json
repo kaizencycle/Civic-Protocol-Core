@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MobiusServiceRegistry",
+  "description": "Schema for Mobius Substrate service registry entries",
+  "type": "object",
+  "required": ["id", "label", "owner_agent", "tier", "ledger_role", "auth_type"],
+  "properties": {
+    "id": { "type": "string" },
+    "label": { "type": "string" },
+    "render_service": { "type": "string" },
+    "url": { "type": ["string", "null"] },
+    "health_path": { "type": ["string", "null"] },
+    "owner_agent": {
+      "type": "string",
+      "enum": ["ATLAS","ZEUS","EVE","JADE","AUREA","HERMES","ECHO","DAEDALUS","URIEL","ZENITH"]
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["substrate","deliberation","coordination","infrastructure","operator_surface","citizen_surface","heartbeat","telemetry","economy"]
+    },
+    "ledger_role": { "type": "string" },
+    "auth_type": { "type": "string" },
+    "writes_ledger": { "type": "boolean" },
+    "is_canonical": { "type": "boolean" },
+    "endpoints": { "type": "array" },
+    "gap": { "type": "string", "description": "Known gap or missing implementation" }
+  }
+}
