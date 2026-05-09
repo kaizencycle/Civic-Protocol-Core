@@ -1,9 +1,13 @@
 # app/routes/onboard.py
+import hashlib
+import json
+import os
+import time
+from typing import Any
+
+import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
-import os, time, json, hashlib
-import httpx
 
 router = APIRouter()
 
@@ -37,14 +41,14 @@ TWIN_SEALS_HASH = sha256_hex(TWIN_SEALS_TEXT)
 class OnboardIn(BaseModel):
     agent: str
     accepted: bool
-    note: Optional[str] = None
+    note: str | None = None
 
 class AttestOut(BaseModel):
     ok: bool
     agent: str
     accepted: bool
     seals_hash: str
-    attestation: Dict[str, Any]
+    attestation: dict[str, Any]
 
 @router.post("/onboard", response_model=AttestOut)
 async def onboard(payload: OnboardIn):
@@ -72,7 +76,7 @@ async def onboard(payload: OnboardIn):
             raise HTTPException(status_code=502, detail=f"Ledger attest failed: {r.text}")
         attestation_result = r.json()
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Ledger call error: {e}")
+        raise HTTPException(status_code=502, detail=f"Ledger call error: {e}") from e
 
     return AttestOut(
         ok=True,

@@ -1,5 +1,7 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
-from typing import Optional, Literal
+
 
 class HealthOut(BaseModel):
     status: Literal["ok"] = "ok"
@@ -8,8 +10,8 @@ class IngestEvent(BaseModel):
     kind: Literal["xp_award","burn","grant","transfer"]
     amount: float = Field(gt=0)
     unit: Literal["XP","GIC"] = "XP"
-    actor: Optional[str] = None
-    target: Optional[str] = None
+    actor: str | None = None
+    target: str | None = None
     meta: dict = {}
 
 class BalanceOut(BaseModel):

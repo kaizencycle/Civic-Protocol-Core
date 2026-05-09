@@ -6,21 +6,21 @@ MIC earning and wallet management for the Mobius platform.
 Tracks MIC balance, earning events, and provides leaderboard functionality.
 """
 
-from fastapi import FastAPI, HTTPException, Depends, status, Query
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, String, Float, DateTime, Integer, JSON, desc, func
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from datetime import datetime
-from typing import Optional, List
-from urllib.parse import urlparse
-import socket
 import logging
-import jwt
 import os
+import socket
 import uuid
+from datetime import datetime
+from urllib.parse import urlparse
+
+import jwt
+from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel
+from sqlalchemy import JSON, Column, DateTime, Float, String, create_engine, desc, func
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import Session, sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +46,10 @@ def resolve_hostname_to_ipv4(hostname: str) -> str | None:
 def get_engine_kwargs(database_url: str) -> dict:
     """Get engine kwargs with IPv4 forcing for PostgreSQL connections."""
     kwargs = {}
-    
+
     if not database_url.startswith("postgresql"):
         return kwargs
-    
+
     # Connection pool settings optimized for serverless/Supabase
     kwargs.update({
         "pool_size": 5,
@@ -58,12 +58,12 @@ def get_engine_kwargs(database_url: str) -> dict:
         "pool_recycle": 300,  # Recycle connections after 5 minutes
         "pool_pre_ping": True,  # Verify connections before use
     })
-    
+
     # Force IPv4 connections to fix Render.com/Supabase connectivity
     try:
         parsed = urlparse(database_url)
         hostname = parsed.hostname
-        
+
         if hostname and hostname not in ("localhost", "127.0.0.1", "::1"):
             ipv4_addr = resolve_hostname_to_ipv4(hostname)
             if ipv4_addr:
@@ -72,7 +72,7 @@ def get_engine_kwargs(database_url: str) -> dict:
                 logger.info(f"Configured IPv4 connection to {hostname} via {ipv4_addr}")
     except Exception as e:
         logger.warning(f"Error configuring IPv4 connection: {e}")
-    
+
     return kwargs
 
 # Configuration
@@ -95,7 +95,7 @@ Base = declarative_base()
 # Models
 class Wallet(Base):
     __tablename__ = "mic_wallets"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), unique=True, nullable=False, index=True)
     civic_id = Column(String(255), unique=True, index=True)  # Link to Civic Protocol identity
@@ -107,7 +107,7 @@ class Wallet(Base):
 
 class MICEvent(Base):
     __tablename__ = "mic_events"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), nullable=False, index=True)
     source = Column(String(100), nullable=False, index=True)
@@ -129,28 +129,28 @@ EARNING_RULES = {
     # OAA Tutor actions
     "oaa_tutor_question": 1.0,
     "oaa_tutor_session_complete": 5.0,
-    
+
     # Reflection actions
     "reflection_entry_created": 2.0,
     "reflection_phase_complete": 1.0,
     "reflection_entry_complete": 5.0,
-    
+
     # Shield actions
     "shield_module_complete": 3.0,
     "shield_checklist_item": 1.0,
-    
+
     # Civic Radar actions
     "civic_radar_action_taken": 2.0,
-    
+
     # Engagement actions
     "daily_login": 0.5,
     "streak_bonus_7": 3.0,
     "streak_bonus_30": 10.0,
-    
+
     # Community actions
     "community_contribution": 2.0,
     "peer_recognition": 1.0,
-    
+
     # Mobius Terminal / agent EPICON ledger attest (MII scales via multiplier)
     "agent_epicon_attest": 2.0,
 }
@@ -220,7 +220,7 @@ def verify_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload.get("user_id"), payload.get("civic_id")
-    except:
+    except Exception:
         return None, None
 
 
@@ -303,10 +303,10 @@ async def get_wallet(
     """Get user's MIC wallet balance and stats"""
     user_id, civic_id = auth
     wallet = get_or_create_wallet(user_id, civic_id, db)
-    
+
     # Get total events
     event_count = db.query(MICEvent).filter(MICEvent.user_id == user_id).count()
-    
+
     return {
         "user_id": user_id,
         "civic_id": wallet.civic_id,
@@ -324,24 +324,24 @@ async def earn_mic(
 ):
     """Record a MIC earning event"""
     user_id, civic_id = auth
-    
+
     # Validate source
     if request.source not in EARNING_RULES:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Unknown earning source: {request.source}. Valid sources: {list(EARNING_RULES.keys())}"
         )
-    
+
     # Get base amount
     base_amount = EARNING_RULES[request.source]
-    
+
     # Apply multiplier (MII multiplier when implemented)
     multiplier = max(0.1, min(request.multiplier, 5.0))  # Clamp between 0.1 and 5.0
     final_amount = base_amount * multiplier
-    
+
     # Get or create wallet
     wallet = get_or_create_wallet(user_id, civic_id, db)
-    
+
     # Create event
     event = MICEvent(
         id=str(uuid.uuid4()),
@@ -353,15 +353,15 @@ async def earn_mic(
         meta=request.meta
     )
     db.add(event)
-    
+
     # Update balance
     wallet.balance_mic += final_amount
     wallet.lifetime_earned += final_amount
     wallet.updated_at = datetime.utcnow()
-    
+
     db.commit()
     db.refresh(wallet)
-    
+
     return {
         "delta": final_amount,
         "new_balance": wallet.balance_mic,
@@ -371,22 +371,22 @@ async def earn_mic(
     }
 
 
-@app.get("/mic/events", response_model=List[EventResponse])
+@app.get("/mic/events", response_model=list[EventResponse])
 async def get_events(
     auth: tuple = Depends(get_current_user_id),
     db: Session = Depends(get_db),
     limit: int = Query(50, le=500),
     offset: int = 0,
-    source: Optional[str] = None
+    source: str | None = None
 ):
     """Get user's MIC earning history"""
     user_id, _ = auth
-    
+
     query = db.query(MICEvent).filter(MICEvent.user_id == user_id)
-    
+
     if source:
         query = query.filter(MICEvent.source == source)
-    
+
     events = (
         query
         .order_by(desc(MICEvent.created_at))
@@ -394,7 +394,7 @@ async def get_events(
         .offset(offset)
         .all()
     )
-    
+
     return events
 
 
@@ -416,7 +416,7 @@ async def get_earning_rules():
     }
 
 
-@app.get("/mic/leaderboard", response_model=List[LeaderboardEntry])
+@app.get("/mic/leaderboard", response_model=list[LeaderboardEntry])
 async def get_leaderboard(
     db: Session = Depends(get_db),
     limit: int = Query(10, le=100),
@@ -424,14 +424,14 @@ async def get_leaderboard(
 ):
     """Get MIC leaderboard (top earners)"""
     order_column = Wallet.balance_mic if by == "balance" else Wallet.lifetime_earned
-    
+
     wallets = (
         db.query(Wallet)
         .order_by(desc(order_column))
         .limit(limit)
         .all()
     )
-    
+
     return [
         {
             "rank": i + 1,
@@ -449,7 +449,7 @@ async def get_stats(db: Session = Depends(get_db)):
     total_wallets = db.query(Wallet).count()
     total_mic = db.query(func.sum(Wallet.lifetime_earned)).scalar() or 0.0
     total_events = db.query(MICEvent).count()
-    
+
     # Get top earning source
     top_source = (
         db.query(MICEvent.source, func.sum(MICEvent.final_amount).label("total"))
@@ -457,7 +457,7 @@ async def get_stats(db: Session = Depends(get_db)):
         .order_by(desc("total"))
         .first()
     )
-    
+
     return {
         "total_wallets": total_wallets,
         "total_mic_distributed": total_mic,
@@ -472,7 +472,7 @@ async def get_balance_by_civic_id(civic_id: str, db: Session = Depends(get_db)):
     wallet = db.query(Wallet).filter(Wallet.civic_id == civic_id).first()
     if not wallet:
         raise HTTPException(status_code=404, detail="Civic ID not found")
-    
+
     return {
         "civic_id": civic_id,
         "balance": wallet.balance_mic,

@@ -10,14 +10,14 @@ This example demonstrates the complete flow:
 
 Run this after starting:
 - Civic Dev Node (port 5411)
-- Shield (port 7000) 
+- Shield (port 7000)
 - GIC-Indexer (port 8000)
 """
 
-import requests
 import json
-import time
-from datetime import datetime, date
+from datetime import date
+
+import requests
 
 # Configuration
 CIVIC_BASE = "http://localhost:5411"
@@ -36,22 +36,22 @@ def print_separator(title=""):
 def test_shield_enrollment():
     """Test Shield enrollment and get group root"""
     print_separator("1. Shield Enrollment")
-    
+
     # Enroll a test identity
     enroll_data = {
         "id_commit": "abcd1234efgh5678",
         "proof_of_human": None
     }
-    
+
     try:
         response = requests.post(f"{SHIELD_BASE}/enroll", json=enroll_data)
         response.raise_for_status()
         result = response.json()
-        
+
         print(f"✓ Enrolled identity: {enroll_data['id_commit']}")
         print(f"✓ Group root: {result['group_root']}")
         print(f"✓ Enrolled count: {result['count']}")
-        
+
         return result['group_root']
     except Exception as e:
         print(f"✗ Shield enrollment failed: {e}")
@@ -60,7 +60,7 @@ def test_shield_enrollment():
 def test_shield_reflection(group_root):
     """Test Shield reflection verification"""
     print_separator("2. Shield Reflection Verification")
-    
+
     # Create a reflection with zkRL proof
     reflection_data = {
         "companion_id": "cmp_test_001",
@@ -78,15 +78,15 @@ def test_shield_reflection(group_root):
             "test": True
         }
     }
-    
+
     try:
         response = requests.post(f"{SHIELD_BASE}/zk/verify-reflection", json=reflection_data)
         response.raise_for_status()
         result = response.json()
-        
-        print(f"✓ Reflection verified by Shield")
+
+        print("✓ Reflection verified by Shield")
         print(f"✓ Attested data: {json.dumps(result['attested'], indent=2)}")
-        
+
         return result['attested']
     except Exception as e:
         print(f"✗ Shield verification failed: {e}")
@@ -95,7 +95,7 @@ def test_shield_reflection(group_root):
 def test_civic_reflection():
     """Test direct Civic reflection posting"""
     print_separator("3. Civic Reflection Posting")
-    
+
     reflection_data = {
         "title": "Integration Test Reflection",
         "body": "This reflection demonstrates the full integration flow",
@@ -103,16 +103,16 @@ def test_civic_reflection():
         "tags": ["integration", "test", "demo"],
         "companion_id": "cmp_test_001"
     }
-    
+
     try:
         response = requests.post(f"{CIVIC_BASE}/reflections", json=reflection_data)
         response.raise_for_status()
         result = response.json()
-        
+
         print(f"✓ Reflection created: {result['ref_id']}")
         print(f"✓ Author: {result['author']}")
         print(f"✓ Visibility: {result['visibility']}")
-        
+
         return result
     except Exception as e:
         print(f"✗ Civic reflection failed: {e}")
@@ -121,10 +121,10 @@ def test_civic_reflection():
 def test_anchor_day():
     """Test day root anchoring"""
     print_separator("4. Day Root Anchoring")
-    
+
     # Create a mock day root (in real implementation, this would come from Lab4)
     day_root = "0x" + "a" * 64  # Mock 64-char hex string
-    
+
     anchor_data = {
         "date": date.today().isoformat(),
         "day_root": day_root,
@@ -133,18 +133,18 @@ def test_anchor_day():
             "source": "civic_protocol_core"
         }
     }
-    
+
     try:
         response = requests.post(f"{CIVIC_BASE}/anchor", json=anchor_data)
         response.raise_for_status()
         result = response.json()
-        
-        print(f"✓ Day anchored successfully")
+
+        print("✓ Day anchored successfully")
         print(f"✓ L1: {result['anchor']['l1']}")
         print(f"✓ Date: {result['anchor']['date']}")
         print(f"✓ Day root: {result['anchor']['day_root']}")
         print(f"✓ Gateway response: {result['gateway']}")
-        
+
         return result
     except Exception as e:
         print(f"✗ Day anchoring failed: {e}")
@@ -153,7 +153,7 @@ def test_anchor_day():
 def test_gic_indexer():
     """Test GIC-Indexer functionality"""
     print_separator("5. GIC-Indexer Testing")
-    
+
     # Test health check
     try:
         response = requests.get(f"{INDEXER_BASE}/health")
@@ -163,7 +163,7 @@ def test_gic_indexer():
     except Exception as e:
         print(f"✗ Indexer health check failed: {e}")
         return
-    
+
     # Test policy retrieval
     try:
         response = requests.get(f"{INDEXER_BASE}/policy")
@@ -174,7 +174,7 @@ def test_gic_indexer():
         print(f"✓ Epoch pool GIC: {policy['rewards']['epoch_pool_gic']}")
     except Exception as e:
         print(f"✗ Policy retrieval failed: {e}")
-    
+
     # Test balance check
     test_address = "cmp::cmp_test_001"
     try:
@@ -184,7 +184,7 @@ def test_gic_indexer():
         print(f"✓ Balance for {test_address}: {result['balance']} GIC")
     except Exception as e:
         print(f"✗ Balance check failed: {e}")
-    
+
     # Test stats
     try:
         response = requests.get(f"{INDEXER_BASE}/stats")
@@ -199,13 +199,13 @@ def test_gic_indexer():
 def test_governance():
     """Test governance functionality"""
     print_separator("6. Governance Testing")
-    
+
     # Test proposal creation (if governance is implemented)
     try:
         # This would test the Agora governance system
         print("✓ Governance system ready for testing")
         print("  - Proposal creation")
-        print("  - Voting mechanisms") 
+        print("  - Voting mechanisms")
         print("  - Execution processes")
     except Exception as e:
         print(f"✗ Governance test failed: {e}")
@@ -219,14 +219,14 @@ def main():
     print("3. Day root anchoring")
     print("4. GIC-Indexer balance computation")
     print("5. Governance system")
-    
+
     # Check if services are running
     services = [
         ("Civic Dev Node", CIVIC_BASE),
         ("Shield", SHIELD_BASE),
         ("GIC-Indexer", INDEXER_BASE)
     ]
-    
+
     print_separator("Service Health Checks")
     for name, url in services:
         try:
@@ -239,31 +239,31 @@ def main():
         except Exception as e:
             print(f"✗ {name}: {e}")
             return
-    
+
     # Run integration tests
     group_root = test_shield_enrollment()
     if not group_root:
         print("Cannot continue without Shield enrollment")
         return
-    
+
     attested = test_shield_reflection(group_root)
     if not attested:
         print("Cannot continue without Shield verification")
         return
-    
+
     reflection = test_civic_reflection()
     if not reflection:
         print("Cannot continue without Civic reflection")
         return
-    
+
     anchor_result = test_anchor_day()
     if not anchor_result:
         print("Cannot continue without day anchoring")
         return
-    
+
     test_gic_indexer()
     test_governance()
-    
+
     print_separator("Integration Test Complete!")
     print("✓ All major components tested successfully")
     print("✓ Shield enrollment and zkRL verification working")
@@ -271,7 +271,7 @@ def main():
     print("✓ Day root anchoring working")
     print("✓ GIC-Indexer balance computation working")
     print("✓ Governance system ready")
-    
+
     print("\nNext steps:")
     print("- Deploy to production environments")
     print("- Implement real zero-knowledge proofs")

@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from ledger.app.db import get_db_connection
-from ledger.app.oaa_store import get_proof_by_hash, insert_oaa_proof, list_proofs
+from ..db import get_db_connection
+from ..oaa_store import get_proof_by_hash, insert_oaa_proof, list_proofs
 
 router = APIRouter(prefix="/oaa", tags=["oaa"])
 
@@ -29,16 +29,16 @@ class OaaMemoryEntryV1(BaseModel):
     agent: str = Field(..., min_length=1)
     cycle: str = Field(..., min_length=1)
     key: str = Field(..., min_length=1)
-    intent: Optional[str] = None
+    intent: str | None = None
     hash: str = Field(..., min_length=8, max_length=128)
-    previous_hash: Optional[str] = None
+    previous_hash: str | None = None
     timestamp: str = Field(..., min_length=1)
 
 
 @router.post("/memory")
 async def seal_oaa_memory(
     entry: OaaMemoryEntryV1,
-    authorization: Optional[str] = Header(None),
+    authorization: str | None = Header(None),
 ):
     """
     Durable seal for OAA_MEMORY_ENTRY_V1 proofs.
@@ -77,8 +77,8 @@ async def get_oaa_memory_by_hash(proof_hash: str):
 
 @router.get("/memory")
 async def list_oaa_memory(
-    source: Optional[str] = None,
-    key_prefix: Optional[str] = None,
+    source: str | None = None,
+    key_prefix: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ):
@@ -91,14 +91,14 @@ async def list_oaa_memory(
 
 
 def persist_oaa_entries_from_body(
-    entries: List[Dict[str, Any]],
+    entries: list[dict[str, Any]],
     *,
     source: str = "oaa-api-library",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Shared insert path for /api/oaa/memory and mesh/ingest OAA payloads."""
     stored = 0
     duplicates = 0
-    errors: List[str] = []
+    errors: list[str] = []
     with get_db_connection() as conn:
         for raw in entries:
             if not isinstance(raw, dict):

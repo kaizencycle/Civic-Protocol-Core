@@ -4,13 +4,13 @@ import hashlib
 import json
 import os
 from datetime import datetime, timezone
-from typing import Any, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException, Request
 
-from ledger.app.mesh.registry import load_mesh_registry, registry_cache_mtime_iso
-from ledger.app.db import LEDGER_DB_PATH
-from ledger.app.routes.oaa_memory import persist_oaa_entries_from_body
+from ..db import LEDGER_DB_PATH
+from ..mesh.registry import load_mesh_registry, registry_cache_mtime_iso
+from .oaa_memory import persist_oaa_entries_from_body
 
 router = APIRouter(prefix="/mesh", tags=["mesh"])
 
@@ -48,11 +48,11 @@ def generate_id(entry: dict) -> str:
 @router.post("/ingest")
 async def mesh_ingest(
     request: Request,
-    authorization: Optional[str] = Header(None),
-    x_mns_node: Optional[str] = Header(None, alias="X-MNS-Node"),
+    authorization: str | None = Header(None),
+    x_mns_node: str | None = Header(None, alias="X-MNS-Node"),
 ):
     """Receive EPICON ledger feed from a mesh node."""
-    from ledger.app.db import get_db_connection
+    from ..db import get_db_connection
 
     expected = _mesh_token_expected()
     if not expected or not authorization or authorization != expected:
@@ -75,7 +75,7 @@ async def mesh_ingest(
         )
 
     body: Any = await request.json()
-    entries: List[Any] = body if isinstance(body, list) else body.get("entries", [])
+    entries: list[Any] = body if isinstance(body, list) else body.get("entries", [])
 
     if not entries:
         return {
@@ -96,8 +96,8 @@ async def mesh_ingest(
     stored = 0
     capped = entries[:100]
 
-    oaa_batch: List[dict] = []
-    mesh_batch: List[dict] = []
+    oaa_batch: list[dict] = []
+    mesh_batch: list[dict] = []
     for entry in capped:
         if not isinstance(entry, dict):
             continue
@@ -182,13 +182,13 @@ async def mesh_ingest(
 async def mesh_entries_ipfs(
     limit: int = 100,
     offset: int = 0,
-    content_addressed: Optional[int] = None,
+    content_addressed: int | None = None,
 ):
     """
     List mesh rows with IPFS CIDs (for MIC indexer / sovereign sync).
     `content_addressed=1` filters rows that have been pinned.
     """
-    from ledger.app.db import get_db_connection
+    from ..db import get_db_connection
 
     lim = max(1, min(limit, 500))
     off = max(0, offset)

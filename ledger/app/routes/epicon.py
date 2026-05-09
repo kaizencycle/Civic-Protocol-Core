@@ -2,11 +2,11 @@
 
 import json
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter
 
-from ledger.app.db import get_db_connection, sync_ledger_feed_json_to_epicon_entries
+from ..db import get_db_connection, sync_ledger_feed_json_to_epicon_entries
 
 router = APIRouter(tags=["epicon"])
 
@@ -14,8 +14,8 @@ router = APIRouter(tags=["epicon"])
 @router.get("/epicon/feed")
 async def epicon_feed(
     limit: int = 50,
-    node: Optional[str] = None,
-    source: Optional[str] = None,
+    node: str | None = None,
+    source: str | None = None,
 ):
     """Unified EPICON feed: ledger/feed.json rows plus ingested mesh_entries."""
     lim = max(1, min(limit, 200))
@@ -43,9 +43,9 @@ async def epicon_feed(
         )
         rows = cur.fetchall()
 
-    entries: List[Dict[str, Any]] = []
+    entries: list[dict[str, Any]] = []
     for row in rows:
-        raw_obj: Dict[str, Any] = {}
+        raw_obj: dict[str, Any] = {}
         if row["raw"]:
             try:
                 raw_obj = json.loads(row["raw"])

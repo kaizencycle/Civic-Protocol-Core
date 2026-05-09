@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-import argparse, json, os, statistics, datetime
+import argparse
+import contextlib
+import datetime
+import json
+import os
+
 
 def parse_args():
     ap = argparse.ArgumentParser()
@@ -14,10 +19,8 @@ def load_episodes(path):
         return eps
     with open(path) as f:
         for line in f:
-            try:
+            with contextlib.suppress(BaseException):
                 eps.append(json.loads(line))
-            except:
-                pass
     return eps
 
 def quick_metrics(eps):
@@ -30,7 +33,9 @@ def quick_metrics(eps):
 
     scores = []
     for e in implicit:
-        dwell = e.get("dwell_ms",0); errors=e.get("errors",0); retries=e.get("retries",0)
+        dwell = e.get("dwell_ms",0)
+        errors=e.get("errors",0)
+        retries=e.get("retries",0)
         scores.append(1 if (dwell>1500 and errors==0 and retries<2) else 0)
     success_implicit = sum(scores)/len(scores) if scores else None
 
@@ -59,7 +64,8 @@ def main():
         "rollout": {"mode":"shadow","traffic_pct":0}
     }
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    with open(args.out,"w") as f: json.dump(card, f, indent=2)
+    with open(args.out,"w") as f:
+        json.dump(card, f, indent=2)
 
     print("# PAL Nightly Evaluation")
     print(f"- Policy: {args.policy}")

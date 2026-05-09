@@ -1,5 +1,6 @@
+from sqlalchemy import JSON, DateTime, Float, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from sqlalchemy import String, Integer, Float, DateTime, ForeignKey, JSON, func, UniqueConstraint
+
 
 class Base(DeclarativeBase):
     pass
