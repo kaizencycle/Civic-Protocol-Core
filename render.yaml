@@ -13,6 +13,11 @@ services:
       # `uvicorn ledger.app.main:app` (cwd may not be the repo root).
       - key: PYTHONPATH
         value: .
+      # Set to a Render PostgreSQL internal connection string for persistence.
+      # Without it the service falls back to SQLite in /tmp (ephemeral — data lost on restart).
+      - key: DATABASE_URL
+        sync: false
+      # Fallback for local dev SQLite only. Ignored when DATABASE_URL is set.
       - key: LEDGER_DATA_DIR
         value: /tmp/ledger_data
       - key: LAB4_API_BASE

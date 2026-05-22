@@ -21,8 +21,10 @@ import httpx
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
+from .database import Base, check_db_health, engine
 from .db import DATA_DIR, LEDGER_DB_PATH, get_db_connection
 from .routes import epicon, mcp_tools, mesh, oaa_memory, seal_reconciliation
+from .vault_routes import router as vault_router
 
 
 @asynccontextmanager
@@ -43,6 +45,10 @@ app.include_router(epicon.router)
 app.include_router(oaa_memory.router, prefix="/api")
 app.include_router(seal_reconciliation.router)
 app.include_router(mcp_tools.mcp, prefix="/api/mcp")
+app.include_router(vault_router)
+
+# Create vault tables on cold start (idempotent against PostgreSQL or SQLite fallback)
+Base.metadata.create_all(bind=engine)
 
 # API Configuration
 LAB4_API_BASE = os.getenv("LAB4_API_BASE", "https://hive-api-2le8.onrender.com")
@@ -181,38 +187,33 @@ def create_ledger_event(event_type: str, civic_id: str, lab_source: str,
 def root():
     return {
         "service": "civic-ledger-api",
+        "status": "ok",
         "docs": "/docs",
-        "data_dir": DATA_DIR,
-        "db_path": LEDGER_DB_PATH
+        "network": "mobius-substrate",
     }
 
 
 @app.get("/health")
 def health():
     """Health check endpoint"""
-    try:
-        # Test database connection
-        with get_db_connection() as conn:
-            cursor = conn.execute("SELECT COUNT(*) FROM events")
-            event_count = cursor.fetchone()[0]
+    # Check vault DB (PostgreSQL / SQLite fallback)
+    db_status = check_db_health()
+    if not db_status["ok"]:
+        raise HTTPException(status_code=503, detail=f"Vault DB unhealthy: {db_status.get('error')}")
 
-        return {
-            "ok": True,
-            "service": "civic-ledger-api",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "data_dir": DATA_DIR,
-            "event_count": event_count,
-            "db_accessible": True
-        }
+    # Also verify the ledger event DB that /ledger/attest writes to
+    try:
+        with get_db_connection() as conn:
+            conn.execute("SELECT COUNT(*) FROM events")
     except Exception as e:
-        return {
-            "ok": False,
-            "service": "civic-ledger-api",
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "error": str(e),
-            "data_dir": DATA_DIR,
-            "db_accessible": False
-        }
+        raise HTTPException(status_code=503, detail=f"Ledger DB unhealthy: {e}") from e
+
+    return {
+        "status": "ok",
+        "db": db_status["db"],
+        "db_type": db_status.get("url_type", "unknown"),
+        "service": "civic-ledger-api",
+    }
 
 
 @app.post("/ledger/attest")
