@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-01269b0c77c5ebb54f1411201ea118dfb06163da",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:ed2db45c30ba3456:mesh-sync",
+    "source_hash": "ed2db45c30ba3456ac35026f02178ed79e9486149a6c6815e6daf4473a907216",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-05-21T20:48:43-04:00",
+    "author": "Michael Judan",
+    "sha": "01269b0c77c5ebb54f1411201ea118dfb06163da",
+    "title": "Merge pull request #29 from kaizencycle/claude/ledger-postgres-setup-ZhXib\n\nfix(ledger): persistent DB + EPICON vault routes \u2014 block immortalization (C-318)",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-a3fc071f9886eef45e2fdc2749be396bd7ecb9e2",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:853de61ea828b61b:mesh-sync",
     "source_hash": "853de61ea828b61bf5ede7e1e38dd74945a4e998ca4ef78146228f71debd938b",
