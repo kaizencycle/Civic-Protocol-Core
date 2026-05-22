@@ -196,9 +196,18 @@ def root():
 @app.get("/health")
 def health():
     """Health check endpoint"""
+    # Check vault DB (PostgreSQL / SQLite fallback)
     db_status = check_db_health()
     if not db_status["ok"]:
-        raise HTTPException(status_code=503, detail=f"DB unhealthy: {db_status.get('error')}")
+        raise HTTPException(status_code=503, detail=f"Vault DB unhealthy: {db_status.get('error')}")
+
+    # Also verify the ledger event DB that /ledger/attest writes to
+    try:
+        with get_db_connection() as conn:
+            conn.execute("SELECT COUNT(*) FROM events")
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Ledger DB unhealthy: {e}") from e
+
     return {
         "status": "ok",
         "db": db_status["db"],

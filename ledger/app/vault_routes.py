@@ -223,12 +223,12 @@ def create_attestation(body: AttestRequest, db: Session = Depends(get_db)):
         signature=body.signature,
     )
     db.add(att)
+    db.flush()  # write att into the transaction so COUNT includes it
 
     total = (
         db.query(func.count(VaultAttestation.id))
         .filter(VaultAttestation.seal_id == body.seal_id)
         .scalar()
-        + 1  # +1 for the one we just added (pre-commit)
     )
     seal.attestations_count = total
     if total >= QUORUM_REQUIRED and not seal.immortalized:
