@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-2d877d738d49f3f876aba6fce263d939ee4a3b63",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:e143b9212af67001:mesh-sync",
+    "source_hash": "e143b9212af67001c28e247d41c55bd9cf0d6b6af919182a6869b4982746e076",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-05-21T21:51:53-04:00",
+    "author": "Michael Judan",
+    "sha": "2d877d738d49f3f876aba6fce263d939ee4a3b63",
+    "title": "Merge pull request #30 from kaizencycle/claude/ledger-postgres-setup-ZhXib\n\nfeat(epicon): POST /api/epicon/ingest \u2014 closes terminal 404 (C-318)",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-01269b0c77c5ebb54f1411201ea118dfb06163da",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:ed2db45c30ba3456:mesh-sync",
     "source_hash": "ed2db45c30ba3456ac35026f02178ed79e9486149a6c6815e6daf4473a907216",
