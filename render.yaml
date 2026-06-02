@@ -8,6 +8,14 @@ services:
     # Clear dashboard "Start Command" so this runs; override may use: uvicorn ledger.app.main:app --host 0.0.0.0 --port $PORT (no trailing dot on host).
     startCommand: python3 scripts/render_start_ledger.py
     healthCheckPath: /health
+    # C-331: persistent disk for the core ledger SQLite db. db.py writes events,
+    # identities, mesh_entries, epicon_entries, seal_records to a FILE (it does
+    # NOT use DATABASE_URL), so durability requires a non-ephemeral mount.
+    # Without this the immutable ledger is wiped on every deploy (/tmp).
+    disk:
+      name: ledger-data
+      mountPath: /var/lib/ledger
+      sizeGB: 1
     envVars:
       # Ensures `import ledger` works when Start Command is overridden to
       # `uvicorn ledger.app.main:app` (cwd may not be the repo root).

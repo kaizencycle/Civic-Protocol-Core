@@ -23,13 +23,15 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from .database import Base, check_db_health, engine
-from .db import DATA_DIR, LEDGER_DB_PATH, get_db_connection
+from .db import DATA_DIR, LEDGER_DB_PATH, assert_persistent_storage, get_db_connection
 from .routes import epicon, mcp_tools, mesh, oaa_memory, seal_reconciliation
 from .vault_routes import router as vault_router
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
+    # C-331: refuse ephemeral ledger storage in production (see db.py).
+    assert_persistent_storage(DATA_DIR)
     yield
     await mcp_tools.mcp.shutdown()
 
