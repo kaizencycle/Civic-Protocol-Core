@@ -11,7 +11,6 @@ services:
     # C-331: persistent disk for the core ledger SQLite db. db.py writes events,
     # identities, mesh_entries, epicon_entries, seal_records to a FILE (it does
     # NOT use DATABASE_URL), so durability requires a non-ephemeral mount.
-    # Without this the immutable ledger is wiped on every deploy (/tmp).
     disk:
       name: ledger-data
       mountPath: /var/lib/ledger
@@ -21,13 +20,12 @@ services:
       # `uvicorn ledger.app.main:app` (cwd may not be the repo root).
       - key: PYTHONPATH
         value: .
-      # Set to a Render PostgreSQL internal connection string for persistence.
-      # Without it the service falls back to SQLite in /tmp (ephemeral — data lost on restart).
+      # PostgreSQL for the vault layer (database.py) only.
       - key: DATABASE_URL
         sync: false
-      # Fallback for local dev SQLite only. Ignored when DATABASE_URL is set.
+      # C-331: core ledger file path — must match disk mountPath above.
       - key: LEDGER_DATA_DIR
-        value: /tmp/ledger_data
+        value: /var/lib/ledger
       - key: LAB4_API_BASE
         value: https://hive-api-2le8.onrender.com
       - key: LAB6_API_BASE
