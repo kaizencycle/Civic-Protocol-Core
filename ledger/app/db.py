@@ -34,8 +34,63 @@ def get_data_dir() -> str:
     return tempfile.gettempdir()
 
 
+# C-331: ephemeral-storage detection.
+#
+# The core ledger (events, identities, mesh_entries, epicon_entries, seal_records)
+# is written through get_db_connection() below — raw sqlite3 against a FILE on
+# disk, NOT through the persistent SQLAlchemy engine in database.py. On Render the
+# default data dir is /tmp, which is wiped on every deploy/restart.
+#
+# DATABASE_URL does NOT save this layer: db.py ignores it entirely (only the vault
+# tables in database.py honor it). So persistence here depends solely on the data
+# dir being on a durable mount.
+
+_EPHEMERAL_PREFIXES = ("/tmp", "/var/tmp", tempfile.gettempdir())
+
+
+def is_ephemeral_path(path: str) -> bool:
+    """True when path lives under a known ephemeral mount."""
+    norm = os.path.normpath(os.path.abspath(path))
+    return any(
+        norm == os.path.normpath(p) or norm.startswith(os.path.normpath(p) + os.sep)
+        for p in _EPHEMERAL_PREFIXES
+    )
+
+
+def is_production() -> bool:
+    """Heuristic: running on a managed host where /tmp is ephemeral."""
+    if os.getenv("LEDGER_ALLOW_EPHEMERAL", "").strip().lower() in ("1", "true", "yes"):
+        return False
+    return bool(
+        os.getenv("RENDER")
+        or os.getenv("RENDER_SERVICE_ID")
+        or os.getenv("ENV", "").lower() in ("prod", "production")
+        or os.getenv("ENVIRONMENT", "").lower() in ("prod", "production")
+    )
+
+
+def assert_persistent_storage(data_dir: str) -> None:
+    """Fail fast when the ledger would persist to ephemeral storage in production."""
+    if is_ephemeral_path(data_dir) and is_production():
+        raise RuntimeError(
+            "Ledger data dir is ephemeral in production: "
+            f"{data_dir!r}. The immutable ledger would be wiped on every restart. "
+            "Mount a Render persistent disk and set LEDGER_DATA_DIR to it "
+            "(e.g. /var/lib/ledger), or set LEDGER_ALLOW_EPHEMERAL=true to "
+            "explicitly accept ephemeral storage (non-production only)."
+        )
+
+
 DATA_DIR = get_data_dir()
 LEDGER_DB_PATH = os.path.join(DATA_DIR, "ledger.db")
+
+if is_ephemeral_path(DATA_DIR) and is_production():
+    print(
+        f"[ledger:db] WARNING ephemeral ledger storage in production: {DATA_DIR!r} "
+        "— set LEDGER_DATA_DIR to a persistent disk mount. Startup will abort "
+        "in assert_persistent_storage().",
+        flush=True,
+    )
 
 _FEED_PATH_CANDIDATES = [
     os.getenv("LEDGER_FEED_PATH"),
