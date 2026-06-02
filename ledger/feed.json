@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-0001ad923ab683ee37b30efd87c1a0095fc56b44",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:4710ec38f1d48600:mesh-sync",
+    "source_hash": "4710ec38f1d48600adb14d3047defb11d96c567abd6bc0bd7ad3b9f475388d61",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-02T10:56:10-04:00",
+    "author": "Michael Judan",
+    "sha": "0001ad923ab683ee37b30efd87c1a0095fc56b44",
+    "title": "Merge pull request #33 from kaizencycle/cursor/c331-ledger-persistence-b3f4\n\ndocs: deploy runbook for C-330/C-331 + fix LEDGER_DATA_DIR in render.\u2026",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-ec6fdadf201bf7c5ccc991256bce866e13018998",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:b9c4c1329776129e:mesh-sync",
     "source_hash": "b9c4c1329776129e12eb7526f6e2686c280c60570aa91ae4638b20fcfbfe2a70",
