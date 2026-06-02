@@ -12,6 +12,7 @@ gets anchored here as an immutable event in the ledger.
 import hashlib
 import json
 import os
+import warnings
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -58,6 +59,15 @@ IDENTITY_API_BASE = (
     os.getenv("IDENTITY_API_BASE", "").strip()
     or os.getenv("IDENTITY_SERVICE_URL", "").strip()
 )
+
+if not IDENTITY_API_BASE:
+    warnings.warn(
+        "IDENTITY_API_BASE is not set. Attestations from lab_source "
+        "'terminal' and 'identity' will fail with 400. "
+        "Set IDENTITY_API_BASE to the Mobius Identity service base URL.",
+        RuntimeWarning,
+        stacklevel=1,
+    )
 
 print(f"Using data directory: {DATA_DIR}")
 print(f"Database path: {LEDGER_DB_PATH}")
@@ -109,6 +119,13 @@ def verify_token(token: str, lab_source: str) -> dict[str, Any]:
         raise HTTPException(400, f"Unknown lab source: {lab_source}")
 
     if not api_base:
+        if lab_source in ("identity", "terminal"):
+            raise HTTPException(
+                400,
+                f"IDENTITY_API_BASE is not configured on the ledger server "
+                f"(lab_source={lab_source!r}). Set IDENTITY_API_BASE on the "
+                f"Render service to enable token introspection for this lab source.",
+            )
         raise HTTPException(400, f"No API base configured for {lab_source}")
 
     base = api_base.rstrip("/")
