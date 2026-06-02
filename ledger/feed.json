@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-33f3202314e2c33290f9ecac71379649911a9c8a",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:e381047740e13bf9:mesh-sync",
+    "source_hash": "e381047740e13bf9b8d8ee9bd8d2c70873b364e3d3ba5c12b7dce4f5edc90aff",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-02T10:21:26-04:00",
+    "author": "Michael Judan",
+    "sha": "33f3202314e2c33290f9ecac71379649911a9c8a",
+    "title": "Merge pull request #31 from kaizencycle/cursor/cpc-identity-api-base-hardening-b3f4\n\nfix: honest 400 message + startup warning when IDENTITY_API_BASE unset",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-2d877d738d49f3f876aba6fce263d939ee4a3b63",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:e143b9212af67001:mesh-sync",
     "source_hash": "e143b9212af67001c28e247d41c55bd9cf0d6b6af919182a6869b4982746e076",
