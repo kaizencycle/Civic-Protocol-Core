@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-de01102821609693fc3a7a375d063a1d2a12588d",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:f3987338e0fa0bae:mesh-sync",
+    "source_hash": "f3987338e0fa0baea8f18735f0b4c3fd2c624b7a36e966e7c0f698fae2a4fa5e",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-03T19:13:53-04:00",
+    "author": "Michael Judan",
+    "sha": "de01102821609693fc3a7a375d063a1d2a12588d",
+    "title": "Merge pull request #34 from kaizencycle/cursor/fix-database-makedirs-disk-b3f4\n\nfix(ledger): vault import uses get_data_dir() when DATABASE_URL unset",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-0001ad923ab683ee37b30efd87c1a0095fc56b44",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:4710ec38f1d48600:mesh-sync",
     "source_hash": "4710ec38f1d48600adb14d3047defb11d96c567abd6bc0bd7ad3b9f475388d61",
