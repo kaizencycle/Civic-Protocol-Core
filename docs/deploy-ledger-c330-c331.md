@@ -3,9 +3,32 @@
 **Repos:** `kaizencycle/Civic-Protocol-Core` (ledger), `kaizencycle/mobius-civic-ai-terminal` (Terminal)  
 **Cycles:** C-330 (attestation / retry semantics), C-331 (ledger durability)  
 **Live ledger URL:** `https://civic-protocol-core-ledger.onrender.com`  
-**Render service (Blueprint):** `civic-ledger-api` (dashboard name may differ; URL above is canonical)
+**Live identity URL:** `https://mobius-identity-service.onrender.com`  
+**Render service (Blueprint):** `civic-ledger-api` (dashboard: *Civic-Protocol-Core Ledger API*)
 
-This runbook sequences the three fixes that restore Reserve Block immortality end-to-end. Do them in order; skipping a step leaves the system looking healthy in the Terminal while the ledger stays empty or attestations keep failing.
+This runbook sequences the fixes that restore Reserve Block immortality end-to-end. **Deploy disk + identity env in one release** — do not set `IDENTITY_API_BASE` alone while the ledger still writes to `/tmp`.
+
+---
+
+## Verified: Mobius Identity introspection (2026-06-03)
+
+CPC calls `GET {IDENTITY_API_BASE}/auth/introspect` with the same Bearer token as `/ledger/attest`. A 200 on `/` is not sufficient; introspection must respond correctly.
+
+| Request | Expected | Live result |
+|---------|----------|-------------|
+| `GET /` | 200 | 200 |
+| `GET /health` | 200 | 200 |
+| `GET /auth/introspect` (no token) | reject | **403** `Not authenticated` |
+| `GET /auth/introspect` (dummy bearer) | reject | **401** `Invalid token` |
+
+That 403/401 pattern confirms introspection is wired and validating tokens. It does **not** prove the Terminal sends a token Identity will accept (see [Token-type risk](#token-type-risk-after-deploy) below).
+
+```bash
+IDENTITY="https://mobius-identity-service.onrender.com"
+curl -sS "$IDENTITY/health"
+curl -sS "$IDENTITY/auth/introspect"                    # → 403
+curl -sS -H "Authorization: Bearer dummy" "$IDENTITY/auth/introspect"  # → 401
+```
 
 ---
 
@@ -30,86 +53,58 @@ This runbook sequences the three fixes that restore Reserve Block immortality en
 
 ---
 
-## Phase 1 — Merge and deploy CPC (C-331)
+## Single deploy (recommended): disk + identity together
 
-### 1.1 Merge PR #32
+On **Civic-Protocol-Core Ledger API** → Environment, set **both** before one deploy:
 
-Merge `cursor/c331-ledger-persistence-b3f4` into `main` and let Render auto-deploy (or trigger manual deploy).
+```bash
+LEDGER_DATA_DIR=/var/lib/ledger
+IDENTITY_API_BASE=https://mobius-identity-service.onrender.com
+```
 
-Blueprint must include:
+(`IDENTITY_SERVICE_URL` is an alias — only one needs to be set. No trailing slash; CPC strips it.)
+
+Blueprint must also declare the disk (PR #32):
 
 ```yaml
 disk:
   name: ledger-data
   mountPath: /var/lib/ledger
   sizeGB: 1
-envVars:
-  - key: LEDGER_DATA_DIR
-    value: /var/lib/ledger
 ```
 
-### 1.2 Render dashboard checks
+**Why one deploy:** Setting `IDENTITY_API_BASE` while `LEDGER_DATA_DIR` is still `/tmp` removes the config 400 but immortalizes into ephemeral storage — every attest is lost on the next restart. Merge PR #32 (disk + guard) or manually add disk + env, then deploy once.
 
-On the **civic-protocol-core-ledger** (or `civic-ledger-api`) service:
+### Render dashboard checks
 
-1. **Disk** — `ledger-data` mounted at `/var/lib/ledger` (created on first Blueprint apply).
-2. **Environment** — `LEDGER_DATA_DIR=/var/lib/ledger` (override any stale `/tmp/ledger_data` from an old dashboard value).
-3. **Do not set** `LEDGER_ALLOW_EPHEMERAL` in production (that disables the fail-fast guard).
+1. **Disk** — `ledger-data` at `/var/lib/ledger`.
+2. **Environment** — `LEDGER_DATA_DIR=/var/lib/ledger` (override stale `/tmp/ledger_data`).
+3. **Environment** — `IDENTITY_API_BASE=https://mobius-identity-service.onrender.com`.
+4. **Do not set** `LEDGER_ALLOW_EPHEMERAL` in production.
 
-If deploy **fails to start** with:
+If deploy **fails to start**:
 
 ```text
 Ledger data dir is ephemeral in production: '/tmp/ledger_data' ...
 ```
 
-the disk mount or `LEDGER_DATA_DIR` is still wrong. Fix dashboard env, redeploy.
+fix disk mount + `LEDGER_DATA_DIR`, redeploy.
 
-### 1.3 Expected: empty ledger after first durable deploy
-
-Previous `/tmp` data is **gone** (ephemeral). After C-331:
-
-- `GET /health` → `200`, ledger DB reachable
-- `GET /ledger/stats` → `total_events: 0` until reattest runs
-
-**This is expected**, not a failed migration.
-
-### 1.4 Verify persistence (smoke)
-
-After deploy, from any machine:
+### Post-deploy verification (step 2)
 
 ```bash
 LEDGER_URL="https://civic-protocol-core-ledger.onrender.com"
 
 curl -sS "$LEDGER_URL/health" | jq .
+# Expect: data_dir "/var/lib/ledger" (NOT /tmp/ledger_data)
+# event_count may be 0 until reattest — that's OK on first durable deploy
 
-curl -sS "$LEDGER_URL/ledger/stats" | jq '.total_events, .events_by_lab'
+curl -sS "$LEDGER_URL/ledger/stats" | jq '.total_events'
 ```
 
-Redeploy once without writing data; `total_events` should **not** reset to 0 if persistence is correct.
+**Live pre-C-331 (reference):** `data_dir: /tmp/ledger_data`, `event_count: 0` — confirms persistence + identity env are not yet applied on production.
 
----
-
-## Phase 2 — Set identity introspection (C-330 unblock)
-
-Attestations with `lab_source=terminal` or `identity` call:
-
-```http
-GET {IDENTITY_BASE}/auth/introspect
-Authorization: Bearer <same token as attest>
-```
-
-Set **one** of these on the **ledger** Render service (both are read; first non-empty wins):
-
-| Variable | Example |
-|----------|---------|
-| `IDENTITY_API_BASE` | `https://mobius-identity.onrender.com` |
-| `IDENTITY_SERVICE_URL` | same (alias) |
-
-Use the Mobius Identity service base URL — **no** trailing path, **no** `/auth/introspect` suffix.
-
-### 2.1 Verify the 400 message (post-#31 deploy)
-
-Without a valid token, a misconfigured env should return a **clear** 400 (not the old generic string):
+### Attest smoke (config vs token errors)
 
 ```bash
 curl -sS -X POST "$LEDGER_URL/ledger/attest" \
@@ -123,36 +118,58 @@ curl -sS -X POST "$LEDGER_URL/ledger/attest" \
   }' | jq .
 ```
 
-- **Before** `IDENTITY_API_BASE` is set: `detail` should mention `IDENTITY_API_BASE` (PR #31).
-- **After** it is set: expect `401` (bad token) or `200` (valid token), not config `400`.
+| Response | Meaning |
+|----------|---------|
+| 400 + `IDENTITY_API_BASE` in detail | Identity env still unset (PR #31 message) |
+| 401 + `Token verification failed` | Identity env OK; bearer is not a valid Identity JWT |
+| 200 | Valid token + ledger write succeeded |
 
-If you still see `No API base configured for terminal`, the **deployed** image is older than PR #31 — redeploy from current `main`.
+Old deploys return 400 `No API base configured for terminal` — redeploy from current `main`.
+
+---
+
+## Token-type risk (after deploy)
+
+After `IDENTITY_API_BASE` is set, the config 400 disappears. The next failure mode is **401** if the Terminal's attest bearer (often `AGENT_SERVICE_TOKEN`) is not a **Mobius Identity JWT** issued by `mobius-identity-service` (e.g. static API key, wrong issuer, expired token).
+
+Introspection proving 403/401 on bad tokens does not prove the Terminal token is valid — only a live attest or reattest cron run does.
+
+### Read the error class (step 4)
+
+| Outcome | Next action |
+|---------|-------------|
+| Vault headline moves toward full attestation; `event_count` climbs | **Done** for CPC/Render |
+| `substrate_attestation_error` / logs show `401 Token verification failed` | Fix on **Terminal**: mint JWT via Identity `/auth/login` (or align token type with what CPC introspects). Not a Render env change |
+| Still config 400 | `IDENTITY_API_BASE` not on deployed service or stale image |
+
+Paste `substrate_attestation_error` or note headline change after deploy to classify immediately.
 
 ---
 
 ## Phase 3 — Terminal reattest (drain the queue)
 
-No Terminal deploy is required for C-331 if #552 is already live. The existing retry / reattest cron will:
+After CPC deploy, the existing retry / reattest cron (Terminal #552) should:
 
-1. Retry seals that failed with config-class 400s (C-330: not marked `permanently-failed`).
-2. POST `/ledger/attest` once CPC has durable storage + identity base.
+1. Retry seals that failed with config-class 400s (not `permanently-failed`).
+2. POST `/ledger/attest` into the durable ledger.
 
-### 3.1 Terminal env (confirm)
+### Terminal env (confirm)
 
 | Variable | Purpose |
 |----------|---------|
 | `CIVIC_LEDGER_URL` | `https://civic-protocol-core-ledger.onrender.com` |
-| Identity / substrate tokens | Per `docs/operations/MOBIUS_AUTH_CONTRACT.md` |
+| Bearer used for attest | Must be valid Identity JWT if `lab_source=terminal` |
+| Other tokens | `docs/operations/MOBIUS_AUTH_CONTRACT.md` |
 
-### 3.2 What to watch
+### What to watch
 
-- **Vault headline** — should move from `⚠ 3/177 attested to Substrate` toward full attestation as the queue drains (hourly cron cadence).
-- **Ledger** — `total_events` increases on `GET /ledger/stats`.
-- **Logs** — CPC should not log ephemeral-storage warnings; Terminal should not spike new `permanently-failed` for 400 config errors.
+- **Vault headline** — e.g. `⚠ 3/177` → toward full attestation (hourly cadence).
+- **Ledger** — `total_events` on `/ledger/stats`.
+- **No new** `permanently-failed` from config 400s (C-330).
 
-### 3.3 After the queue clears
+### After the queue clears
 
-In the Terminal reattest cron, remove the **`LEGACY_SEAL_KV_RESET_IDS`** array (49 entries) once those seals have successfully re-immortalized — it was a bridge for stuck KV state during the incident.
+Remove **`LEGACY_SEAL_KV_RESET_IDS`** (49 entries) from the reattest cron once those seals have re-immortalized.
 
 ---
 
@@ -161,8 +178,7 @@ In the Terminal reattest cron, remove the **`LEGACY_SEAL_KV_RESET_IDS`** array (
 | Situation | Action |
 |-----------|--------|
 | Local / preview on `/tmp` | `LEDGER_ALLOW_EPHEMERAL=true` (never in production) |
-| Must temporarily run without disk | Not recommended; data loss on restart. Prefer fixing disk + `LEDGER_DATA_DIR`. |
-| Roll back C-331 code | Old behavior returns (ephemeral ledger); do not roll back if seals have been re-written to durable disk unless you accept data on disk. |
+| Roll back C-331 after reattest | Avoid — durable disk may hold real events |
 
 ---
 
@@ -170,32 +186,29 @@ In the Terminal reattest cron, remove the **`LEGACY_SEAL_KV_RESET_IDS`** array (
 
 | Symptom | Likely cause | Fix |
 |---------|----------------|-----|
-| `event_count: 0`, `data_dir: /tmp/...` | C-331 not deployed or env override | Disk + `LEDGER_DATA_DIR=/var/lib/ledger` |
-| Old 400 `No API base configured for terminal` | Stale deploy | Redeploy `main` (PR #31+) |
-| New 400 names `IDENTITY_API_BASE` | Env unset | Set `IDENTITY_API_BASE` or `IDENTITY_SERVICE_URL` |
-| Deploy crash on startup | Ephemeral path in prod | Fix `LEDGER_DATA_DIR`; remove mistaken `LEDGER_ALLOW_EPHEMERAL` |
-| Vault OK, ledger empty forever | Only `DATABASE_URL` set | Core ledger uses disk path, not Postgres |
-| Seals stuck `permanently-failed` | Pre–C-330 Terminal | Ensure Terminal #552 deployed; reset per Terminal ops |
+| `data_dir: /tmp/...` | C-331 not deployed | Disk + `LEDGER_DATA_DIR` in **same** deploy as identity |
+| 401 after identity set | Token not Identity JWT | Terminal: mint / rotate JWT |
+| Old generic 400 | Stale CPC deploy | Redeploy `main` |
+| Deploy crash on startup | Ephemeral `LEDGER_DATA_DIR` | Fix mount + env |
+| Headline stuck, 401 in logs | `AGENT_SERVICE_TOKEN` ≠ Identity JWT | Terminal auth path |
 
 ---
 
-## Follow-up (tracked, not this runbook)
+## Follow-up
 
-- **Postgres port of `db.py`** — unify core ledger + vault on `database.py` engine (`?` → `%s`, `INSERT OR REPLACE` → `ON CONFLICT`, etc.) across 8 modules. Persistent disk remains the floor until that ships.
-- **Substrate / mesh registry** — separate change if service discovery for attest paths needs hardening.
+- **Postgres port of `db.py`** — unify core ledger + vault on `database.py` engine (separate PR).
+- **Substrate / mesh registry** — separate if service discovery needs hardening.
 
 ---
 
 ## Quick checklist
 
-- [ ] PR #32 merged; Render disk provisioned
-- [ ] `LEDGER_DATA_DIR=/var/lib/ledger` on ledger service
-- [ ] Deploy healthy; no ephemeral startup abort
-- [ ] `IDENTITY_API_BASE` or `IDENTITY_SERVICE_URL` set to Mobius Identity base
-- [ ] Attest 400/401 behavior matches PR #31 (not old generic message)
-- [ ] Terminal `CIVIC_LEDGER_URL` correct
-- [ ] `total_events` grows after cron cycles
-- [ ] Vault headline approaches 177/177
+- [ ] PR #32 merged; disk provisioned
+- [ ] **One deploy:** `LEDGER_DATA_DIR=/var/lib/ledger` **and** `IDENTITY_API_BASE=https://mobius-identity-service.onrender.com`
+- [ ] `/health` shows `data_dir: /var/lib/ledger`
+- [ ] Identity introspect smoke (403 / 401) already green on `mobius-identity-service`
+- [ ] Trigger reattest / wait for cron
+- [ ] Headline + `event_count` improve **or** classify 401 → Terminal JWT fix
 - [ ] Remove `LEGACY_SEAL_KV_RESET_IDS` after cleanup
 
 *Observable → Attributed → Agreed → Enforced.*
