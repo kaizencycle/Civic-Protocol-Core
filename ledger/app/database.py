@@ -15,8 +15,11 @@ logger = logging.getLogger(__name__)
 # --- Connection string resolution ---
 _DATABASE_URL = os.environ.get("DATABASE_URL")
 if not _DATABASE_URL:
-    _data_dir = os.environ.get("LEDGER_DATA_DIR", "/tmp/ledger_data")
-    os.makedirs(_data_dir, exist_ok=True)
+    # Reuse db.py's writable-path probe (handles disk mount + PermissionError).
+    # Blind os.makedirs(LEDGER_DATA_DIR) crashes when the disk is not mounted yet.
+    from .db import get_data_dir
+
+    _data_dir = get_data_dir()
     _DATABASE_URL = f"sqlite:///{_data_dir}/vault.db"
     logger.warning(
         "DATABASE_URL not set — using ephemeral SQLite at %s. "
