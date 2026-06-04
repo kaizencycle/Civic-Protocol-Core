@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-b27b780e6a899cbecc28238d6cf23ac0b3e2bafb",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:3cc229189e904c20:mesh-sync",
+    "source_hash": "3cc229189e904c200fc5c392d9d3cf1d7c31262d5b4bb4049369aa54c75dfb5b",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-04T19:42:09-04:00",
+    "author": "Michael Judan",
+    "sha": "b27b780e6a899cbecc28238d6cf23ac0b3e2bafb",
+    "title": "Merge pull request #35 from kaizencycle/cursor/c332-ecosystem-optimizations-b3f4\n\nC-332: CPC slice \u2014 shell=False dev launcher + devnode CORS allowlist",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-de01102821609693fc3a7a375d063a1d2a12588d",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:f3987338e0fa0bae:mesh-sync",
     "source_hash": "f3987338e0fa0baea8f18735f0b4c3fd2c624b7a36e966e7c0f698fae2a4fa5e",
