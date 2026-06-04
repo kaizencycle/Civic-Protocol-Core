@@ -16,7 +16,6 @@ import signal
 import subprocess
 import sys
 import time
-from typing import List, Optional
 
 
 class ServiceManager:
@@ -24,25 +23,28 @@ class ServiceManager:
         self.processes = []
         self.running = True
 
-    def start_service(
-        self,
-        name: str,
-        command: List[str],
-        port: int,
-        cwd: Optional[str] = None,
-    ):
-        """Start a service in a separate process (argv list, no shell)."""
+    def start_service(self, name, command, port, cwd=None):
+        """Start a service in a separate process"""
         print(f"Starting {name} on port {port}...")
 
         try:
-            process = subprocess.Popen(
-                command,
-                cwd=cwd,
-                shell=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
+            if cwd:
+                process = subprocess.Popen(
+                    command,
+                    cwd=cwd,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+            else:
+                process = subprocess.Popen(
+                    command,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
 
             self.processes.append({
                 'name': name,
@@ -64,11 +66,13 @@ class ServiceManager:
         print("Civic Protocol Core - Starting All Services")
         print("=" * 60)
 
+        py = sys.executable
+
         # Start Civic Dev Node
         success = self.start_service(
             "Civic Dev Node",
-            "python sdk/python/devnode.py",
-            5411
+            [py, "sdk/python/devnode.py"],
+            5411,
         )
         if not success:
             return False
@@ -76,9 +80,9 @@ class ServiceManager:
         # Start Shield
         success = self.start_service(
             "Shield",
-            "python app/main.py",
+            [py, "app/main.py"],
             7000,
-            "lab6-proof"
+            "lab6-proof",
         )
         if not success:
             return False
@@ -86,9 +90,9 @@ class ServiceManager:
         # Start MIC-Indexer (renamed from GIC-Indexer)
         success = self.start_service(
             "MIC-Indexer",
-            "python -m uvicorn app.main:app --host 0.0.0.0 --port 8000",
+            [py, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"],
             8000,
-            "mic-indexer"
+            "mic-indexer",
         )
         if not success:
             return False
@@ -96,9 +100,9 @@ class ServiceManager:
         # Start Identity Service
         success = self.start_service(
             "Identity Service",
-            "python -m uvicorn app.main:app --host 0.0.0.0 --port 8002",
+            [py, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"],
             8002,
-            "identity"
+            "identity",
         )
         if not success:
             return False
@@ -106,9 +110,9 @@ class ServiceManager:
         # Start MIC Wallet Service
         success = self.start_service(
             "MIC Wallet Service",
-            "python -m uvicorn app.main:app --host 0.0.0.0 --port 8003",
+            [py, "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003"],
             8003,
-            "mic-wallet"
+            "mic-wallet",
         )
         return success
 
