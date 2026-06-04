@@ -20,6 +20,22 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 
+# C-332 OPT-8: env-driven CORS (same pattern as redis_bridge / gatekeeper OPT-1).
+_raw_cors_origins = os.getenv("CORS_ALLOW_ORIGINS", "").strip()
+_CORS_ALLOWLIST: list[str] | None = (
+    [o.strip() for o in _raw_cors_origins.split(",") if o.strip()]
+    if _raw_cors_origins
+    else None
+)
+
+
+def cors_allow_origin(request_origin: str | None) -> str:
+    if _CORS_ALLOWLIST is None:
+        return "*"
+    if request_origin and request_origin in _CORS_ALLOWLIST:
+        return request_origin
+    return _CORS_ALLOWLIST[0]
+
 
 @dataclass
 class Reflection:
@@ -497,13 +513,19 @@ class CivicAPIHandler(BaseHTTPRequestHandler):
         data = self.rfile.read(content_length)
         return json.loads(data.decode('utf-8'))
 
+    def _cors_origin(self) -> str:
+        return cors_allow_origin(self.headers.get("Origin"))
+
+    def _send_cors_headers(self) -> None:
+        self.send_header("Access-Control-Allow-Origin", self._cors_origin())
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-API-Key")
+
     def _send_json_response(self, status_code, data):
         """Send JSON response"""
         self.send_response(status_code)
         self.send_header('Content-Type', 'application/json')
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-API-Key')
+        self._send_cors_headers()
         self.end_headers()
 
         response_data = json.dumps(data, indent=2)
@@ -531,9 +553,7 @@ class CivicAPIHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         """Handle OPTIONS requests for CORS"""
         self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-API-Key')
+        self._send_cors_headers()
         self.end_headers()
 
 def create_handler(dev_node):

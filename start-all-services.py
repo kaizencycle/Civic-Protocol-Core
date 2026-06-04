@@ -16,6 +16,7 @@ import signal
 import subprocess
 import sys
 import time
+from typing import List, Optional
 
 
 class ServiceManager:
@@ -23,28 +24,25 @@ class ServiceManager:
         self.processes = []
         self.running = True
 
-    def start_service(self, name, command, port, cwd=None):
-        """Start a service in a separate process"""
+    def start_service(
+        self,
+        name: str,
+        command: List[str],
+        port: int,
+        cwd: Optional[str] = None,
+    ):
+        """Start a service in a separate process (argv list, no shell)."""
         print(f"Starting {name} on port {port}...")
 
         try:
-            if cwd:
-                process = subprocess.Popen(
-                    command,
-                    cwd=cwd,
-                    shell=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True
-                )
-            else:
-                process = subprocess.Popen(
-                    command,
-                    shell=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True
-                )
+            process = subprocess.Popen(
+                command,
+                cwd=cwd,
+                shell=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
 
             self.processes.append({
                 'name': name,
