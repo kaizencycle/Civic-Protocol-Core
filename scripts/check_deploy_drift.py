@@ -7,25 +7,29 @@ origin/main for multiple cycles. `/api/vault/*`, `/api/seal/*`, and
 calls to e.g. /api/seal/reconcile hit a stale release, not a real bug. Nothing
 caught it because nothing audited live-vs-main. This makes that drift LOUD.
 
-It compares a LIVE deployment's OpenAPI route set against the committed manifest
-(scripts/expected_routes.json, generated from the app itself by
-gen_route_manifest.py). If the live deployment is missing any expected route, it
-fails — that is deploy drift.
+It compares a LIVE deployment's OpenAPI operation set (METHOD + path) against
+the committed manifest (scripts/expected_routes.json, generated from the app by
+gen_route_manifest.py). If the live deployment is missing any expected operation,
+it fails — that is deploy drift.
+
+Path-only comparison is insufficient: the same URL can expose GET but not POST
+(e.g. /api/oaa/memory). Comparing paths alone would pass while one method still
+405s in production.
 
 Cold-start gate: Render free/instance tiers cold-start after idle; the first
 request can time out or 5xx. That is NOT drift. The checker retries with backoff
-and only asserts drift once the service is provably reachable (200 on /health or
-a parseable /openapi.json). If it never becomes reachable within the budget, it
-exits UNRESOLVED (distinct from DRIFT) so a transient outage doesn't masquerade
-as a drift alarm.
+and only asserts drift once the service is provably reachable (parseable
+/openapi.json). If it never becomes reachable within the budget, it exits
+UNRESOLVED (distinct from DRIFT) so a transient outage doesn't masquerade as a
+drift alarm.
 
 Usage:
     python3 scripts/check_deploy_drift.py --url https://civic-protocol-core-ledger.onrender.com
     python3 scripts/check_deploy_drift.py --url <URL> --manifest scripts/expected_routes.json
 
 Exit codes:
-    0  OK        — live serves every expected route
-    1  DRIFT     — reachable, but missing expected route(s)
+    0  OK        — live serves every expected operation
+    1  DRIFT     — reachable, but missing expected operation(s)
     2  UNRESOLVED — could not reach the service (cold start / outage); inconclusive
     3  USAGE/IO  — bad args or manifest
 """
@@ -38,6 +42,12 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
+
+from gen_route_manifest import operations_from_openapi
 
 EXIT_OK, EXIT_DRIFT, EXIT_UNRESOLVED, EXIT_USAGE = 0, 1, 2, 3
 
@@ -55,13 +65,18 @@ def _get(url: str, timeout: float) -> tuple[int, bytes]:
         return 0, b""
 
 
-def fetch_live_paths(base: str, attempts: int, base_delay: float) -> set[str] | None:
-    """Return live OpenAPI paths, or None if the service never became reachable.
+def load_expected_operations(manifest_path: Path) -> set[str]:
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if "operations" in manifest:
+        return set(manifest["operations"])
+    # Legacy path-only manifests (pre method-aware drift check).
+    return {f"GET {path}" for path in manifest["routes"]}
 
-    Retries with exponential backoff to absorb cold starts. Reachability is
-    proven by a parseable /openapi.json; a 200 /health alone counts as 'alive but
-    spec unavailable' and keeps retrying the spec.
-    """
+
+def fetch_live_operations(
+    base: str, attempts: int, base_delay: float
+) -> set[str] | None:
+    """Return live OpenAPI operations, or None if never reachable."""
     base = base.rstrip("/")
     openapi_url = f"{base}/openapi.json"
     health_url = f"{base}/health"
@@ -72,10 +87,9 @@ def fetch_live_paths(base: str, attempts: int, base_delay: float) -> set[str] | 
         if status == 200 and body:
             try:
                 spec = json.loads(body)
-                return set(spec.get("paths", {}).keys())
+                return set(operations_from_openapi(spec))
             except json.JSONDecodeError:
-                pass  # alive but spec garbled; retry
-        # Spec not yet available — is the service at least alive?
+                pass
         hstatus, _ = _get(health_url, timeout=15)
         if hstatus == 200:
             seen_alive = True
@@ -88,7 +102,6 @@ def fetch_live_paths(base: str, attempts: int, base_delay: float) -> set[str] | 
             )
             time.sleep(delay)
 
-    # Never got a parseable spec.
     if seen_alive:
         print(
             "  service responded to /health but never served a parseable spec",
@@ -117,17 +130,17 @@ def main() -> int:
     )
     args = ap.parse_args()
 
+    manifest_path = Path(args.manifest)
     try:
-        manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
-        expected = set(manifest["routes"])
+        expected = load_expected_operations(manifest_path)
     except (OSError, json.JSONDecodeError, KeyError) as e:
         print(f"USAGE/IO: cannot read manifest {args.manifest}: {e}", file=sys.stderr)
         return EXIT_USAGE
 
-    print(f"Expected routes (from manifest): {len(expected)}")
+    print(f"Expected operations (from manifest): {len(expected)}")
     print(f"Probing live: {args.url}")
 
-    live = fetch_live_paths(args.url, args.attempts, args.base_delay)
+    live = fetch_live_operations(args.url, args.attempts, args.base_delay)
     if live is None:
         print(
             "UNRESOLVED: live service unreachable within cold-start budget "
@@ -136,23 +149,23 @@ def main() -> int:
         return EXIT_UNRESOLVED
 
     missing = sorted(expected - live)
-    extra = sorted(live - expected)  # informational only (live ahead of manifest)
+    extra = sorted(live - expected)
 
-    print(f"Live routes: {len(live)}")
+    print(f"Live operations: {len(live)}")
     if extra:
         print(
-            f"  note: live exposes {len(extra)} route(s) not in manifest "
-            f"(regen manifest if intentional): {extra}"
+            f"  note: live exposes {len(extra)} operation(s) not in manifest "
+            f"(regen manifest if intentional): {extra[:8]}{'...' if len(extra) > 8 else ''}"
         )
 
     if missing:
-        print(f"\nDRIFT: live is missing {len(missing)} expected route(s):")
-        for path in missing:
-            print(f"  - {path}")
+        print(f"\nDRIFT: live is missing {len(missing)} expected operation(s):")
+        for op in missing:
+            print(f"  - {op}")
         print("\nThe deployed build is behind the committed code. Redeploy current main.")
         return EXIT_DRIFT
 
-    print("\nOK: live serves every expected route. No drift.")
+    print("\nOK: live serves every expected operation. No drift.")
     return EXIT_OK
 
 
