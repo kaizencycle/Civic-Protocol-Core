@@ -5,7 +5,6 @@ from starlette.testclient import TestClient
 
 from scripts.render_routine_shim import app as shim_app
 
-
 # ---------------------------------------------------------------------------
 # Helper unit tests
 # ---------------------------------------------------------------------------
