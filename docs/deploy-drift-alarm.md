@@ -7,7 +7,7 @@ Silent drift (live behind main) caused Terminal calls to `/api/vault/*` and `/ap
 
 | File | Role |
 |------|------|
-| `scripts/expected_routes.json` | Committed manifest (generated from the app OpenAPI) |
+| `scripts/expected_routes.json` | Committed manifest (METHOD + path operations from OpenAPI) |
 | `scripts/gen_route_manifest.py` | Regenerate manifest after route changes |
 | `scripts/check_deploy_drift.py` | Probe a live URL and compare to the manifest |
 | `.github/workflows/deploy-drift-alarm.yml` | Daily schedule + manual post-deploy gate |
@@ -28,8 +28,8 @@ python3 scripts/check_deploy_drift.py \
 
 | Code | Meaning |
 |------|---------|
-| 0 | OK — live serves every expected route |
-| 1 | DRIFT — reachable but missing routes (redeploy `main`) |
+| 0 | OK — live serves every expected HTTP operation (METHOD + path) |
+| 1 | DRIFT — reachable but missing operations (redeploy `main`) |
 | 2 | UNRESOLVED — cold start or outage (inconclusive, not drift) |
 | 3 | Usage / manifest I/O error |
 
