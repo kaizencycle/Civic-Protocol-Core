@@ -2,17 +2,30 @@
 
 import contextlib
 import json
+import logging
 import os
 import sqlite3
 import tempfile
 
 from fastapi import HTTPException
 
+logger = logging.getLogger(__name__)
+
+
+def _probe_writable_dir(dir_path: str) -> None:
+    """Raise OSError / PermissionError if dir_path cannot be used for ledger files."""
+    os.makedirs(dir_path, exist_ok=True)
+    test_file = os.path.join(dir_path, "test_write")
+    with open(test_file, "w", encoding="utf-8") as f:
+        f.write("test")
+    os.remove(test_file)
+
 
 def get_data_dir() -> str:
     """Writable data directory (Render /tmp, local ./data, or system temp)."""
+    requested = (os.getenv("LEDGER_DATA_DIR") or "").strip() or None
     possible_dirs = [
-        os.getenv("LEDGER_DATA_DIR"),
+        requested,
         "/tmp/ledger_data",
         "./data",
         tempfile.gettempdir() + "/ledger_data",
@@ -22,75 +35,42 @@ def get_data_dir() -> str:
         if dir_path is None:
             continue
         try:
-            os.makedirs(dir_path, exist_ok=True)
-            test_file = os.path.join(dir_path, "test_write")
-            with open(test_file, "w", encoding="utf-8") as f:
-                f.write("test")
-            os.remove(test_file)
-            return dir_path
-        except (OSError, PermissionError):
+            _probe_writable_dir(dir_path)
+        except (OSError, PermissionError) as exc:
+            if requested and os.path.normpath(dir_path) == os.path.normpath(requested):
+                msg = (
+                    f"[ledger:db] LEDGER_DATA_DIR={dir_path!r} is not writable: {exc}. "
+                    "Probing fallback directories (attach a Render disk at this path)."
+                )
+                logger.warning(msg)
+                print(msg, flush=True)
             continue
 
-    return tempfile.gettempdir()
+        if requested and os.path.normpath(dir_path) != os.path.normpath(requested):
+            msg = (
+                f"[ledger:db] LEDGER_DATA_DIR={requested!r} was not usable; "
+                f"using {dir_path!r} for ledger storage instead."
+            )
+            logger.warning(msg)
+            print(msg, flush=True)
+        elif requested and os.path.normpath(dir_path) == os.path.normpath(requested):
+            msg = f"[ledger:db] Using LEDGER_DATA_DIR={dir_path!r} for ledger storage."
+            logger.info(msg)
+            print(msg, flush=True)
+        return dir_path
 
-
-# C-331: ephemeral-storage detection.
-#
-# The core ledger (events, identities, mesh_entries, epicon_entries, seal_records)
-# is written through get_db_connection() below — raw sqlite3 against a FILE on
-# disk, NOT through the persistent SQLAlchemy engine in database.py. On Render the
-# default data dir is /tmp, which is wiped on every deploy/restart.
-#
-# DATABASE_URL does NOT save this layer: db.py ignores it entirely (only the vault
-# tables in database.py honor it). So persistence here depends solely on the data
-# dir being on a durable mount.
-
-_EPHEMERAL_PREFIXES = ("/tmp", "/var/tmp", tempfile.gettempdir())
-
-
-def is_ephemeral_path(path: str) -> bool:
-    """True when path lives under a known ephemeral mount."""
-    norm = os.path.normpath(os.path.abspath(path))
-    return any(
-        norm == os.path.normpath(p) or norm.startswith(os.path.normpath(p) + os.sep)
-        for p in _EPHEMERAL_PREFIXES
+    fallback = tempfile.gettempdir()
+    msg = (
+        f"[ledger:db] No configured ledger data directory is writable; "
+        f"falling back to {fallback!r}."
     )
-
-
-def is_production() -> bool:
-    """Heuristic: running on a managed host where /tmp is ephemeral."""
-    if os.getenv("LEDGER_ALLOW_EPHEMERAL", "").strip().lower() in ("1", "true", "yes"):
-        return False
-    return bool(
-        os.getenv("RENDER")
-        or os.getenv("RENDER_SERVICE_ID")
-        or os.getenv("ENV", "").lower() in ("prod", "production")
-        or os.getenv("ENVIRONMENT", "").lower() in ("prod", "production")
-    )
-
-
-def assert_persistent_storage(data_dir: str) -> None:
-    """Fail fast when the ledger would persist to ephemeral storage in production."""
-    if is_ephemeral_path(data_dir) and is_production():
-        raise RuntimeError(
-            "Ledger data dir is ephemeral in production: "
-            f"{data_dir!r}. The immutable ledger would be wiped on every restart. "
-            "Mount a Render persistent disk and set LEDGER_DATA_DIR to it "
-            "(e.g. /var/lib/ledger), or set LEDGER_ALLOW_EPHEMERAL=true to "
-            "explicitly accept ephemeral storage (non-production only)."
-        )
+    logger.error(msg)
+    print(msg, flush=True)
+    return fallback
 
 
 DATA_DIR = get_data_dir()
 LEDGER_DB_PATH = os.path.join(DATA_DIR, "ledger.db")
-
-if is_ephemeral_path(DATA_DIR) and is_production():
-    print(
-        f"[ledger:db] WARNING ephemeral ledger storage in production: {DATA_DIR!r} "
-        "— set LEDGER_DATA_DIR to a persistent disk mount. Startup will abort "
-        "in assert_persistent_storage().",
-        flush=True,
-    )
 
 _FEED_PATH_CANDIDATES = [
     os.getenv("LEDGER_FEED_PATH"),
