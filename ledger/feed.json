@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-3e557cc1c40e6ed4c49557c6bbbef15428520fc9",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:755d39dcf0413f94:mesh-sync",
+    "source_hash": "755d39dcf0413f944485407ad2092d42c11c3da0058482c1d0683b5ed4593e79",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-04T22:08:11-04:00",
+    "author": "Michael Judan",
+    "sha": "3e557cc1c40e6ed4c49557c6bbbef15428520fc9",
+    "title": "Merge pull request #39 from kaizencycle/cursor/mobius-deploy-drift-routine-b3f4\n\ndocs(ops): Mobius deploy-drift Claude routine wiring",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-a41528a373a9363905c10015d85ac6b7bcc1df98",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:2c7360cc90f4c4e9:mesh-sync",
     "source_hash": "2c7360cc90f4c4e9f9e1c960c3030915f1a33ed57f2dc69319a4d61520976077",
