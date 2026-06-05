@@ -87,17 +87,17 @@ services:
       - key: PORT
         value: "8000"
 
-  # Render → Routine shim (Option B) — reshapes Render deploy webhook into
-  # {"text": ...} and forwards to the Mobius Deploy-Drift Sentinel /fire endpoint.
-  # Point Render's deploy webhook at: https://<shim-host>/render-deploy
-  # Required env vars: ROUTINE_TRIGGER_ID, ROUTINE_TOKEN, SHIM_SECRET (optional).
+  # Deploy-drift routine shim — bridges Render deploy webhook → Claude Code routine /fire.
+  # Fires only on deploy_succeeded/live so the sentinel runs after the new build is live.
+  # Required secrets: ROUTINE_TRIGGER_ID, ROUTINE_TOKEN (claude.ai/code/routines API trigger).
+  # Optional: SHIM_SECRET (x-shim-secret header). Webhook: POST https://<shim-host>/render-deploy
   - type: web
-    name: render-routine-shim
+    name: deploy-drift-shim
     env: python
     plan: free
     region: oregon
-    buildCommand: pip install -r scripts/render_routine_shim/requirements.txt
-    startCommand: cd scripts/render_routine_shim && uvicorn app:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install -r deploy-shim/requirements.txt
+    startCommand: cd deploy-shim && uvicorn shim:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: ROUTINE_TRIGGER_ID

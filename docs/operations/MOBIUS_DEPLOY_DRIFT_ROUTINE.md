@@ -109,7 +109,7 @@ GitHub Actions: `.github/workflows/deploy-drift-alarm.yml` (deterministic probe)
 ## Render deploy → routine (Option B — shim)
 
 Render’s deploy webhook posts a fixed JSON envelope; Claude’s `/fire` expects
-`{"text": "..."}`. Use `scripts/render_routine_shim/app.py` only after GHA drift
+`{"text": "..."}`. Use `deploy-shim/shim.py` only after GHA drift
 passes, or teach the shim to call GHA — do not assume the routine can curl the ledger.
 
 ## Option C — GitHub trigger on the same routine

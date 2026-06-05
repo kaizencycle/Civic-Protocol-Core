@@ -1,13 +1,17 @@
-"""Unit and HTTP endpoint tests for Render → routine shim."""
+"""Unit and HTTP endpoint tests for deploy-shim (Render → routine /fire)."""
+
+import sys
+from pathlib import Path
 
 import pytest
 from starlette.testclient import TestClient
 
-from scripts.render_routine_shim import app as shim_app
+_DEPLOY_SHIM = Path(__file__).resolve().parents[1] / "deploy-shim"
+if str(_DEPLOY_SHIM) not in sys.path:
+    sys.path.insert(0, str(_DEPLOY_SHIM))
 
-# ---------------------------------------------------------------------------
-# Helper unit tests
-# ---------------------------------------------------------------------------
+import shim as shim_app  # noqa: E402
+
 
 def test_deploy_status_from_data():
     body = {"type": "deploy", "data": {"status": "deploy_succeeded", "service": {"name": "ledger"}}}
@@ -31,10 +35,6 @@ def test_service_name_fallback():
     assert shim_app._service_name({}) == "civic-protocol-core-ledger"
     assert shim_app._service_name({"data": {"service": "my-svc"}}) == "my-svc"
 
-
-# ---------------------------------------------------------------------------
-# HTTP endpoint tests
-# ---------------------------------------------------------------------------
 
 @pytest.fixture
 def client(monkeypatch):
@@ -79,7 +79,7 @@ def test_shim_secret_rejects_wrong_header(monkeypatch):
 
 
 def test_fire_on_success(monkeypatch):
-    """On a deploy_succeeded event, shim POSTs to the routine /fire endpoint."""
+    """On deploy_succeeded, shim POSTs to the routine /fire endpoint."""
     monkeypatch.delenv("SHIM_SECRET", raising=False)
     monkeypatch.setenv("ROUTINE_TRIGGER_ID", "test-trigger-id")
     monkeypatch.setenv("ROUTINE_TOKEN", "test-token")
@@ -88,16 +88,20 @@ def test_fire_on_success(monkeypatch):
 
     class _MockResponse:
         status_code = 200
+
         def json(self):
             return {"claude_code_session_url": "https://claude.ai/code/session_test"}
+
         def raise_for_status(self):
             pass
 
     class _MockAsyncClient:
         async def __aenter__(self):
             return self
+
         async def __aexit__(self, *_):
             pass
+
         async def post(self, url, **kwargs):
             assert "test-trigger-id" in url
             assert kwargs["headers"]["Authorization"] == "Bearer test-token"
