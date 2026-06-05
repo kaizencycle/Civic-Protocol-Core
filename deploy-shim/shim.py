@@ -16,8 +16,9 @@ Optional env vars:
 from __future__ import annotations
 
 import os
+
 import httpx
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 
 app = FastAPI(title="render-to-routine-shim")
 
@@ -53,7 +54,7 @@ async def render_deploy(request: Request) -> dict:
     try:
         body = await request.json()
     except Exception:
-        raise HTTPException(status_code=400, detail="invalid JSON body")
+        raise HTTPException(status_code=400, detail="invalid JSON body") from None
 
     # Render deploy webhook envelope:
     # {"type": "deploy", "data": {"service": {"name": "..."}, "status": "..."}}
