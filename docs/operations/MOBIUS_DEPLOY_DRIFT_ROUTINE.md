@@ -4,12 +4,38 @@ Operational doc for the read-only Claude Code routine that probes the live Civic
 Protocol Core Ledger after deploys. Canon rule: **monitor and report only** — never
 merge, commit, push, or open PRs from the routine.
 
+## Network topology (read first)
+
+Render **inbound IP rules** allowlist who may call your web service from the public
+internet. Disallowed clients get **HTTP 403** with a body like `Host not in allowlist`
+(see [Render inbound IP rules](https://render.com/docs/inbound-ip-rules)).
+
+**Claude Code routine cloud sessions** use Anthropic-managed egress IPs. Those IPs are
+**not** stable and usually **cannot** be allowlisted on Render. If the routine curls
+the ledger directly, you will see persistent 403s — **not deploy drift**, not cold
+start. Issue [#40](https://github.com/kaizencycle/Civic-Protocol-Core/issues/40) is
+this failure mode.
+
+| Runner | Can curl live ledger? | Role |
+|--------|------------------------|------|
+| Claude routine (cloud) | Often **no** (403 allowlist) | Interpretation + issues when given GHA output |
+| GitHub Actions `deploy-drift-alarm` | Usually **yes** | Deterministic drift script |
+| Your laptop / Terminal / Render health | **yes** (if allowed) | Manual verification |
+
+**Recommended architecture:** GHA runs `check_deploy_drift.py` → on exit `1` (DRIFT),
+fire the routine via API with the **verbatim script output** in `text`. The routine
+**parses that output** and opens an issue — it does not need to curl the ledger.
+
+Do **not** widen inbound rules to `0.0.0.0/0` unless you intend a public API. If the
+ledger is intentionally IP-restricted, keep it restricted and run probes only from
+allowed networks (GHA static IP, office CIDR, same Render private network).
+
 ## Create the routine
 
 1. Open [claude.ai/code/routines](https://claude.ai/code/routines) → **New routine**.
 2. Attach repo **kaizencycle/Civic-Protocol-Core** (default branch `main`).
 3. **Environment / network allowlist:** `civic-protocol-core-ledger.onrender.com`,
-   `mobius-identity-service.onrender.com`. No write secrets needed.
+   `mobius-identity-service.onrender.com` (only matters if the routine curls live).
 4. Add an **API trigger**; generate and store the bearer token immediately (shown once).
 5. Paste the **Instructions** block below into the prompt field.
 
@@ -22,124 +48,95 @@ You MONITOR and REPORT ONLY. You never merge, commit, push, or modify code.
 LIVE_URL = https://civic-protocol-core-ledger.onrender.com
 REPO     = kaizencycle/Civic-Protocol-Core (branch main)
 
-Run these checks in order and collect verbatim output for each:
+MODE A — If the API `text` field contains a section "DRIFT_CHECK_OUTPUT" with
+verbatim output from scripts/check_deploy_drift.py (e.g. fired from GitHub Actions):
+  - Parse that output only. Do NOT curl LIVE_URL.
+  - Exit 0 in output → one-paragraph OK summary.
+  - Exit 1 / lines containing "DRIFT:" → open issue "[Mobius] Ledger deploy drift — <UTC date>".
+  - Exit 4 / "BLOCKED:" / "Host not in allowlist" → one paragraph: sentinel blocked,
+    not drift; do NOT open a drift issue (reference #40).
+  - Exit 2 UNRESOLVED → note inconclusive; do not treat as drift.
+
+MODE B — If no DRIFT_CHECK_OUTPUT in `text`, run live checks (may fail from cloud IP):
 
 1. DRIFT CHECK
-   From repo root, run:
      python3 scripts/check_deploy_drift.py --url $LIVE_URL
-   Exit codes: 0 = OK, 1 = DRIFT, 2 = UNRESOLVED.
-   If exit 2 (UNRESOLVED), wait 60s and run once more (cold-start tolerance).
-   A second UNRESOLVED is reported as UNRESOLVED, NOT as drift.
+   Exit codes: 0 OK, 1 DRIFT, 2 UNRESOLVED, 4 BLOCKED (Render inbound IP allowlist).
+   If exit 4: STOP. Reply one paragraph — probe blocked, NOT drift, see issue #40.
+     Do NOT open a drift/regression issue.
+   If exit 2: wait 60s, run once more. Second UNRESOLVED → inconclusive, NOT drift.
 
-2. HEALTH + STORAGE
-   curl -sS $LIVE_URL/health
-     - HTTP must be 200 and report db connected.
-     - Note db_type (expect "sqlite" on the persistent disk today).
-   curl -sS $LIVE_URL/ledger/stats
-     - Record total_events. total_events: 0 is ACCEPTABLE if no attestation has
-       run yet — note it, do not treat 0 alone as failure.
+2. HEALTH + STORAGE (skip if step 1 exited 4)
+   curl -sS $LIVE_URL/health → 200, db connected; note db_type.
+   curl -sS $LIVE_URL/ledger/stats → record total_events (0 alone is OK).
 
 3. ROUTE SURFACE
-   GET $LIVE_URL/openapi.json — path count must be >= 24.
-   Spot-check the routes that were missing during the C-332 stale-deploy:
-     GET  /api/vault/global        -> expect 200
-     POST /api/seal/reconcile {}   -> expect 422 (NOT 404)
-     POST /api/epicon/ingest {}    -> expect 422 or 401 (NOT 404)
+   GET $LIVE_URL/openapi.json — paths >= 24.
+   GET /api/vault/global → 200; POST /api/seal/reconcile {} → 422 not 404;
+   POST /api/epicon/ingest {} → 422 or 401 not 404.
 
-4. ATTEST PATH (reality-checked for the current build)
-   POST $LIVE_URL/ledger/attest with an EMPTY JSON body {} and no Authorization:
-     - EXPECT 422 (missing event_type / civic_id / lab_source).
-     - The string "No API base configured for terminal" must NEVER appear.
-       If it does, IDENTITY_API_BASE regressed — flag it.
-   (Do not assert 401 here — a body-less request validates to 422 first. The
-    401-vs-400 identity distinction only appears with a full body + token, which
-    this read-only probe deliberately does not send.)
+4. ATTEST PATH
+   POST $LIVE_URL/ledger/attest {} no Authorization → 422.
+   "No API base configured" must NEVER appear.
 
-DECISION:
-- If ALL pass: reply with ONE paragraph — drift exit code, route count, db_type,
-  total_events, and "no regression." Do nothing else.
-- If ANY step fails (drift exit 1; health not 200; any spot-check 404;
-  the "No API base configured" string appears; route count < 24):
-  open a GitHub issue in REPO titled:
-    "[Mobius] Ledger deploy drift or regression — <UTC date>"
-  Body: which check failed + the verbatim curl/script output for that check.
-  Then STOP.
+DECISION (MODE B only):
+- ALL pass → one paragraph OK; no issue.
+- drift exit 1 OR spot-check 404 OR route count < 24 OR identity regression string:
+  open "[Mobius] Ledger deploy drift or regression — <UTC date>" with verbatim output.
+- 403 body contains "allowlist" / drift exit 4: BLOCKED — no drift issue.
 
-ABSOLUTE RULES:
-- REPORT ONLY. Never merge, commit, push, edit files, or open a PR. Not even for
-  an "obvious and small" fix. Open an issue and stop. A wrong unattended change to
-  this repo is a canon-integrity event.
-- Do not invent diagnoses beyond what the checks return.
-- Treat a single UNRESOLVED as cold-start noise, never as drift.
-
-SUCCESS = drift exit 0 AND health 200 AND route count >= 24 AND seal/attest behave
-as specified above.
-
-(Optional runtime context: the caller may pass Render deploy metadata or log
-snippets in the API `text` field — incorporate it into the issue body if present.)
+ABSOLUTE RULES: REPORT ONLY. No commits, PRs, or file edits. No invented diagnoses.
 ```
 
 ## Fire the routine (Option A — manual or GitHub Actions)
 
 ```bash
-export ROUTINE_TRIGGER_ID=trig_...   # from routine API trigger UI
-export ROUTINE_TOKEN=sk-ant-oat01-... # shown once at token creation
+export ROUTINE_TRIGGER_ID=trig_...
+export ROUTINE_TOKEN=sk-ant-oat01-...
 
-./scripts/fire_deploy_drift_routine.sh
-# or with context:
-./scripts/fire_deploy_drift_routine.sh "Post-deploy check for commit abc123"
+# Prefer: pass GHA drift output (MODE A)
+DRIFT_OUT="$(python3 scripts/check_deploy_drift.py --url https://civic-protocol-core-ledger.onrender.com 2>&1)" || true
+./scripts/fire_deploy_drift_routine.sh "DRIFT_CHECK_OUTPUT:
+$DRIFT_OUT"
+
+# Or context-only (MODE B — may hit 403 from cloud)
+./scripts/fire_deploy_drift_routine.sh "Manual post-deploy check"
 ```
 
-GitHub Actions workflow: `.github/workflows/fire-drift-routine.yml` (requires repo
-secrets `ROUTINE_TRIGGER_ID` and `ROUTINE_TOKEN`).
+GitHub Actions: `.github/workflows/deploy-drift-alarm.yml` (deterministic probe) and
+`.github/workflows/fire-drift-routine.yml` (API `/fire` only).
 
 ## Render deploy → routine (Option B — shim)
 
-Render’s deploy webhook posts a fixed JSON envelope; Claude’s `/fire` endpoint
-expects `{"text": "..."}`. A small shim reshapes and forwards:
-
-- **Code:** `scripts/render_routine_shim/app.py`
-- **Run:** `uvicorn scripts.render_routine_shim.app:app --host 0.0.0.0 --port $PORT`
-- **Env:** `ROUTINE_TRIGGER_ID`, `ROUTINE_TOKEN`, optional `SHIM_SECRET`
-- **Webhook URL:** `https://<shim-host>/render-deploy` (optional header `x-shim-secret`)
-
-Only fires on successful deploy statuses (`deploy_succeeded`, `live`, `succeeded`).
+Render’s deploy webhook posts a fixed JSON envelope; Claude’s `/fire` expects
+`{"text": "..."}`. Use `scripts/render_routine_shim/app.py` only after GHA drift
+passes, or teach the shim to call GHA — do not assume the routine can curl the ledger.
 
 ## Option C — GitHub trigger on the same routine
 
-Add a **GitHub event** trigger on the routine (PR opened / release published). No API
-token or shim; may run slightly before Render is live — the routine’s UNRESOLVED
-retry absorbs cold start.
+Fires on merge/PR; still subject to MODE B network limits unless you chain GHA output.
 
-## API reference (Anthropic)
+## Drift script exit codes
 
-```
-POST https://api.anthropic.com/v1/claude_code/routines/{trigger_id}/fire
-Headers:
-  Authorization: Bearer {routine_token}
-  anthropic-beta: experimental-cc-routine-2026-04-01
-  anthropic-version: 2023-06-01
-  Content-Type: application/json
-Body:
-  {"text": "<freeform context>"}
-```
+| Code | Meaning |
+|------|---------|
+| 0 | OK — live matches manifest |
+| 1 | DRIFT — missing operations |
+| 2 | UNRESOLVED — cold start / outage |
+| 3 | USAGE/IO — bad manifest |
+| 4 | BLOCKED — Render inbound IP allowlist (403); **not drift** |
 
-Response: `claude_code_session_url` for the run transcript.
-
-## Related automation in this repo
+## Related automation
 
 | Mechanism | Role |
 |-----------|------|
-| `.github/workflows/deploy-drift-alarm.yml` | Deterministic drift script (daily + manual); no LLM |
-| `.github/workflows/fire-drift-routine.yml` | Fires Claude routine after you wire secrets |
-| `scripts/check_deploy_drift.py` | Source of truth for route manifest compare |
-
-The routine adds **interpretation + GitHub issues**; the workflow is the cheap
-always-on gate.
+| `.github/workflows/deploy-drift-alarm.yml` | Canonical live probe (GitHub runner) |
+| `.github/workflows/fire-drift-routine.yml` | Fire routine with secrets |
+| `scripts/check_deploy_drift.py` | Drift + allowlist detection |
 
 ## Operational notes
 
-- Token is shown **once**; regenerate revokes the old token.
-- No idempotency on `/fire` — webhook retries create duplicate sessions.
-- Daily routine run caps apply per plan; per-deploy + daily schedule stays under limits.
-- Pin beta header `experimental-cc-routine-2026-04-01`; migrate when Anthropic ships a new dated header.
+- Close [#40](https://github.com/kaizencycle/Civic-Protocol-Core/issues/40) when the
+  routine uses MODE A or GHA-only probes — production was not proven broken.
+- Routine `/fire` token shown once; no idempotency on retries.
+- Beta header: `experimental-cc-routine-2026-04-01`.

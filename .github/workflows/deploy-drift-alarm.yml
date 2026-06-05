@@ -9,7 +9,7 @@ name: deploy-drift-alarm
 #     to confirm the live surface caught up.
 #
 # Exit semantics (scripts/check_deploy_drift.py):
-#   0 OK · 1 DRIFT (fail) · 2 UNRESOLVED (cold start/outage — warn, don't hard-fail)
+#   0 OK · 1 DRIFT (fail) · 2 UNRESOLVED · 4 BLOCKED (IP allowlist) (cold start/outage — warn, don't hard-fail)
 
 on:
   schedule:
@@ -67,6 +67,10 @@ jobs:
           code=$?
           set -e
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" = "4" ]; then
+            echo "::warning::Probe blocked by Render inbound IP allowlist (exit 4) — inconclusive, not drift."
+            exit 0
+          fi
           if [ "$code" = "2" ]; then
             echo "::warning::Ledger unreachable within cold-start budget — inconclusive (not failing the run)."
             exit 0
