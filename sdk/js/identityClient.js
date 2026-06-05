@@ -174,6 +174,4 @@ class IdentityTokenClient {
   }
 }
 
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { IdentityTokenClient, jwtExpUnix };
-}
+export { IdentityTokenClient, jwtExpUnix };

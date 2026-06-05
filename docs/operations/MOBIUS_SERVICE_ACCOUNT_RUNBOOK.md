@@ -55,6 +55,7 @@ Store in your secret manager (Vercel → Settings → Environment Variables):
 export IDENTITY_SERVICE_EMAIL=terminal-service@mobius.systems
 export IDENTITY_SERVICE_PASSWORD='...'
 
+# Reads IDENTITY_SERVICE_EMAIL/PASSWORD from env (or pass --email/--password)
 python scripts/provision_service_account.py smoke
 ```
 
