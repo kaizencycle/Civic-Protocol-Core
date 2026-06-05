@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-abfe4faa8ef21182ba125d663ddd734a1bb59bb8",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:0bd41b3923efd8c1:mesh-sync",
+    "source_hash": "0bd41b3923efd8c19a2333e688897e9558e8492c6723f76440360bd057dc5a73",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-05T11:27:11-04:00",
+    "author": "Michael Judan",
+    "sha": "abfe4faa8ef21182ba125d663ddd734a1bb59bb8",
+    "title": "Merge pull request #54 from kaizencycle/cursor/service-account-opt6-b3f4\n\nfix(auth): address Codex review \u2014 ESM export and env-based smoke creds",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-618d43708c60fb1e1b9de4f8892ea3cb7fb86a84",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:e879f1f14722ccbf:mesh-sync",
     "source_hash": "e879f1f14722ccbf86c90523eca24d0999e023a19a277a0ea71408e7119bbf99",
