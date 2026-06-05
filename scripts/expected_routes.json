@@ -1,0 +1,31 @@
+{
+  "generated_from": "ledger.app.main:app OpenAPI",
+  "route_count": 24,
+  "routes": [
+    "/",
+    "/api/epicon/ingest",
+    "/api/mcp",
+    "/api/oaa/memory",
+    "/api/oaa/memory/{proof_hash}",
+    "/api/seal/finalize",
+    "/api/seal/quarantine",
+    "/api/seal/reattest",
+    "/api/seal/reconcile",
+    "/api/vault/attest",
+    "/api/vault/deposit",
+    "/api/vault/global",
+    "/api/vault/seal",
+    "/api/vault/seals",
+    "/epicon/feed",
+    "/health",
+    "/ledger/attest",
+    "/ledger/chain",
+    "/ledger/events",
+    "/ledger/identity/{civic_id}",
+    "/ledger/stats",
+    "/mesh/entries/ipfs",
+    "/mesh/ingest",
+    "/mesh/nodes"
+  ],
+  "note": "Source of truth for deploy-drift detection. Regenerate with scripts/gen_route_manifest.py after intentionally adding/removing routes."
+}
