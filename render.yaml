@@ -87,6 +87,26 @@ services:
       - key: PORT
         value: "8000"
 
+  # Render → Routine shim (Option B) — reshapes Render deploy webhook into
+  # {"text": ...} and forwards to the Mobius Deploy-Drift Sentinel /fire endpoint.
+  # Point Render's deploy webhook at: https://<shim-host>/render-deploy
+  # Required env vars: ROUTINE_TRIGGER_ID, ROUTINE_TOKEN, SHIM_SECRET (optional).
+  - type: web
+    name: render-routine-shim
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r scripts/render_routine_shim/requirements.txt
+    startCommand: cd scripts/render_routine_shim && uvicorn app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ROUTINE_TRIGGER_ID
+        sync: false
+      - key: ROUTINE_TOKEN
+        sync: false
+      - key: SHIM_SECRET
+        sync: false
+
   # MIC Wallet Service - MIC earning and wallet management
   - type: web
     name: mobius-mic-wallet

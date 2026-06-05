@@ -1,6 +1,12 @@
 # Fire the Mobius Deploy-Drift Sentinel Claude Code routine (API /fire).
 # Requires repo secrets ROUTINE_TRIGGER_ID and ROUTINE_TOKEN from claude.ai/code/routines.
 # Does not run drift checks itself — only triggers the cloud routine session.
+#
+# Triggers:
+#   workflow_dispatch   — manual or called from another workflow
+#   workflow_run on CI  — auto-fires after every successful push to main (which
+#                         causes Render to deploy), so the sentinel validates the
+#                         live build without manual intervention.
 
 name: fire-drift-routine
 
@@ -11,20 +17,29 @@ on:
         description: 'Freeform text passed to the routine /fire body'
         required: false
         default: 'Post-deploy drift check fired from GitHub Actions.'
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
 
 permissions:
   contents: read
 
 jobs:
   fire:
+    # For workflow_run events, only proceed when CI passed.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Fire Mobius deploy-drift routine
         env:
           ROUTINE_TRIGGER_ID: ${{ secrets.ROUTINE_TRIGGER_ID }}
           ROUTINE_TOKEN: ${{ secrets.ROUTINE_TOKEN }}
-          CONTEXT: ${{ github.event.inputs.context }}
-          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          GITHUB_REF: ${{ github.event.workflow_run.head_branch || github.ref }}
+          CONTEXT: ${{ github.event.inputs.context || 'Post-deploy drift check auto-fired after CI passed on main.' }}
         run: |
           if [ -z "$ROUTINE_TRIGGER_ID" ] || [ -z "$ROUTINE_TOKEN" ]; then
             echo "::error::Set repository secrets ROUTINE_TRIGGER_ID and ROUTINE_TOKEN (from claude.ai/code/routines API trigger)."
