@@ -88,10 +88,9 @@ services:
         value: "8000"
 
   # Deploy-drift routine shim — bridges Render deploy webhook → Claude Code routine /fire.
-  # Receives Render's fixed webhook envelope and reshapes it to {"text": ...} for /fire.
-  # Required secrets: ROUTINE_TRIGGER_ID, ROUTINE_TOKEN (from claude.ai/code/routines API trigger).
-  # Optional: SHIM_SECRET (shared secret verified via x-shim-secret header).
-  # After deploying, configure Render's deploy webhook to POST to: https://<shim-host>/render-deploy
+  # Fires only on deploy_succeeded/live so the sentinel runs after the new build is live.
+  # Required secrets: ROUTINE_TRIGGER_ID, ROUTINE_TOKEN (claude.ai/code/routines API trigger).
+  # Optional: SHIM_SECRET (x-shim-secret header). Webhook: POST https://<shim-host>/render-deploy
   - type: web
     name: deploy-drift-shim
     env: python

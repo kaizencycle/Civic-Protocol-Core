@@ -22,69 +22,112 @@ from fastapi import FastAPI, HTTPException, Request
 
 app = FastAPI(title="render-to-routine-shim")
 
-_ROUTINE_TRIGGER_ID = os.environ.get("ROUTINE_TRIGGER_ID", "")
-_ROUTINE_TOKEN = os.environ.get("ROUTINE_TOKEN", "")
-_SHIM_SECRET = os.environ.get("SHIM_SECRET", "")
-
-ROUTINE_URL = (
-    f"https://api.anthropic.com/v1/claude_code/routines/{_ROUTINE_TRIGGER_ID}/fire"
+_SUCCESS_STATUSES = frozenset(
+    {
+        "deploy_succeeded",
+        "live",
+        "succeeded",
+        "success",
+    }
 )
 
-# Render deploy webhook statuses that mean the deploy actually went live.
-_SUCCESS_STATUSES = frozenset({"deploy_succeeded", "live", "succeeded"})
+
+def _routine_fire_url() -> str:
+    trigger_id = os.environ.get("ROUTINE_TRIGGER_ID", "").strip()
+    if not trigger_id:
+        raise RuntimeError("ROUTINE_TRIGGER_ID is not set")
+    return (
+        f"https://api.anthropic.com/v1/claude_code/routines/{trigger_id}/fire"
+    )
+
+
+def _deploy_status(body: dict) -> str:
+    data = body.get("data") if isinstance(body.get("data"), dict) else {}
+    for candidate in (
+        data.get("status"),
+        body.get("status"),
+        body.get("type"),
+        body.get("event"),
+    ):
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip().lower()
+    return "unknown"
+
+
+def _service_name(body: dict) -> str:
+    data = body.get("data") if isinstance(body.get("data"), dict) else {}
+    service = data.get("service")
+    if isinstance(service, dict):
+        name = service.get("name")
+        if isinstance(name, str) and name.strip():
+            return name.strip()
+    if isinstance(service, str) and service.strip():
+        return service.strip()
+    return "civic-protocol-core-ledger"
 
 
 @app.get("/health")
 def health() -> dict:
-    configured = bool(_ROUTINE_TRIGGER_ID and _ROUTINE_TOKEN)
-    return {"ok": True, "routine_configured": configured}
+    configured = bool(
+        os.environ.get("ROUTINE_TRIGGER_ID", "").strip()
+        and os.environ.get("ROUTINE_TOKEN", "").strip()
+    )
+    return {"ok": True, "service": "render-to-routine-shim", "routine_configured": configured}
 
 
 @app.post("/render-deploy")
 async def render_deploy(request: Request) -> dict:
-    if _SHIM_SECRET and request.headers.get("x-shim-secret") != _SHIM_SECRET:
+    shim_secret = os.environ.get("SHIM_SECRET", "").strip()
+    if shim_secret and request.headers.get("x-shim-secret") != shim_secret:
         raise HTTPException(status_code=401, detail="bad shim secret")
-
-    if not _ROUTINE_TRIGGER_ID or not _ROUTINE_TOKEN:
-        raise HTTPException(
-            status_code=503,
-            detail="ROUTINE_TRIGGER_ID or ROUTINE_TOKEN not configured",
-        )
 
     try:
         body = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="invalid JSON body") from None
+    if not isinstance(body, dict):
+        body = {}
 
-    # Render deploy webhook envelope:
-    # {"type": "deploy", "data": {"service": {"name": "..."}, "status": "..."}}
-    data = (body or {}).get("data", {})
-    status = data.get("status") or body.get("type") or "unknown"
-    service = (data.get("service") or {}).get("name", "civic-protocol-core-ledger")
-
+    status = _deploy_status(body)
     if status not in _SUCCESS_STATUSES:
-        return {"skipped": True, "reason": "not a successful deploy", "status": status}
+        return {"skipped": True, "status": status}
 
+    token = os.environ.get("ROUTINE_TOKEN", "").strip()
+    if not os.environ.get("ROUTINE_TRIGGER_ID", "").strip() or not token:
+        raise HTTPException(
+            status_code=503,
+            detail="ROUTINE_TRIGGER_ID or ROUTINE_TOKEN not configured",
+        )
+
+    service = _service_name(body)
     text = (
         f"Render deploy succeeded for {service} (status={status}). "
-        f"Run the post-deploy drift + ledger-health check now."
+        "Run the post-deploy drift + ledger-health check now."
     )
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        r = await client.post(
-            ROUTINE_URL,
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            _routine_fire_url(),
             headers={
-                "Authorization": f"Bearer {_ROUTINE_TOKEN}",
+                "Authorization": f"Bearer {token}",
                 "anthropic-beta": "experimental-cc-routine-2026-04-01",
                 "anthropic-version": "2023-06-01",
                 "Content-Type": "application/json",
             },
             json={"text": text},
         )
+        response.raise_for_status()
+        payload = response.json()
 
-    return {"fired": True, "status": status, "fire_status_code": r.status_code}
+    return {
+        "fired": True,
+        "status": status,
+        "fire_status_code": response.status_code,
+        "session_url": payload.get("claude_code_session_url"),
+    }
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
