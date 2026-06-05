@@ -142,7 +142,7 @@ No Terminal deploy is required for C-331 if #552 is already live. The existing r
 | Variable | Purpose |
 |----------|---------|
 | `CIVIC_LEDGER_URL` | `https://civic-protocol-core-ledger.onrender.com` |
-| Identity / substrate tokens | Per `docs/operations/MOBIUS_AUTH_CONTRACT.md` |
+| `IDENTITY_SERVICE_EMAIL` / `IDENTITY_SERVICE_PASSWORD` | Service account (OPT-6); see `docs/operations/MOBIUS_SERVICE_ACCOUNT_RUNBOOK.md` |
 
 ### 3.2 What to watch
 
