@@ -107,6 +107,5 @@ def test_attest_retries_on_401_with_force_refresh():
 
 
 def test_from_env_missing_raises():
-    with patch.dict("os.environ", {}, clear=True):
-        with pytest.raises(ValueError, match="IDENTITY_API_BASE"):
-            IdentityTokenClient.from_env()
+    with patch.dict("os.environ", {}, clear=True), pytest.raises(ValueError, match="IDENTITY_API_BASE"):
+        IdentityTokenClient.from_env()
