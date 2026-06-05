@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-fbeeb3bbd6062b1605404f19ef5731277d2673b9",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:e4a536f28a94d288:mesh-sync",
+    "source_hash": "e4a536f28a94d288706152057bce103ebe574263cae1980a4e34fdc258c34d42",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-05T09:39:51-04:00",
+    "author": "Michael Judan",
+    "sha": "fbeeb3bbd6062b1605404f19ef5731277d2673b9",
+    "title": "Merge pull request #49 from kaizencycle/claude/stoic-maxwell-xppXt\n\nAdd Option B deploy-drift shim: Render webhook \u2192 Claude routine /fire",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-63fc60aab98b36a9026e24f70dfce3e4d2d5271d",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:45ed592a7ecae18c:mesh-sync",
     "source_hash": "45ed592a7ecae18cf2a4937bfff45008bc73a72e9a6000cae2ddd0618bef646c",
