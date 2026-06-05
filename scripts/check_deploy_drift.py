@@ -43,11 +43,19 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-_SCRIPTS_DIR = Path(__file__).resolve().parent
-if str(_SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPTS_DIR))
+HTTP_METHODS = frozenset({"get", "post", "put", "delete", "patch", "head", "options"})
 
-from gen_route_manifest import operations_from_openapi
+
+def operations_from_openapi(spec: dict) -> list[str]:
+    ops: set[str] = set()
+    for path, item in spec.get("paths", {}).items():
+        if not isinstance(item, dict):
+            continue
+        for method, operation in item.items():
+            if method.lower() in HTTP_METHODS and isinstance(operation, dict):
+                ops.add(f"{method.upper()} {path}")
+    return sorted(ops)
+
 
 EXIT_OK, EXIT_DRIFT, EXIT_UNRESOLVED, EXIT_USAGE = 0, 1, 2, 3
 

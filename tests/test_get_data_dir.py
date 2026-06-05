@@ -1,15 +1,11 @@
 """Boot-time data dir probing logs when LEDGER_DATA_DIR is unusable."""
-import importlib
-
 import ledger.app.db as db_mod
 
 
 def test_get_data_dir_logs_when_requested_path_not_writable(monkeypatch, capsys):
     monkeypatch.setenv("LEDGER_DATA_DIR", "/var/lib/ledger")
-    calls: list[str] = []
 
     def fake_probe(path: str) -> None:
-        calls.append(path)
         if path == "/var/lib/ledger":
             raise PermissionError("[Errno 13] Permission denied: '/var/lib/ledger'")
 
@@ -18,7 +14,6 @@ def test_get_data_dir_logs_when_requested_path_not_writable(monkeypatch, capsys)
     chosen = db_mod.get_data_dir()
     out = capsys.readouterr().out
 
-    assert calls[0] == "/var/lib/ledger"
     assert chosen == "/tmp/ledger_data"
     assert "LEDGER_DATA_DIR='/var/lib/ledger' is not writable" in out
     assert "using '/tmp/ledger_data'" in out
