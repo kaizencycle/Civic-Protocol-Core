@@ -23,6 +23,9 @@ and only asserts drift once the service is provably reachable (parseable
 UNRESOLVED (distinct from DRIFT) so a transient outage doesn't masquerade as a
 drift alarm.
 
+Render inbound IP rules: disallowed clients get HTTP 403 with a body like
+"Host not in allowlist". That is NOT cold start and NOT drift — exit BLOCKED.
+
 Usage:
     python3 scripts/check_deploy_drift.py --url https://civic-protocol-core-ledger.onrender.com
     python3 scripts/check_deploy_drift.py --url <URL> --manifest scripts/expected_routes.json
@@ -32,6 +35,7 @@ Exit codes:
     1  DRIFT     — reachable, but missing expected operation(s)
     2  UNRESOLVED — could not reach the service (cold start / outage); inconclusive
     3  USAGE/IO  — bad args or manifest
+    4  BLOCKED   — Render inbound IP rules rejected the probe (403 allowlist); inconclusive
 """
 from __future__ import annotations
 
@@ -57,9 +61,12 @@ def operations_from_openapi(spec: dict) -> list[str]:
     return sorted(ops)
 
 
-EXIT_OK, EXIT_DRIFT, EXIT_UNRESOLVED, EXIT_USAGE = 0, 1, 2, 3
+EXIT_OK, EXIT_DRIFT, EXIT_UNRESOLVED, EXIT_USAGE, EXIT_BLOCKED = 0, 1, 2, 3, 4
 
 DEFAULT_MANIFEST = Path(__file__).resolve().parent / "expected_routes.json"
+
+# Render inbound IP rules return 403 with a body like "Host not in allowlist".
+_ALLOWLIST_MARKERS = ("host not in allowlist", "not in allowlist")
 
 
 def _get(url: str, timeout: float) -> tuple[int, bytes]:
@@ -71,6 +78,23 @@ def _get(url: str, timeout: float) -> tuple[int, bytes]:
         return e.code, e.read() if e.fp else b""
     except (urllib.error.URLError, TimeoutError, ConnectionError):
         return 0, b""
+
+
+def _body_indicates_inbound_ip_block(status: int, body: bytes) -> bool:
+    if status != 403:
+        return False
+    text = body.decode("utf-8", errors="replace").lower()
+    return any(marker in text for marker in _ALLOWLIST_MARKERS)
+
+
+def probe_inbound_ip_blocked(base: str) -> bool:
+    """True when Render inbound IP rules reject this client's probes."""
+    base = base.rstrip("/")
+    for path in ("/health", "/openapi.json"):
+        status, body = _get(f"{base}{path}", timeout=15)
+        if _body_indicates_inbound_ip_block(status, body):
+            return True
+    return False
 
 
 def load_expected_operations(manifest_path: Path) -> set[str]:
@@ -147,6 +171,15 @@ def main() -> int:
 
     print(f"Expected operations (from manifest): {len(expected)}")
     print(f"Probing live: {args.url}")
+
+    if probe_inbound_ip_blocked(args.url):
+        print(
+            "BLOCKED: Render inbound IP rules rejected this probe (403 allowlist). "
+            "The service may be healthy for other clients — this is NOT deploy drift. "
+            "Run from GitHub Actions (deploy-drift-alarm) or adjust Render inbound rules.",
+            file=sys.stderr,
+        )
+        return EXIT_BLOCKED
 
     live = fetch_live_operations(args.url, args.attempts, args.base_delay)
     if live is None:
