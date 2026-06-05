@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-a41528a373a9363905c10015d85ac6b7bcc1df98",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:2c7360cc90f4c4e9:mesh-sync",
+    "source_hash": "2c7360cc90f4c4e9f9e1c960c3030915f1a33ed57f2dc69319a4d61520976077",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-04T21:23:45-04:00",
+    "author": "Michael Judan",
+    "sha": "a41528a373a9363905c10015d85ac6b7bcc1df98",
+    "title": "Merge pull request #38 from kaizencycle/cursor/ledger-data-dir-boot-logging-b3f4\n\nLog when LEDGER_DATA_DIR is unusable at boot (Render disk mount hint)",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-b613b05a7e947f6a3c49fbe68a4a9a5cefa88439",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:668de55f4d380efd:mesh-sync",
     "source_hash": "668de55f4d380efdec84c60a8fbfb417cffe8ccd495b1cb51be6f512b90a0c8d",
