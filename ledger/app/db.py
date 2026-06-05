@@ -2,17 +2,30 @@
 
 import contextlib
 import json
+import logging
 import os
 import sqlite3
 import tempfile
 
 from fastapi import HTTPException
 
+logger = logging.getLogger(__name__)
+
+
+def _probe_writable_dir(dir_path: str) -> None:
+    """Raise OSError / PermissionError if dir_path cannot be used for ledger files."""
+    os.makedirs(dir_path, exist_ok=True)
+    test_file = os.path.join(dir_path, "test_write")
+    with open(test_file, "w", encoding="utf-8") as f:
+        f.write("test")
+    os.remove(test_file)
+
 
 def get_data_dir() -> str:
     """Writable data directory (Render /tmp, local ./data, or system temp)."""
+    requested = (os.getenv("LEDGER_DATA_DIR") or "").strip() or None
     possible_dirs = [
-        os.getenv("LEDGER_DATA_DIR"),
+        requested,
         "/tmp/ledger_data",
         "./data",
         tempfile.gettempdir() + "/ledger_data",
@@ -22,16 +35,38 @@ def get_data_dir() -> str:
         if dir_path is None:
             continue
         try:
-            os.makedirs(dir_path, exist_ok=True)
-            test_file = os.path.join(dir_path, "test_write")
-            with open(test_file, "w", encoding="utf-8") as f:
-                f.write("test")
-            os.remove(test_file)
-            return dir_path
-        except (OSError, PermissionError):
+            _probe_writable_dir(dir_path)
+        except (OSError, PermissionError) as exc:
+            if requested and os.path.normpath(dir_path) == os.path.normpath(requested):
+                msg = (
+                    f"[ledger:db] LEDGER_DATA_DIR={dir_path!r} is not writable: {exc}. "
+                    "Probing fallback directories (attach a Render disk at this path)."
+                )
+                logger.warning(msg)
+                print(msg, flush=True)
             continue
 
-    return tempfile.gettempdir()
+        if requested and os.path.normpath(dir_path) != os.path.normpath(requested):
+            msg = (
+                f"[ledger:db] LEDGER_DATA_DIR={requested!r} was not usable; "
+                f"using {dir_path!r} for ledger storage instead."
+            )
+            logger.warning(msg)
+            print(msg, flush=True)
+        elif requested and os.path.normpath(dir_path) == os.path.normpath(requested):
+            msg = f"[ledger:db] Using LEDGER_DATA_DIR={dir_path!r} for ledger storage."
+            logger.info(msg)
+            print(msg, flush=True)
+        return dir_path
+
+    fallback = tempfile.gettempdir()
+    msg = (
+        f"[ledger:db] No configured ledger data directory is writable; "
+        f"falling back to {fallback!r}."
+    )
+    logger.error(msg)
+    print(msg, flush=True)
+    return fallback
 
 
 # C-331: ephemeral-storage detection.
