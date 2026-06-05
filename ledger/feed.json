@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-807c6b679e844383a3396cd1fb696b90e6eb54af",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:29f09f8ce3bc7555:mesh-sync",
+    "source_hash": "29f09f8ce3bc7555a368cb9e6d5817384a7e957a55b39c338e25189e63fa5a3e",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-05T10:07:57-04:00",
+    "author": "Michael Judan",
+    "sha": "807c6b679e844383a3396cd1fb696b90e6eb54af",
+    "title": "Merge pull request #50 from kaizencycle/claude/stoic-maxwell-ILf7H\n\nfeat(sentinel): wire auto-fire trigger, shim deploy config, and HTTP tests",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-fbeeb3bbd6062b1605404f19ef5731277d2673b9",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:e4a536f28a94d288:mesh-sync",
     "source_hash": "e4a536f28a94d288706152057bce103ebe574263cae1980a4e34fdc258c34d42",
