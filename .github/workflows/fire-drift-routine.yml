@@ -1,0 +1,40 @@
+# Fire the Mobius Deploy-Drift Sentinel Claude Code routine (API /fire).
+# Requires repo secrets ROUTINE_TRIGGER_ID and ROUTINE_TOKEN from claude.ai/code/routines.
+# Does not run drift checks itself — only triggers the cloud routine session.
+
+name: fire-drift-routine
+
+on:
+  workflow_dispatch:
+    inputs:
+      context:
+        description: 'Freeform text passed to the routine /fire body'
+        required: false
+        default: 'Post-deploy drift check fired from GitHub Actions.'
+
+permissions:
+  contents: read
+
+jobs:
+  fire:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fire Mobius deploy-drift routine
+        env:
+          ROUTINE_TRIGGER_ID: ${{ secrets.ROUTINE_TRIGGER_ID }}
+          ROUTINE_TOKEN: ${{ secrets.ROUTINE_TOKEN }}
+          CONTEXT: ${{ github.event.inputs.context }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          if [ -z "$ROUTINE_TRIGGER_ID" ] || [ -z "$ROUTINE_TOKEN" ]; then
+            echo "::error::Set repository secrets ROUTINE_TRIGGER_ID and ROUTINE_TOKEN (from claude.ai/code/routines API trigger)."
+            exit 1
+          fi
+          export TEXT="${CONTEXT} sha=${GITHUB_SHA} ref=${GITHUB_REF}"
+          curl -fsS -X POST \
+            "https://api.anthropic.com/v1/claude_code/routines/${ROUTINE_TRIGGER_ID}/fire" \
+            -H "Authorization: Bearer ${ROUTINE_TOKEN}" \
+            -H "anthropic-beta: experimental-cc-routine-2026-04-01" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "Content-Type: application/json" \
+            -d "$(python3 -c 'import json,os; print(json.dumps({"text": os.environ["TEXT"]}))')"
