@@ -87,6 +87,27 @@ services:
       - key: PORT
         value: "8000"
 
+  # Deploy-drift routine shim — bridges Render deploy webhook → Claude Code routine /fire.
+  # Receives Render's fixed webhook envelope and reshapes it to {"text": ...} for /fire.
+  # Required secrets: ROUTINE_TRIGGER_ID, ROUTINE_TOKEN (from claude.ai/code/routines API trigger).
+  # Optional: SHIM_SECRET (shared secret verified via x-shim-secret header).
+  # After deploying, configure Render's deploy webhook to POST to: https://<shim-host>/render-deploy
+  - type: web
+    name: deploy-drift-shim
+    env: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r deploy-shim/requirements.txt
+    startCommand: cd deploy-shim && uvicorn shim:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: ROUTINE_TRIGGER_ID
+        sync: false
+      - key: ROUTINE_TOKEN
+        sync: false
+      - key: SHIM_SECRET
+        sync: false
+
   # MIC Wallet Service - MIC earning and wallet management
   - type: web
     name: mobius-mic-wallet
