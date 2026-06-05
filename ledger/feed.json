@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-b613b05a7e947f6a3c49fbe68a4a9a5cefa88439",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:668de55f4d380efd:mesh-sync",
+    "source_hash": "668de55f4d380efdec84c60a8fbfb417cffe8ccd495b1cb51be6f512b90a0c8d",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-04T21:03:23-04:00",
+    "author": "Michael Judan",
+    "sha": "b613b05a7e947f6a3c49fbe68a4a9a5cefa88439",
+    "title": "Merge pull request #37 from kaizencycle/cursor/c332-deploy-drift-alarm-b3f4\n\nCompare OpenAPI METHOD+path operations, not paths alone",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-faf65eca76ce8651b6fc707c331dab669f7a1417",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:c03558bd0a774807:mesh-sync",
     "source_hash": "c03558bd0a7748074d9dfc34806b9d7278417eb8dad43ab2a82fc15bec010e8c",
