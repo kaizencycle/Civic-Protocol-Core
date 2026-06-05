@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-63fc60aab98b36a9026e24f70dfce3e4d2d5271d",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:45ed592a7ecae18c:mesh-sync",
+    "source_hash": "45ed592a7ecae18cf2a4937bfff45008bc73a72e9a6000cae2ddd0618bef646c",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-04T22:18:31-04:00",
+    "author": "Michael Judan",
+    "sha": "63fc60aab98b36a9026e24f70dfce3e4d2d5271d",
+    "title": "Merge pull request #42 from kaizencycle/cursor/sentinel-ip-allowlist-b3f4\n\nfix(drift): exit 4 BLOCKED for Render inbound IP allowlist",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-3e557cc1c40e6ed4c49557c6bbbef15428520fc9",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:755d39dcf0413f94:mesh-sync",
     "source_hash": "755d39dcf0413f944485407ad2092d42c11c3da0058482c1d0683b5ed4593e79",
