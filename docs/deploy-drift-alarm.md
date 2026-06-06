@@ -11,6 +11,11 @@ Silent drift (live behind main) caused Terminal calls to `/api/vault/*` and `/ap
 | `scripts/gen_route_manifest.py` | Regenerate manifest after route changes |
 | `scripts/check_deploy_drift.py` | Probe a live URL and compare to the manifest |
 | `.github/workflows/deploy-drift-alarm.yml` | Daily schedule + manual post-deploy gate |
+| `.github/workflows/fire-drift-routine.yml` | Manual/CI fire of the Mobius sentinel routine |
+| `deploy-shim/shim.py` | Render webhook → routine `/fire` bridge (Option B) |
+
+See [`docs/mobius-sentinel-routine.md`](mobius-sentinel-routine.md) for the full routine
+prompt, Render shim wiring, and operational notes.
 
 ## Local usage
 
@@ -32,6 +37,7 @@ python3 scripts/check_deploy_drift.py \
 | 1 | DRIFT — reachable but missing operations (redeploy `main`) |
 | 2 | UNRESOLVED — cold start or outage (inconclusive, not drift) |
 | 3 | Usage / manifest I/O error |
+| 4 | BLOCKED — Render inbound IP allowlist rejected the probe (inconclusive, not drift) |
 
 ## Post-deploy confirmation
 

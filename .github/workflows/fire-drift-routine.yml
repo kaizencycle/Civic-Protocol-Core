@@ -5,11 +5,12 @@
 # Trigger: workflow_dispatch only (manual or called from another workflow).
 #
 # For automatic post-deploy firing, use the Render → routine shim
-# (scripts/render_routine_shim/app.py). It fires on Render's deploy_succeeded
-# event, which means the new build is actually live when the sentinel runs.
-# A workflow_run-on-CI trigger would fire when CI completes, which is before
-# Render finishes building and deploying — the sentinel would probe the old
-# live revision and produce false results.
+# (deploy-shim/shim.py, deployed as the deploy-drift-shim service in render.yaml).
+# It fires on Render's deploy_succeeded event, which means the new build is
+# actually live when the sentinel runs. A workflow_run-on-CI trigger would fire
+# when CI completes, which is before Render finishes building and deploying —
+# the sentinel would probe the old live revision and produce false results.
+# See docs/mobius-sentinel-routine.md for full wiring options (A/B/C).
 
 name: fire-drift-routine
 
