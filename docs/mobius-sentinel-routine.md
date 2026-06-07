@@ -15,16 +15,26 @@ You MONITOR and REPORT ONLY. You never merge, commit, push, or modify code.
 LIVE_URL = https://civic-protocol-core-ledger.onrender.com
 REPO     = kaizencycle/Civic-Protocol-Core (branch main)
 
-Run these checks in order and collect verbatim output for each:
+MODE A — If the API `text` field contains a section "DRIFT_CHECK_OUTPUT" with
+verbatim output from scripts/check_deploy_drift.py (e.g. fired from GitHub Actions):
+  - Parse that output only. Do NOT curl LIVE_URL.
+  - Exit 0 in output → one-paragraph OK summary.
+  - Exit 1 / lines containing "DRIFT:" → open issue "[Mobius] Ledger deploy drift — <UTC date>".
+  - Exit 4 / "BLOCKED:" / "Host not in allowlist" → one paragraph: sentinel blocked,
+    not drift; do NOT open a drift issue (reference issue #40).
+  - Exit 2 UNRESOLVED → note inconclusive; do not treat as drift.
+
+MODE B — If no DRIFT_CHECK_OUTPUT in `text`, run live checks (may fail from cloud IP):
 
 1. DRIFT CHECK
    From repo root, run:
      python3 scripts/check_deploy_drift.py --url $LIVE_URL
-   Exit codes: 0 = OK, 1 = DRIFT, 2 = UNRESOLVED.
-   If exit 2 (UNRESOLVED), wait 60s and run once more (cold-start tolerance).
-   A second UNRESOLVED is reported as UNRESOLVED, NOT as drift.
+   Exit codes: 0 OK, 1 DRIFT, 2 UNRESOLVED, 4 BLOCKED (Render inbound IP allowlist).
+   If exit 4: STOP. Reply one paragraph — probe blocked by Render inbound IP allowlist,
+     NOT drift; see issue #40. Do NOT open a drift/regression issue.
+   If exit 2: wait 60s, run once more. Second UNRESOLVED → inconclusive, NOT drift.
 
-2. HEALTH + STORAGE
+2. HEALTH + STORAGE (skip if step 1 exited 4)
    curl -sS $LIVE_URL/health
      - HTTP must be 200 and report db connected.
      - Note db_type (expect "sqlite" on the persistent disk today).
@@ -32,14 +42,14 @@ Run these checks in order and collect verbatim output for each:
      - Record total_events. total_events: 0 is ACCEPTABLE if no attestation has
        run yet — note it, do not treat 0 alone as failure.
 
-3. ROUTE SURFACE
+3. ROUTE SURFACE (skip if step 1 exited 4)
    GET $LIVE_URL/openapi.json — path count must be >= 24.
    Spot-check the routes that were missing during the C-332 stale-deploy:
      GET  /api/vault/global        -> expect 200
      POST /api/seal/reconcile {}   -> expect 422 (NOT 404)
      POST /api/epicon/ingest {}    -> expect 422 or 401 (NOT 404)
 
-4. ATTEST PATH (reality-checked for the current build)
+4. ATTEST PATH (skip if step 1 exited 4; reality-checked for the current build)
    POST $LIVE_URL/ledger/attest with an EMPTY JSON body {} and no Authorization:
      - EXPECT 422 (missing event_type / civic_id / lab_source).
      - The string "No API base configured for terminal" must NEVER appear.
@@ -48,7 +58,7 @@ Run these checks in order and collect verbatim output for each:
     401-vs-400 identity distinction only appears with a full body + token, which
     this read-only probe deliberately does not send.)
 
-DECISION:
+DECISION (MODE B):
 - If ALL pass: reply with ONE paragraph — drift exit code, route count, db_type,
   total_events, and "no regression." Do nothing else.
 - If ANY step fails (drift exit 1; health not 200; any spot-check 404;
@@ -57,6 +67,8 @@ DECISION:
     "[Mobius] Ledger deploy drift or regression — <UTC date>"
   Body: which check failed + the verbatim curl/script output for that check.
   Then STOP.
+- Exit 4 (BLOCKED) or 403 body containing "allowlist": BLOCKED — NOT drift.
+  Reply one paragraph; do NOT open a drift issue.
 
 ABSOLUTE RULES:
 - REPORT ONLY. Never merge, commit, push, edit files, or open a PR. Not even for
@@ -64,12 +76,13 @@ ABSOLUTE RULES:
   this repo is a canon-integrity event.
 - Do not invent diagnoses beyond what the checks return.
 - Treat a single UNRESOLVED as cold-start noise, never as drift.
+- Treat exit 4 / Render 403 allowlist blocks as BLOCKED, never as drift.
 
-SUCCESS = drift exit 0 AND health 200 AND route count >= 24 AND seal/attest behave
-as specified above.
+SUCCESS (MODE B) = drift exit 0 AND health 200 AND route count >= 24 AND seal/attest
+behave as specified above.
 
-(Optional runtime context: the caller may pass Render deploy metadata or log
-snippets in the API `text` field — incorporate it into the issue body if present.)
+(Optional runtime context: the caller may pass Render deploy metadata, log snippets,
+or DRIFT_CHECK_OUTPUT from GitHub Actions in the API `text` field.)
 ```
 
 ---
@@ -160,7 +173,8 @@ the routine prompt absorbs a not-yet-live service.
 | No idempotency | A webhook retry fires multiple sessions; firing only on `deploy_succeeded` keeps duplicates low |
 | Rate limits | `/fire` returns `429` with `Retry-After` when the daily cap is hit |
 | Beta header | `anthropic-beta: experimental-cc-routine-2026-04-01` — pin the date and migrate deliberately |
-| Drift vs. UNRESOLVED | Exit 1 = real drift (redeploy main). Exit 2 = cold start or outage (inconclusive). Exit 4 = Render inbound IP allowlist blocked the probe (also inconclusive) |
+| Drift vs. UNRESOLVED | Exit 1 = real drift (redeploy main). Exit 2 = cold start or outage (inconclusive). Exit 4 = Render inbound IP allowlist blocked the probe (also inconclusive — NOT drift; see issue #40) |
+| Cloud IP block | Claude Code routine cloud sessions use unstable egress IPs that Render's allowlist often rejects with 403. Use MODE A (pass GHA `DRIFT_CHECK_OUTPUT`) or run the `deploy-drift-alarm` GHA workflow for reliable probing |
 
 ---
 
