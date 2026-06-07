@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-5345e0011ac6f1d2c49061e366f3c6ba522d1b10",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:6dc3b109306ce43b:mesh-sync",
+    "source_hash": "6dc3b109306ce43bd85b1e6a2ac25f7147cda72ca8bede7eabfff11f4259c25a",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-06T20:19:29-04:00",
+    "author": "Michael Judan",
+    "sha": "5345e0011ac6f1d2c49061e366f3c6ba522d1b10",
+    "title": "Merge pull request #65 from kaizencycle/claude/stoic-maxwell-4mnTD\n\ndocs(sentinel): upgrade routine prompt to MODE A/B; remove dead shim copy",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-4dc9996876ff728ded0b375c6bc4364ef068e512",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:6848c68f03ccc881:mesh-sync",
     "source_hash": "6848c68f03ccc881e20079a59ac81eae96eeed15dcfdc643cce713bcac22584f",
