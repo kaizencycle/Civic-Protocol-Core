@@ -20,9 +20,15 @@ Run these checks in order and collect verbatim output for each:
 1. DRIFT CHECK
    From repo root, run:
      python3 scripts/check_deploy_drift.py --url $LIVE_URL
-   Exit codes: 0 = OK, 1 = DRIFT, 2 = UNRESOLVED.
+   Exit codes: 0 = OK, 1 = DRIFT, 2 = UNRESOLVED, 4 = BLOCKED (Render inbound
+   IP allowlist rejected the probe with 403).
    If exit 2 (UNRESOLVED), wait 60s and run once more (cold-start tolerance).
    A second UNRESOLVED is reported as UNRESOLVED, NOT as drift.
+   If exit 4 (BLOCKED) or any probe returns 403 "Host not in allowlist": STOP.
+   Skip the remaining checks — they would also be blocked. Reply one paragraph:
+   probe blocked by Render inbound IP allowlist, NOT drift; see issue #75.
+   Do NOT open ANY issue — not a drift issue, not a "capability-gap report",
+   not an infrastructure note. BLOCKED = reply only.
 
 2. HEALTH + STORAGE
    curl -sS $LIVE_URL/health
@@ -51,14 +57,28 @@ Run these checks in order and collect verbatim output for each:
 DECISION:
 - If ALL pass: reply with ONE paragraph — drift exit code, route count, db_type,
   total_events, and "no regression." Do nothing else.
-- If ANY step fails (drift exit 1; health not 200; any spot-check 404;
-  the "No API base configured" string appears; route count < 24):
-  open a GitHub issue in REPO titled:
+- If BLOCKED (drift exit 4, or probes 403 "Host not in allowlist"): reply one
+  paragraph and STOP. Never open an issue for BLOCKED — it is a known
+  environment limitation tracked in issue #75, not a finding.
+- If ANY step fails for a NON-BLOCKED reason (drift exit 1; health not 200;
+  any spot-check 404; the "No API base configured" string appears;
+  route count < 24):
+  first apply the DEDUPE rule below, then (only if no open sentinel issue
+  exists) open a GitHub issue in REPO titled:
     "[Mobius] Ledger deploy drift or regression — <UTC date>"
   Body: which check failed + the verbatim curl/script output for that check.
+  Labels: exactly mobius-sentinel, ops.
   Then STOP.
 
 ABSOLUTE RULES:
+- DEDUPE: before opening ANY issue, search REPO open issues for the title prefix
+  "[Mobius] Ledger deploy drift". If one exists, add a comment to the newest
+  matching issue instead of opening a new one. ONE open sentinel issue maximum
+  at any time. Never file the same finding twice.
+- LABELS: when an issue is warranted, apply exactly: mobius-sentinel, ops.
+  Do not invent or vary labels between runs.
+- BLOCKED (exit 4 / 403 allowlist) NEVER produces an issue of any kind — no
+  drift issue, no "capability-gap report", no ops note. Reply only.
 - REPORT ONLY. Never merge, commit, push, edit files, or open a PR. Not even for
   an "obvious and small" fix. Open an issue and stop. A wrong unattended change to
   this repo is a canon-integrity event.
