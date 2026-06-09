@@ -102,9 +102,12 @@ or DRIFT_CHECK_OUTPUT from GitHub Actions in the API `text` field.)
 
 ## Wiring options (how to fire the routine after a deploy)
 
-The routine `/fire` endpoint expects `{"text": "..."}`. Render's native deploy
-webhook posts a fixed JSON envelope — it cannot be reshaped before delivery — so
-pointing Render directly at `/fire` sends the wrong shape. Three bridges:
+**The wrinkle:** the `text` field is *freeform text*. If you send arbitrary JSON,
+the routine receives it as a literal string — it does not parse it into fields.
+Render's native deploy webhook posts its own fixed JSON envelope
+(`{"event":"deploy","data":{...}}`) to whatever URL you configure — you cannot
+tell Render to wrap that as `{"text":"..."}`. So pointing Render's webhook
+directly at `/fire` sends the wrong shape. Three bridges:
 
 ### Option A — Manual or GitHub Actions (simplest; validate first)
 
@@ -122,6 +125,13 @@ curl -X POST "https://api.anthropic.com/v1/claude_code/routines/$ROUTINE_TRIGGER
 The workflow `.github/workflows/fire-drift-routine.yml` implements this with
 `workflow_dispatch`. Set repo secrets `ROUTINE_TRIGGER_ID` and `ROUTINE_TOKEN`,
 then trigger the workflow manually or chain it after your deploy job.
+
+**MODE A pass-through (recommended when GitHub Actions IPs can reach Render):**
+`.github/workflows/deploy-drift-alarm.yml` now captures the drift check output
+and fires the routine with a `DRIFT_CHECK_OUTPUT` section in the `text` field —
+so the routine processes the pre-computed result (MODE A) instead of re-running
+the probe from a cloud IP that Render may block. Set `ROUTINE_TRIGGER_ID` and
+`ROUTINE_TOKEN` repo secrets; the fire step is skipped if the secrets are absent.
 
 ### Option B — Render → shim → routine (precise deploy-succeeded trigger)
 
@@ -175,6 +185,7 @@ the routine prompt absorbs a not-yet-live service.
 | Beta header | `anthropic-beta: experimental-cc-routine-2026-04-01` — pin the date and migrate deliberately |
 | Drift vs. UNRESOLVED | Exit 1 = real drift (redeploy main). Exit 2 = cold start or outage (inconclusive). Exit 4 = Render inbound IP allowlist blocked the probe (also inconclusive — NOT drift; see issue #40) |
 | Cloud IP block | Claude Code routine cloud sessions use unstable egress IPs that Render's allowlist often rejects with 403. Use MODE A (pass GHA `DRIFT_CHECK_OUTPUT`) or run the `deploy-drift-alarm` GHA workflow for reliable probing |
+| MODE A wiring | `deploy-drift-alarm.yml` captures drift output and fires the routine with `DRIFT_CHECK_OUTPUT` in `text` when `ROUTINE_TRIGGER_ID`/`ROUTINE_TOKEN` secrets are set — the routine then processes the pre-computed result rather than re-probing from a blocked cloud IP |
 
 ---
 
