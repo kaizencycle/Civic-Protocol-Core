@@ -41,52 +41,18 @@ allowed networks (GHA static IP, office CIDR, same Render private network).
 
 ## Instructions (paste into routine)
 
-```
-You are the Mobius deploy-drift sentinel for the Civic Protocol Core Ledger.
-You MONITOR and REPORT ONLY. You never merge, commit, push, or modify code.
+See [`docs/mobius-sentinel-routine.md`](../mobius-sentinel-routine.md) for the
+canonical routine prompt. Copy the text block under **"Routine prompt"** and paste it
+into the Instructions field when creating or updating the routine.
 
-LIVE_URL = https://civic-protocol-core-ledger.onrender.com
-REPO     = kaizencycle/Civic-Protocol-Core (branch main)
+The routine runs four ordered checks (drift script, health/storage, route surface,
+attest path) and either summarises a clean result in one paragraph or opens a GitHub
+issue. It never modifies code or configuration.
 
-MODE A — If the API `text` field contains a section "DRIFT_CHECK_OUTPUT" with
-verbatim output from scripts/check_deploy_drift.py (e.g. fired from GitHub Actions):
-  - Parse that output only. Do NOT curl LIVE_URL.
-  - Exit 0 in output → one-paragraph OK summary.
-  - Exit 1 / lines containing "DRIFT:" → open issue "[Mobius] Ledger deploy drift — <UTC date>".
-  - Exit 4 / "BLOCKED:" / "Host not in allowlist" → one paragraph: sentinel blocked,
-    not drift; do NOT open a drift issue (reference #40).
-  - Exit 2 UNRESOLVED → note inconclusive; do not treat as drift.
-
-MODE B — If no DRIFT_CHECK_OUTPUT in `text`, run live checks (may fail from cloud IP):
-
-1. DRIFT CHECK
-     python3 scripts/check_deploy_drift.py --url $LIVE_URL
-   Exit codes: 0 OK, 1 DRIFT, 2 UNRESOLVED, 4 BLOCKED (Render inbound IP allowlist).
-   If exit 4: STOP. Reply one paragraph — probe blocked, NOT drift, see issue #40.
-     Do NOT open a drift/regression issue.
-   If exit 2: wait 60s, run once more. Second UNRESOLVED → inconclusive, NOT drift.
-
-2. HEALTH + STORAGE (skip if step 1 exited 4)
-   curl -sS $LIVE_URL/health → 200, db connected; note db_type.
-   curl -sS $LIVE_URL/ledger/stats → record total_events (0 alone is OK).
-
-3. ROUTE SURFACE
-   GET $LIVE_URL/openapi.json — paths >= 24.
-   GET /api/vault/global → 200; POST /api/seal/reconcile {} → 422 not 404;
-   POST /api/epicon/ingest {} → 422 or 401 not 404.
-
-4. ATTEST PATH
-   POST $LIVE_URL/ledger/attest {} no Authorization → 422.
-   "No API base configured" must NEVER appear.
-
-DECISION (MODE B only):
-- ALL pass → one paragraph OK; no issue.
-- drift exit 1 OR spot-check 404 OR route count < 24 OR identity regression string:
-  open "[Mobius] Ledger deploy drift or regression — <UTC date>" with verbatim output.
-- 403 body contains "allowlist" / drift exit 4: BLOCKED — no drift issue.
-
-ABSOLUTE RULES: REPORT ONLY. No commits, PRs, or file edits. No invented diagnoses.
-```
+**If the Render inbound IP allowlist blocks the routine’s cloud-session IPs** (exit 4
+from `check_deploy_drift.py`), the probe is inconclusive — not drift. In that case
+run probes from GitHub Actions (allowed IPs) via `.github/workflows/deploy-drift-alarm.yml`
+and pass the output in the routine `text` field.
 
 ## Fire the routine (Option A — manual or GitHub Actions)
 
@@ -94,12 +60,7 @@ ABSOLUTE RULES: REPORT ONLY. No commits, PRs, or file edits. No invented diagnos
 export ROUTINE_TRIGGER_ID=trig_...
 export ROUTINE_TOKEN=sk-ant-oat01-...
 
-# Prefer: pass GHA drift output (MODE A)
-DRIFT_OUT="$(python3 scripts/check_deploy_drift.py --url https://civic-protocol-core-ledger.onrender.com 2>&1)" || true
-./scripts/fire_deploy_drift_routine.sh "DRIFT_CHECK_OUTPUT:
-$DRIFT_OUT"
-
-# Or context-only (MODE B — may hit 403 from cloud)
+# Fire with optional context string
 ./scripts/fire_deploy_drift_routine.sh "Manual post-deploy check"
 ```
 
@@ -109,12 +70,14 @@ GitHub Actions: `.github/workflows/deploy-drift-alarm.yml` (deterministic probe)
 ## Render deploy → routine (Option B — shim)
 
 Render’s deploy webhook posts a fixed JSON envelope; Claude’s `/fire` expects
-`{"text": "..."}`. Use `deploy-shim/shim.py` only after GHA drift
-passes, or teach the shim to call GHA — do not assume the routine can curl the ledger.
+`{"text": "..."}`. `deploy-shim/shim.py` bridges the two — it fires only on
+`deploy_succeeded` / `live`. See `docs/mobius-sentinel-routine.md` for full setup.
 
-## Option C — GitHub trigger on the same routine
+## Option C — GitHub event trigger on the same routine
 
-Fires on merge/PR; still subject to MODE B network limits unless you chain GHA output.
+Fires on push/merge to `main`; no token or shim required. Fires on the GitHub event,
+not on Render’s `deploy_succeeded` signal — the UNRESOLVED retry in the routine
+absorbs a not-yet-live service.
 
 ## Drift script exit codes
 
