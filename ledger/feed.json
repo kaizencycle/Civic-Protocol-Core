@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-51c2b0ae2bf308902514137ec6527895025acc4c",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:3c00b84e1771f802:mesh-sync",
+    "source_hash": "3c00b84e1771f8023e543e28602d64da534495281b1d4b07a911c3bc09e0a1cf",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-09T19:29:22-04:00",
+    "author": "Michael Judan",
+    "sha": "51c2b0ae2bf308902514137ec6527895025acc4c",
+    "title": "Merge pull request #76 from kaizencycle/claude/stoic-maxwell-i7fo25\n\ndocs: update Mobius sentinel routine prompt to simplified 4-step format",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-758e6f11bb796346a7ad5342ff6ec02b6caf53c0",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:6dafc5cd2eeb2bce:mesh-sync",
     "source_hash": "6dafc5cd2eeb2bce41b293e7c2ee69855da2b81d7f52700f416a51d029b6c9fa",
