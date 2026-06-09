@@ -63,8 +63,8 @@ jobs:
         run: |
           URL="${{ github.event.inputs.url || 'https://civic-protocol-core-ledger.onrender.com' }}"
           set +e
-          python3 scripts/check_deploy_drift.py --url "$URL" --attempts 6 --base-delay 8
-          code=$?
+          python3 scripts/check_deploy_drift.py --url "$URL" --attempts 6 --base-delay 8 2>&1 | tee /tmp/drift_output.txt
+          code=${PIPESTATUS[0]}
           set -e
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" = "4" ]; then
@@ -76,3 +76,23 @@ jobs:
             exit 0
           fi
           exit $code
+      - name: Fire sentinel routine with captured output (MODE A pass-through)
+        if: ${{ !cancelled() && secrets.ROUTINE_TRIGGER_ID != '' }}
+        env:
+          ROUTINE_TRIGGER_ID: ${{ secrets.ROUTINE_TRIGGER_ID }}
+          ROUTINE_TOKEN: ${{ secrets.ROUTINE_TOKEN }}
+          DRIFT_EXIT: ${{ steps.drift.outputs.exit_code }}
+        run: |
+          OUTPUT=$(cat /tmp/drift_output.txt 2>/dev/null || echo "(no output captured)")
+          TEXT="DRIFT_CHECK_OUTPUT (exit=${DRIFT_EXIT}):
+${OUTPUT}
+
+sha=${{ github.sha }} ref=${{ github.ref }}"
+          python3 -c 'import json,os; print(json.dumps({"text": os.environ["TEXT"]}))' \
+            | curl -fsS -X POST \
+                "https://api.anthropic.com/v1/claude_code/routines/${ROUTINE_TRIGGER_ID}/fire" \
+                -H "Authorization: Bearer ${ROUTINE_TOKEN}" \
+                -H "anthropic-beta: experimental-cc-routine-2026-04-01" \
+                -H "anthropic-version: 2023-06-01" \
+                -H "Content-Type: application/json" \
+                --data @-
