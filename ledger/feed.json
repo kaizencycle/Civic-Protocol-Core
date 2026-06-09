@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-758e6f11bb796346a7ad5342ff6ec02b6caf53c0",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:6dafc5cd2eeb2bce:mesh-sync",
+    "source_hash": "6dafc5cd2eeb2bce41b293e7c2ee69855da2b81d7f52700f416a51d029b6c9fa",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-09T09:29:31-04:00",
+    "author": "Michael Judan",
+    "sha": "758e6f11bb796346a7ad5342ff6ec02b6caf53c0",
+    "title": "Merge pull request #73 from kaizencycle/claude/stoic-maxwell-haf8os\n\nfeat(sentinel): wire MODE A pass-through in deploy-drift-alarm",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-5345e0011ac6f1d2c49061e366f3c6ba522d1b10",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:6dc3b109306ce43b:mesh-sync",
     "source_hash": "6dc3b109306ce43bd85b1e6a2ac25f7147cda72ca8bede7eabfff11f4259c25a",
