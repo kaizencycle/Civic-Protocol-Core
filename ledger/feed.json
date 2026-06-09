@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-5f137c94e76026b34d5d2aeac2d6c35542f0db4f",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:7eac26c56b7ca1c5:mesh-sync",
+    "source_hash": "7eac26c56b7ca1c54031c6be395f8f709f616380d91247c1f1e9837e999e7925",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-09T19:54:23-04:00",
+    "author": "Michael Judan",
+    "sha": "5f137c94e76026b34d5d2aeac2d6c35542f0db4f",
+    "title": "Merge pull request #77 from kaizencycle/claude/nifty-thompson-c86mjg\n\ndocs(sentinel): harden routine prompt \u2014 BLOCKED never files, dedupe guard, fixed labels",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-51c2b0ae2bf308902514137ec6527895025acc4c",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:3c00b84e1771f802:mesh-sync",
     "source_hash": "3c00b84e1771f8023e543e28602d64da534495281b1d4b07a911c3bc09e0a1cf",
