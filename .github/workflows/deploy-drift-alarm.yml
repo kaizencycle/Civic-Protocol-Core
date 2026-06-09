@@ -82,17 +82,22 @@ jobs:
           ROUTINE_TRIGGER_ID: ${{ secrets.ROUTINE_TRIGGER_ID }}
           ROUTINE_TOKEN: ${{ secrets.ROUTINE_TOKEN }}
           DRIFT_EXIT: ${{ steps.drift.outputs.exit_code }}
+          GIT_SHA: ${{ github.sha }}
+          GIT_REF: ${{ github.ref }}
         run: |
-          OUTPUT=$(cat /tmp/drift_output.txt 2>/dev/null || echo "(no output captured)")
-          TEXT="DRIFT_CHECK_OUTPUT (exit=${DRIFT_EXIT}):
-${OUTPUT}
-
-sha=${{ github.sha }} ref=${{ github.ref }}"
-          python3 -c 'import json,os; print(json.dumps({"text": os.environ["TEXT"]}))' \
-            | curl -fsS -X POST \
-                "https://api.anthropic.com/v1/claude_code/routines/${ROUTINE_TRIGGER_ID}/fire" \
-                -H "Authorization: Bearer ${ROUTINE_TOKEN}" \
-                -H "anthropic-beta: experimental-cc-routine-2026-04-01" \
-                -H "anthropic-version: 2023-06-01" \
-                -H "Content-Type: application/json" \
-                --data @-
+          python3 - <<'PYEOF' | curl -fsS -X POST \
+              "https://api.anthropic.com/v1/claude_code/routines/${ROUTINE_TRIGGER_ID}/fire" \
+              -H "Authorization: Bearer ${ROUTINE_TOKEN}" \
+              -H "anthropic-beta: experimental-cc-routine-2026-04-01" \
+              -H "anthropic-version: 2023-06-01" \
+              -H "Content-Type: application/json" \
+              --data @-
+          import json, os, pathlib
+          output = pathlib.Path("/tmp/drift_output.txt").read_text() if pathlib.Path("/tmp/drift_output.txt").exists() else "(no output captured)"
+          text = (
+              f"DRIFT_CHECK_OUTPUT (exit={os.environ['DRIFT_EXIT']}):\n"
+              + output
+              + f"\n\nsha={os.environ['GIT_SHA']} ref={os.environ['GIT_REF']}"
+          )
+          print(json.dumps({"text": text}))
+          PYEOF
