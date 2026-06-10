@@ -46,3 +46,10 @@ After shipping current `main` to Render (Starter+, disk at `/var/lib/ledger`, `I
 1. Run the **deploy-drift-alarm** workflow manually (or wait for the daily run).
 2. Expect **OK** (exit 0) and `/health` with `data_dir: "/var/lib/ledger"`.
 3. Until then, CI correctly reports **DRIFT** with the missing vault/seal/epicon routes.
+
+## Mobius routine sentinel
+
+For an always-on, read-only watcher (a Claude Code routine that runs this
+checker plus health/route spot-checks after every deploy and opens an issue
+on regression), see
+[MOBIUS_DEPLOY_DRIFT_SENTINEL.md](operations/MOBIUS_DEPLOY_DRIFT_SENTINEL.md).
