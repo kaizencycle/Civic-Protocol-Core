@@ -77,7 +77,10 @@ jobs:
           fi
           exit $code
       - name: Fire sentinel routine with captured output (MODE A pass-through)
-        if: ${{ !cancelled() && secrets.ROUTINE_TRIGGER_ID != '' }}
+        # secrets.* is not a valid context in step `if:` — gate on the env var
+        # inside the script instead (an invalid expression here fails the whole
+        # workflow at startup with zero jobs).
+        if: ${{ !cancelled() }}
         env:
           ROUTINE_TRIGGER_ID: ${{ secrets.ROUTINE_TRIGGER_ID }}
           ROUTINE_TOKEN: ${{ secrets.ROUTINE_TOKEN }}
@@ -85,6 +88,10 @@ jobs:
           GIT_SHA: ${{ github.sha }}
           GIT_REF: ${{ github.ref }}
         run: |
+          if [ -z "${ROUTINE_TRIGGER_ID}" ] || [ -z "${ROUTINE_TOKEN}" ]; then
+            echo "ROUTINE_TRIGGER_ID / ROUTINE_TOKEN secrets not set — skipping MODE A pass-through."
+            exit 0
+          fi
           python3 - <<'PYEOF' | curl -fsS -X POST \
               "https://api.anthropic.com/v1/claude_code/routines/${ROUTINE_TRIGGER_ID}/fire" \
               -H "Authorization: Bearer ${ROUTINE_TOKEN}" \
