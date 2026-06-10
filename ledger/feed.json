@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-56da9416754c6188010e3597d813c0c0ed7c4df5",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:5411c432b4dadd13:mesh-sync",
+    "source_hash": "5411c432b4dadd130c8c781b15dacba80c9c875690ba9a44b25b66426e1694f8",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-09T20:35:41-04:00",
+    "author": "Michael Judan",
+    "sha": "56da9416754c6188010e3597d813c0c0ed7c4df5",
+    "title": "Merge pull request #78 from kaizencycle/claude/nifty-thompson-c86mjg\n\nfix(ci): deploy-drift-alarm startup failure \u2014 secrets context invalid in step if",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-5f137c94e76026b34d5d2aeac2d6c35542f0db4f",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:7eac26c56b7ca1c5:mesh-sync",
     "source_hash": "7eac26c56b7ca1c54031c6be395f8f709f616380d91247c1f1e9837e999e7925",
