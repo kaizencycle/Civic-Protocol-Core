@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-388d5d7e4b408bf327eaf55dc6af022b6f77d3f1",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:46fa37ec563f73f6:mesh-sync",
+    "source_hash": "46fa37ec563f73f667984a97a52b1cc460365325c02356845a769d392bcb881b",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-10T12:52:02-04:00",
+    "author": "Michael Judan",
+    "sha": "388d5d7e4b408bf327eaf55dc6af022b6f77d3f1",
+    "title": "Merge pull request #79 from kaizencycle/claude/stoic-maxwell-p0v5xv\n\ndocs: Mobius deploy-drift sentinel routine setup",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-56da9416754c6188010e3597d813c0c0ed7c4df5",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:5411c432b4dadd13:mesh-sync",
     "source_hash": "5411c432b4dadd130c8c781b15dacba80c9c875690ba9a44b25b66426e1694f8",
