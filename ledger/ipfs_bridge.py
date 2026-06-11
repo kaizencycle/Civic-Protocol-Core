@@ -13,15 +13,18 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import json
+import logging
 import os
 import sqlite3
 import threading
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 import base58
 
 _CANON_SEP = (",", ":")
+logger = logging.getLogger(__name__)
 
 
 def canonical_mesh_payload(row: sqlite3.Row | dict[str, Any]) -> bytes:
@@ -144,7 +147,6 @@ def pin_mesh_entry_sqlite(
     result = bridge.add_canonical_bytes(data)
     if do_pin:
         bridge.pin_cid(result.cid)
-    from datetime import datetime, timezone
 
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
@@ -176,8 +178,8 @@ def schedule_pin_mesh_entry(
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
             pin_mesh_entry_sqlite(conn, bridge, entry_id)
-        except Exception as exc:
-            print(f"ipfs pin background error for {entry_id}: {exc}")
+        except Exception:
+            logger.exception("ipfs pin background error for %s", entry_id)
         finally:
             bridge.close()
             if conn is not None:

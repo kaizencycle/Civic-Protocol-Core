@@ -9,11 +9,14 @@ for the Civic Protocol ecosystem.
 
 import hashlib
 import json
+import logging
 import os
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -164,8 +167,8 @@ class LedgerCore:
 
                 conn.commit()
             return True
-        except Exception as e:
-            print(f"Error adding event: {e}")
+        except Exception:
+            logger.exception("Error adding event")
             return False
 
     def get_events(self, civic_id: str | None = None,

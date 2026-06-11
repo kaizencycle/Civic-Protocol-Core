@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "verify-copilot": "node scripts/verifyCopilotDiff.mjs",
-    "test": "echo \"Run: cd <service> && pytest\" && exit 0",
+    "test": "python3 -m pytest tests -q",
+    "test:migrations": "python3 scripts/validate_migrations.py",
     "lint": "ruff check .",
     "lint:fix": "ruff check . --fix"
   },
