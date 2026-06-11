@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-387957ee24d26d1144fea36f5ac11769b65aba6e",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:db285c8cb53487c8:mesh-sync",
+    "source_hash": "db285c8cb53487c8868cf88f2950831d329cc7abaf5c31750bb8cf5f42f47b04",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-11T13:04:12-04:00",
+    "author": "Michael Judan",
+    "sha": "387957ee24d26d1144fea36f5ac11769b65aba6e",
+    "title": "Merge pull request #80 from kaizencycle/cursor/c-339-ledger-hardening-52a9\n\nC-339 ledger hardening and CI optimization",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-388d5d7e4b408bf327eaf55dc6af022b6f77d3f1",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:46fa37ec563f73f6:mesh-sync",
     "source_hash": "46fa37ec563f73f667984a97a52b1cc460365325c02356845a769d392bcb881b",
