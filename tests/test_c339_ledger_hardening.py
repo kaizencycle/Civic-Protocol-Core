@@ -10,7 +10,6 @@ os.environ.setdefault("LEDGER_DATA_DIR", "/tmp/ledger_test_c339")
 
 from ledger.app import main as main_module  # noqa: E402
 
-
 client = TestClient(main_module.app)
 
 

@@ -7,8 +7,8 @@
     "verify-copilot": "node scripts/verifyCopilotDiff.mjs",
     "test": "python3 -m pytest tests -q",
     "test:migrations": "python3 scripts/validate_migrations.py",
-    "lint": "ruff check .",
-    "lint:fix": "ruff check . --fix"
+    "lint": "python3 -m ruff check .",
+    "lint:fix": "python3 -m ruff check . --fix"
   },
   "engines": {
     "node": ">=20.0.0"

@@ -221,7 +221,7 @@ def get_latest_event_hash() -> str:
             """)
             result = cursor.fetchone()
             return result[0] if result else "0" * 64  # Genesis hash
-    except Exception as e:
+    except Exception:
         logger.exception("Error getting latest hash")
         return "0" * 64
 

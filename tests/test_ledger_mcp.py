@@ -6,6 +6,7 @@ import os
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("MOBIUS_MESH_TOKEN", "test-mesh-secret")
+os.environ.setdefault("AGENT_SERVICE_TOKEN", "test-agent-service-token-c339")
 os.environ["LEDGER_DATA_DIR"] = "/tmp/ledger_test_mcp"
 
 from ledger.app.main import app  # noqa: E402
@@ -47,6 +48,7 @@ def test_post_epicon_gi_gate_blocked(monkeypatch):
                     "category": "governance",
                     "rationale": "Rationale text is definitely long enough here.",
                     "confidence": 0.8,
+                    "authorization": "Bearer test-agent-service-token-c339",
                 },
             },
         },
@@ -74,6 +76,7 @@ def test_post_epicon_success_when_gi_high(monkeypatch):
                     "category": "governance",
                     "rationale": "Another rationale that is long enough for validation.",
                     "confidence": 0.9,
+                    "authorization": "Bearer test-agent-service-token-c339",
                 },
             },
         },

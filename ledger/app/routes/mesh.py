@@ -152,7 +152,7 @@ async def mesh_ingest(
                 if cur.rowcount == 1:
                     stored += 1
                     _schedule_pin_if_hybrid(str(eid))
-            except Exception as e:
+            except Exception:
                 logger.exception("mesh_ingest entry error")
         conn.commit()
 
