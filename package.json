@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "verify-copilot": "node scripts/verifyCopilotDiff.mjs",
-    "test": "echo \"Run: cd <service> && pytest\" && exit 0",
-    "lint": "ruff check .",
-    "lint:fix": "ruff check . --fix"
+    "test": "python3 -m pytest tests -q",
+    "test:migrations": "python3 scripts/validate_migrations.py",
+    "lint": "python3 -m ruff check .",
+    "lint:fix": "python3 -m ruff check . --fix"
   },
   "engines": {
     "node": ">=20.0.0"

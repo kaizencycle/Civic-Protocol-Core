@@ -11,7 +11,9 @@ gets anchored here as an immutable event in the ledger.
 
 import hashlib
 import json
+import logging
 import os
+import time
 import warnings
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -24,8 +26,13 @@ from pydantic import BaseModel
 
 from .database import Base, check_db_health, engine
 from .db import DATA_DIR, LEDGER_DB_PATH, assert_persistent_storage, get_db_connection
+from .mcp_integrity import load_gi_state
+from .observability import configure_logging, install_operational_middleware
 from .routes import epicon, mcp_tools, mesh, oaa_memory, seal_reconciliation
 from .vault_routes import router as vault_router
+
+configure_logging()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -42,6 +49,7 @@ app = FastAPI(
     version="0.1.0",
     lifespan=_lifespan,
 )
+install_operational_middleware(app)
 
 app.include_router(mesh.router)
 app.include_router(epicon.router)
@@ -71,8 +79,13 @@ if not IDENTITY_API_BASE:
         stacklevel=1,
     )
 
-print(f"Using data directory: {DATA_DIR}")
-print(f"Database path: {LEDGER_DB_PATH}")
+logger.info("Using data directory: %s", DATA_DIR)
+logger.info("Database path: %s", LEDGER_DB_PATH)
+
+TOKEN_INTROSPECTION_CACHE_TTL_SECONDS = float(
+    os.getenv("TOKEN_INTROSPECTION_CACHE_TTL_SECONDS", "30")
+)
+_token_cache: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
 
 
 @dataclass
@@ -109,8 +122,39 @@ class EventResponse(BaseModel):
     confirmed: bool
 
 
+def clear_token_cache() -> None:
+    """Clear cached token introspection results (used by tests and ops reload hooks)."""
+
+    _token_cache.clear()
+
+
+def _get_cached_token(token: str, lab_source: str) -> dict[str, Any] | None:
+    if TOKEN_INTROSPECTION_CACHE_TTL_SECONDS <= 0:
+        return None
+    cache_key = (lab_source, token)
+    cached = _token_cache.get(cache_key)
+    if not cached:
+        return None
+    expires_at, payload = cached
+    if expires_at <= time.monotonic():
+        _token_cache.pop(cache_key, None)
+        return None
+    return dict(payload)
+
+
+def _cache_token(token: str, lab_source: str, payload: dict[str, Any]) -> None:
+    if TOKEN_INTROSPECTION_CACHE_TTL_SECONDS <= 0:
+        return
+    expires_at = time.monotonic() + TOKEN_INTROSPECTION_CACHE_TTL_SECONDS
+    _token_cache[(lab_source, token)] = (expires_at, dict(payload))
+
+
 def verify_token(token: str, lab_source: str) -> dict[str, Any]:
     """Verify Bearer token via Lab4, Lab6, or Mobius Identity introspection."""
+    cached = _get_cached_token(token, lab_source)
+    if cached is not None:
+        return cached
+
     if lab_source == "lab4":
         api_base = LAB4_API_BASE
     elif lab_source == "lab6":
@@ -138,11 +182,22 @@ def verify_token(token: str, lab_source: str) -> dict[str, Any]:
                 headers={"Authorization": f"Bearer {token}"},
             )
             response.raise_for_status()
-            return response.json()
-    except httpx.HTTPError as e:
-        raise HTTPException(401, f"Token verification failed: {str(e)}") from e
+            payload = response.json()
+            if payload.get("active") is False:
+                raise HTTPException(401, "Token inactive")
+            _cache_token(token, lab_source, payload)
+            return payload
+    except HTTPException:
+        raise
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code >= 500:
+            raise HTTPException(503, "Token introspection service unavailable") from e
+        raise HTTPException(401, "Token verification failed") from e
+    except httpx.RequestError as e:
+        raise HTTPException(503, "Token introspection service unavailable") from e
     except Exception as e:
-        raise HTTPException(500, f"Token verification error: {str(e)}") from e
+        logger.exception("Token verification error")
+        raise HTTPException(500, "Token verification error") from e
 
 
 def _civic_id_allowed_for_lab(
@@ -166,9 +221,46 @@ def get_latest_event_hash() -> str:
             """)
             result = cursor.fetchone()
             return result[0] if result else "0" * 64  # Genesis hash
-    except Exception as e:
-        print(f"Error getting latest hash: {e}")
+    except Exception:
+        logger.exception("Error getting latest hash")
         return "0" * 64
+
+
+def _latest_attestation_timestamp() -> str | None:
+    try:
+        with get_db_connection() as conn:
+            cursor = conn.execute("""
+                SELECT timestamp FROM events
+                ORDER BY created_at DESC LIMIT 1
+            """)
+            row = cursor.fetchone()
+            return row[0] if row else None
+    except Exception:
+        logger.exception("Error getting latest attestation timestamp")
+        return None
+
+
+def _current_cycle(gi_state: dict[str, Any] | None) -> str:
+    return str(
+        os.getenv("CYCLE_ID", "").strip()
+        or os.getenv("CURRENT_CYCLE", "").strip()
+        or (gi_state or {}).get("cycle")
+        or (gi_state or {}).get("cycleId")
+        or "unknown"
+    )
+
+
+def _current_gi(gi_state: dict[str, Any] | None) -> float | None:
+    if not gi_state:
+        return None
+    value = gi_state.get("global_integrity", gi_state.get("gi"))
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        logger.warning("Ignoring non-numeric GI state value: %r", value)
+        return None
 
 
 def calculate_event_hash(event: LedgerEvent) -> str:
@@ -218,20 +310,32 @@ def health():
     # Check vault DB (PostgreSQL / SQLite fallback)
     db_status = check_db_health()
     if not db_status["ok"]:
-        raise HTTPException(status_code=503, detail=f"Vault DB unhealthy: {db_status.get('error')}")
+        logger.error("Vault DB unhealthy: %s", db_status.get("error"))
+        raise HTTPException(status_code=503, detail="Vault DB unhealthy")
 
     # Also verify the ledger event DB that /ledger/attest writes to
     try:
         with get_db_connection() as conn:
             conn.execute("SELECT COUNT(*) FROM events")
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Ledger DB unhealthy: {e}") from e
+        logger.exception("Ledger DB unhealthy")
+        raise HTTPException(status_code=503, detail="Ledger DB unhealthy") from e
 
     return {
         "status": "ok",
-        "db": db_status["db"],
-        "db_type": db_status.get("url_type", "unknown"),
         "service": "civic-ledger-api",
+    }
+
+
+@app.get("/pulse/state")
+def pulse_state():
+    """Return compact ledger pulse state for Layer-1 sync writers."""
+
+    gi_state = load_gi_state()
+    return {
+        "cycle": _current_cycle(gi_state),
+        "gi": _current_gi(gi_state),
+        "attested_at": _latest_attestation_timestamp(),
     }
 
 
@@ -298,7 +402,8 @@ def attest_event(request: AttestationRequest,
 
             conn.commit()
     except Exception as e:
-        raise HTTPException(500, f"Database error: {str(e)}") from e
+        logger.exception("Database error while attesting event")
+        raise HTTPException(500, "Database error") from e
 
     return EventResponse(
         event_id=event.event_id,

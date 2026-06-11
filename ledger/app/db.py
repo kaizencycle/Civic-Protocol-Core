@@ -43,7 +43,6 @@ def get_data_dir() -> str:
                     "Probing fallback directories (attach a Render disk at this path)."
                 )
                 logger.warning(msg)
-                print(msg, flush=True)
             continue
 
         if requested and os.path.normpath(dir_path) != os.path.normpath(requested):
@@ -52,11 +51,9 @@ def get_data_dir() -> str:
                 f"using {dir_path!r} for ledger storage instead."
             )
             logger.warning(msg)
-            print(msg, flush=True)
         elif requested and os.path.normpath(dir_path) == os.path.normpath(requested):
             msg = f"[ledger:db] Using LEDGER_DATA_DIR={dir_path!r} for ledger storage."
             logger.info(msg)
-            print(msg, flush=True)
         return dir_path
 
     fallback = tempfile.gettempdir()
@@ -65,7 +62,6 @@ def get_data_dir() -> str:
         f"falling back to {fallback!r}."
     )
     logger.error(msg)
-    print(msg, flush=True)
     return fallback
 
 
@@ -120,11 +116,10 @@ DATA_DIR = get_data_dir()
 LEDGER_DB_PATH = os.path.join(DATA_DIR, "ledger.db")
 
 if is_ephemeral_path(DATA_DIR) and is_production():
-    print(
+    logger.warning(
         f"[ledger:db] WARNING ephemeral ledger storage in production: {DATA_DIR!r} "
         "— set LEDGER_DATA_DIR to a persistent disk mount. Startup will abort "
         "in assert_persistent_storage().",
-        flush=True,
     )
 
 _FEED_PATH_CANDIDATES = [
@@ -233,7 +228,7 @@ def get_db_connection() -> sqlite3.Connection:
         conn.commit()
         return conn
     except Exception as e:
-        print(f"Database connection error: {e}")
+        logger.exception("Database connection error")
         raise HTTPException(500, f"Database connection failed: {str(e)}") from e
 
 
@@ -246,7 +241,7 @@ def sync_ledger_feed_json_to_epicon_entries(conn: sqlite3.Connection) -> None:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
     except (OSError, json.JSONDecodeError) as e:
-        print(f"ledger feed sync skipped: {e}")
+        logger.warning("ledger feed sync skipped: %s", e)
         return
     if not isinstance(data, list):
         return

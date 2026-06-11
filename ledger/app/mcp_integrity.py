@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
 from .db import get_db_connection
+
+logger = logging.getLogger(__name__)
 
 
 def _utc_iso() -> str:
@@ -129,5 +132,5 @@ def log_mcp_invocation(
                 ),
             )
             conn.commit()
-    except Exception as exc:
-        print(f"mcp invocation log error: {exc}")
+    except Exception:
+        logger.exception("mcp invocation log error")

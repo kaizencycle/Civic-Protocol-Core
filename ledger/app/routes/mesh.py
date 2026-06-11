@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from typing import Any
@@ -13,6 +14,7 @@ from ..mesh.registry import load_mesh_registry, registry_cache_mtime_iso
 from .oaa_memory import persist_oaa_entries_from_body
 
 router = APIRouter(prefix="/mesh", tags=["mesh"])
+logger = logging.getLogger(__name__)
 
 
 def _hybrid_ipfs_enabled() -> bool:
@@ -150,8 +152,8 @@ async def mesh_ingest(
                 if cur.rowcount == 1:
                     stored += 1
                     _schedule_pin_if_hybrid(str(eid))
-            except Exception as e:
-                print(f"mesh_ingest entry error: {e}")
+            except Exception:
+                logger.exception("mesh_ingest entry error")
         conn.commit()
 
     proof_input = json.dumps(
