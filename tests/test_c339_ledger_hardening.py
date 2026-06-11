@@ -79,7 +79,8 @@ def test_operational_middleware_covers_cors_preflight(monkeypatch):
         "/resource",
         headers={
             "Origin": "https://app.example",
-            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "MCP-Protocol-Version",
             "X-Request-ID": "preflight-c339",
         },
     )

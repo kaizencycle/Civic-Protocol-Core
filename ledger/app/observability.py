@@ -130,7 +130,13 @@ def install_operational_middleware(app: FastAPI) -> None:
             allow_origins=allowed_origins,
             allow_credentials=True,
             allow_methods=["GET", "POST", "OPTIONS"],
-            allow_headers=["Authorization", "Content-Type", "X-MNS-Node", "X-Request-ID"],
+            allow_headers=[
+                "Authorization",
+                "Content-Type",
+                "MCP-Protocol-Version",
+                "X-MNS-Node",
+                "X-Request-ID",
+            ],
         )
 
     app.add_middleware(SecurityHeadersMiddleware)
