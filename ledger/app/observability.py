@@ -14,7 +14,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
+
+logger = logging.getLogger(__name__)
 
 
 class _JsonFormatter(logging.Formatter):
@@ -63,9 +65,26 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         request_id = request.headers.get("X-Request-ID") or uuid.uuid4().hex
         request.state.request_id = request_id
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception:
+            logger.exception("Unhandled ledger request error")
+            response = JSONResponse(
+                {"detail": "Internal Server Error"},
+                status_code=500,
+            )
+            apply_security_headers(response)
         response.headers["X-Request-ID"] = request_id
         return response
+
+
+def apply_security_headers(response: Response) -> None:
+    response.headers.setdefault(
+        "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+    )
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -75,10 +94,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         response = await call_next(request)
-        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-        response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        response.headers.setdefault("X-Frame-Options", "DENY")
-        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        apply_security_headers(response)
         return response
 
 
@@ -107,9 +123,6 @@ def parse_allowed_origins() -> list[str]:
 def install_operational_middleware(app: FastAPI) -> None:
     """Install shared security, request tracing, and optional CORS middleware."""
 
-    app.add_middleware(SecurityHeadersMiddleware)
-    app.add_middleware(RequestIdMiddleware)
-
     allowed_origins = parse_allowed_origins()
     if allowed_origins:
         app.add_middleware(
@@ -119,3 +132,6 @@ def install_operational_middleware(app: FastAPI) -> None:
             allow_methods=["GET", "POST", "OPTIONS"],
             allow_headers=["Authorization", "Content-Type", "X-MNS-Node", "X-Request-ID"],
         )
+
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RequestIdMiddleware)

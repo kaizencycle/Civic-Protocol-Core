@@ -141,12 +141,40 @@ jobs:
   migration-check:
     name: Migration validation
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: civic_ledger_ci
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d civic_ledger_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install Postgres client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Validate raw Postgres migrations
+        env:
+          PGPASSWORD: postgres
+        run: |
+          for file in migrations/*.sql; do
+            psql \
+              --host localhost \
+              --username postgres \
+              --dbname civic_ledger_ci \
+              --set ON_ERROR_STOP=1 \
+              --file "$file"
+          done
       - name: Validate migrations on scratch DB
         run: python scripts/validate_migrations.py
 

@@ -4,11 +4,13 @@ import os
 
 import httpx
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 os.environ.setdefault("LEDGER_DATA_DIR", "/tmp/ledger_test_c339")
 
 from ledger.app import main as main_module  # noqa: E402
+from ledger.app.observability import install_operational_middleware  # noqa: E402
 
 client = TestClient(main_module.app)
 
@@ -60,6 +62,50 @@ def test_ledger_responses_include_request_id_and_security_headers():
     assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert response.headers["X-Frame-Options"] == "DENY"
     assert response.headers["Referrer-Policy"] == "no-referrer"
+    assert response.headers["Strict-Transport-Security"].startswith("max-age=")
+
+
+def test_operational_middleware_covers_cors_preflight(monkeypatch):
+    monkeypatch.setenv("LEDGER_CORS_ALLOW_ORIGINS", "https://app.example")
+    test_app = FastAPI()
+    install_operational_middleware(test_app)
+
+    @test_app.get("/resource")
+    def resource():
+        return {"ok": True}
+
+    test_client = TestClient(test_app)
+    response = test_client.options(
+        "/resource",
+        headers={
+            "Origin": "https://app.example",
+            "Access-Control-Request-Method": "GET",
+            "X-Request-ID": "preflight-c339",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["X-Request-ID"] == "preflight-c339"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["Strict-Transport-Security"].startswith("max-age=")
+
+
+def test_operational_middleware_covers_unhandled_500(monkeypatch):
+    monkeypatch.delenv("LEDGER_CORS_ALLOW_ORIGINS", raising=False)
+    test_app = FastAPI()
+    install_operational_middleware(test_app)
+
+    @test_app.get("/boom")
+    def boom():
+        raise RuntimeError("boom")
+
+    test_client = TestClient(test_app, raise_server_exceptions=False)
+    response = test_client.get("/boom", headers={"X-Request-ID": "boom-c339"})
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "Internal Server Error"}
+    assert response.headers["X-Request-ID"] == "boom-c339"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert response.headers["Strict-Transport-Security"].startswith("max-age=")
 
 
