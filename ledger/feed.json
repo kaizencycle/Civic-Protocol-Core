@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-69827bf38377ab36dbf42e6260681d68ff72f5a0",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:fd62f9263ec5e166:mesh-sync",
+    "source_hash": "fd62f9263ec5e166b615b1dfbbfde6c7a596d2c97fc276800f88a65eee9e65a2",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-13T12:15:37-04:00",
+    "author": "Michael Judan",
+    "sha": "69827bf38377ab36dbf42e6260681d68ff72f5a0",
+    "title": "Merge pull request #81 from kaizencycle/claude/c341-hive-player-events\n\nfeat(ledger): C-341 Brief D \u2014 hive.player_event pseudonymous write lane",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-387957ee24d26d1144fea36f5ac11769b65aba6e",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:db285c8cb53487c8:mesh-sync",
     "source_hash": "db285c8cb53487c8868cf88f2950831d329cc7abaf5c31750bb8cf5f42f47b04",
