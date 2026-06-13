@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import time
 import warnings
 from contextlib import asynccontextmanager
@@ -94,7 +95,7 @@ class LedgerEvent:
     event_id: str
     event_type: str
     civic_id: str
-    lab_source: str  # "lab4", "lab6", "identity", or "terminal"
+    lab_source: str  # "lab4", "lab6", "identity", "terminal", or "hive"
     payload: dict[str, Any]
     timestamp: str
     previous_hash: str
@@ -209,6 +210,51 @@ def _civic_id_allowed_for_lab(
     if request_civic_id == token_civic_id:
         return True
     return bool(lab_source == "terminal" and request_civic_id.startswith("mobius-"))
+
+
+# C-341: lab_source="hive" is a pseudonymous, unauthenticated lane for HIVE
+# Citadel player events (citizen_history write-back). It is NOT the same
+# trust tier as "identity"/"terminal" — there is no JWT to introspect, so
+# civic_id is a client-generated, localStorage-persisted id that must match
+# this pattern. _civic_id_allowed_for_lab is not used here: that function
+# binds a request civic_id to an authenticated token's civic_id, and hive
+# attestations carry no token at all.
+HIVE_LAB_SOURCE = "hive"
+_HIVE_CIVIC_ID_RE = re.compile(r"^mobius-anon-[A-Za-z0-9]{4,32}$")
+
+HIVE_RATE_LIMIT_SECONDS = float(os.getenv("HIVE_RATE_LIMIT_SECONDS", "1.0"))
+_hive_last_attest: dict[str, float] = {}
+
+
+def _require_hive_civic_id(civic_id: str) -> None:
+    """lab_source=hive requires a client-generated mobius-anon-<id> civic_id."""
+    if not _HIVE_CIVIC_ID_RE.match(civic_id):
+        raise HTTPException(
+            403,
+            "lab_source=hive requires civic_id matching 'mobius-anon-<id>' "
+            "(client-generated, no account)",
+        )
+
+
+def _enforce_hive_rate_limit(civic_id: str) -> None:
+    """Cheap per-civic_id throttle on the first public-write surface into the ledger."""
+    if HIVE_RATE_LIMIT_SECONDS <= 0:
+        return
+    now = time.monotonic()
+    last = _hive_last_attest.get(civic_id)
+    if last is not None and (now - last) < HIVE_RATE_LIMIT_SECONDS:
+        raise HTTPException(
+            429,
+            f"Rate limit exceeded for lab_source=hive "
+            f"(max 1 attestation per {HIVE_RATE_LIMIT_SECONDS:g}s per civic_id)",
+        )
+    _hive_last_attest[civic_id] = now
+
+
+def clear_hive_rate_limit() -> None:
+    """Reset hive rate-limit state (used by tests)."""
+
+    _hive_last_attest.clear()
 
 
 def get_latest_event_hash() -> str:
@@ -344,29 +390,34 @@ def attest_event(request: AttestationRequest,
                 authorization: str | None = Header(None)):
     """Attest an event to the immutable ledger"""
 
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(401, "Missing or invalid authorization header")
+    if request.lab_source == HIVE_LAB_SOURCE:
+        # Pseudonymous, unauthenticated lane (C-341) — no Bearer token to verify.
+        _require_hive_civic_id(request.civic_id)
+        _enforce_hive_rate_limit(request.civic_id)
+    else:
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(401, "Missing or invalid authorization header")
 
-    token = authorization[7:]  # Remove "Bearer " prefix
+        token = authorization[7:]  # Remove "Bearer " prefix
 
-    # Verify token with the appropriate lab
-    try:
-        token_data = verify_token(token, request.lab_source)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(401, f"Token verification failed: {str(e)}") from e
+        # Verify token with the appropriate lab
+        try:
+            token_data = verify_token(token, request.lab_source)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(401, f"Token verification failed: {str(e)}") from e
 
-    if request.lab_source in ("identity", "terminal"):
-        token_civic = token_data.get("civic_id")
-        if isinstance(token_civic, str) and token_civic and not _civic_id_allowed_for_lab(
-            request.civic_id, token_civic, request.lab_source
-        ):
-            raise HTTPException(
-                403,
-                "civic_id must match the authenticated user or use mobius- prefix "
-                "when lab_source is terminal",
-            )
+        if request.lab_source in ("identity", "terminal"):
+            token_civic = token_data.get("civic_id")
+            if isinstance(token_civic, str) and token_civic and not _civic_id_allowed_for_lab(
+                request.civic_id, token_civic, request.lab_source
+            ):
+                raise HTTPException(
+                    403,
+                    "civic_id must match the authenticated user or use mobius- prefix "
+                    "when lab_source is terminal",
+                )
 
     # Create ledger event
     event = create_ledger_event(
@@ -420,31 +471,60 @@ def attest_event(request: AttestationRequest,
 def get_events(civic_id: str | None = None,
                event_type: str | None = None,
                lab_source: str | None = None,
+               since: str | None = None,
                limit: int = 100,
                offset: int = 0):
-    """Get events from the ledger with optional filtering"""
+    """Get events from the ledger with optional filtering.
 
-    query = "SELECT * FROM events WHERE 1=1"
-    params = []
+    `since` switches to ascending cursor mode for poll-based consumers
+    (e.g. the HIVE world-update job): `since=<event_id>` returns events
+    after that event, oldest first; `since=` (empty) starts from the
+    beginning of the chain. Omitting `since` keeps the legacy
+    newest-first listing with `offset` pagination.
+    """
+
+    filters = "WHERE 1=1"
+    params: list[Any] = []
 
     if civic_id:
-        query += " AND civic_id = ?"
+        filters += " AND civic_id = ?"
         params.append(civic_id)
 
     if event_type:
-        query += " AND event_type = ?"
+        filters += " AND event_type = ?"
         params.append(event_type)
 
     if lab_source:
-        query += " AND lab_source = ?"
+        filters += " AND lab_source = ?"
         params.append(lab_source)
-
-    query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-    params.extend([limit, offset])
 
     try:
         with get_db_connection() as conn:
-            cursor = conn.execute(query, params)
+            if since is not None:
+                after_rowid = 0
+                if since:
+                    cursor = conn.execute(
+                        "SELECT rowid FROM events WHERE event_id = ?", (since,)
+                    )
+                    row = cursor.fetchone()
+                    if not row:
+                        raise HTTPException(404, f"since event_id {since!r} not found")
+                    after_rowid = row[0]
+
+                # filters is built only from fixed " AND <col> = ?" fragments
+                # above; values are bound via params, never interpolated.
+                query = (
+                    "SELECT * FROM events " + filters + " AND rowid > ? "  # noqa: S608
+                    "ORDER BY rowid ASC LIMIT ?"
+                )
+                cursor = conn.execute(query, [*params, after_rowid, limit])
+            else:
+                query = (
+                    "SELECT * FROM events " + filters +  # noqa: S608
+                    " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+                )
+                cursor = conn.execute(query, [*params, limit, offset])
+
             rows = cursor.fetchall()
 
             events = []
@@ -460,6 +540,8 @@ def get_events(civic_id: str | None = None,
                     "event_hash": row[7],
                     "signature": row[8]
                 })
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(500, f"Database error: {str(e)}") from e
 
