@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HivePlayerEventPayload",
+  "description": "Payload shape for ledger event_type=hive.player_event (C-341 citizen_history write-back). Pseudonymous, unauthenticated lab_source=hive lane.",
+  "type": "object",
+  "required": ["world", "zone", "action", "target_id", "cycle_id", "client_ts"],
+  "additionalProperties": true,
+  "properties": {
+    "world":     { "type": "string", "description": "Renderer/world identifier, e.g. 'hive-citadel'" },
+    "zone":      { "type": "string", "description": "In-world zone/region, e.g. 'castle'" },
+    "action":    { "type": "string", "description": "Player action verb, e.g. 'channel_node'" },
+    "target_id": { "type": "string", "description": "Identifier of the thing acted upon, e.g. 'node-0'" },
+    "cycle_id":  { "type": "string", "description": "Mobius cycle in which the event occurred, e.g. 'C-341'" },
+    "civic_id":  { "type": "string", "description": "Pseudonymous mobius-anon-<id>; duplicated from the top-level attestation civic_id for convenience" },
+    "client_ts": { "type": "string", "format": "date-time", "description": "Client-reported ISO 8601 timestamp" }
+  }
+}
