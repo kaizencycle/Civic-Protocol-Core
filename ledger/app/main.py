@@ -511,15 +511,17 @@ def get_events(civic_id: str | None = None,
                         raise HTTPException(404, f"since event_id {since!r} not found")
                     after_rowid = row[0]
 
+                # filters is built only from fixed " AND <col> = ?" fragments
+                # above; values are bound via params, never interpolated.
                 query = (
-                    f"SELECT * FROM events {filters} AND rowid > ? "
+                    "SELECT * FROM events " + filters + " AND rowid > ? "  # noqa: S608
                     "ORDER BY rowid ASC LIMIT ?"
                 )
                 cursor = conn.execute(query, [*params, after_rowid, limit])
             else:
                 query = (
-                    f"SELECT * FROM events {filters} "
-                    "ORDER BY created_at DESC LIMIT ? OFFSET ?"
+                    "SELECT * FROM events " + filters +  # noqa: S608
+                    " ORDER BY created_at DESC LIMIT ? OFFSET ?"
                 )
                 cursor = conn.execute(query, [*params, limit, offset])
 

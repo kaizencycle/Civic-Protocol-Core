@@ -3,12 +3,12 @@
 import os
 import tempfile
 
+import pytest
+from fastapi.testclient import TestClient
+
 # Fresh DB per test run — the cursor tests assert exact event sets, which a
 # shared/reused ledger.db across runs would pollute.
 os.environ["LEDGER_DATA_DIR"] = tempfile.mkdtemp(prefix="ledger_test_hive_player_events_")
-
-import pytest
-from fastapi.testclient import TestClient
 
 from ledger.app import main as main_module  # noqa: E402
 
