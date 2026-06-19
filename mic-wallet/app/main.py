@@ -6,6 +6,7 @@ MIC earning and wallet management for the Mobius platform.
 Tracks MIC balance, earning events, and provides leaderboard functionality.
 """
 
+import hashlib
 import logging
 import os
 import socket
@@ -118,6 +119,18 @@ class MICEvent(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
+class Redemption(Base):
+    __tablename__ = "mic_redemptions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), nullable=False, index=True)
+    item_id = Column(String(100), nullable=False, index=True)
+    cost_mic = Column(Float, nullable=False)
+    unlock_token = Column(String(64), nullable=False)
+    idempotency_key = Column(String(128), unique=True, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
 # Create tables
 Base.metadata.create_all(bind=engine)
 
@@ -155,6 +168,15 @@ EARNING_RULES = {
     "agent_epicon_attest": 2.0,
 }
 
+# C-347-E: in-system redemption catalog (not cash-like)
+REDEEM_CATALOG: dict[str, dict[str, str | float]] = {
+    "realm-of-self": {
+        "cost": 10.0,
+        "label": "Unlock Realm of Self chamber",
+        "unlock_type": "hive_realm",
+    },
+}
+
 
 # Pydantic models
 class EarnRequest(BaseModel):
@@ -169,6 +191,23 @@ class EarnResponse(BaseModel):
     source: str
     event_id: str
     multiplier: float
+
+
+class RedeemRequest(BaseModel):
+    item_id: str
+    idempotency_key: str | None = None
+
+
+class RedeemResponse(BaseModel):
+    ok: bool = True
+    item_id: str
+    unlock_token: str
+    new_balance: float
+    already_redeemed: bool = False
+
+
+class UnlocksResponse(BaseModel):
+    unlocks: list[str]
 
 
 class WalletResponse(BaseModel):
@@ -369,6 +408,119 @@ async def earn_mic(
         "event_id": event.id,
         "multiplier": multiplier
     }
+
+
+@app.post("/mic/redeem", response_model=RedeemResponse, status_code=status.HTTP_201_CREATED)
+async def redeem_mic(
+    request: RedeemRequest,
+    auth: tuple = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Debit MIC balance and return an in-system unlock token (C-347-E)."""
+    user_id, civic_id = auth
+
+    catalog_entry = REDEEM_CATALOG.get(request.item_id)
+    if not catalog_entry:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown redeemable item: {request.item_id}. "
+            f"Valid items: {list(REDEEM_CATALOG.keys())}",
+        )
+
+    cost = float(catalog_entry["cost"])
+
+    if request.idempotency_key:
+        existing = (
+            db.query(Redemption)
+            .filter(Redemption.idempotency_key == request.idempotency_key)
+            .first()
+        )
+        if existing:
+            wallet = get_or_create_wallet(user_id, civic_id, db)
+            return {
+                "ok": True,
+                "item_id": existing.item_id,
+                "unlock_token": existing.unlock_token,
+                "new_balance": wallet.balance_mic,
+                "already_redeemed": True,
+            }
+
+    prior = (
+        db.query(Redemption)
+        .filter(Redemption.user_id == user_id, Redemption.item_id == request.item_id)
+        .first()
+    )
+    if prior:
+        wallet = get_or_create_wallet(user_id, civic_id, db)
+        return {
+            "ok": True,
+            "item_id": prior.item_id,
+            "unlock_token": prior.unlock_token,
+            "new_balance": wallet.balance_mic,
+            "already_redeemed": True,
+        }
+
+    wallet = get_or_create_wallet(user_id, civic_id, db)
+    if wallet.balance_mic < cost:
+        raise HTTPException(
+            status_code=402,
+            detail=f"Insufficient balance: need {cost} MIC, have {wallet.balance_mic:.2f} MIC",
+        )
+
+    unlock_token = hashlib.sha256(
+        f"{user_id}:{request.item_id}:{uuid.uuid4()}".encode()
+    ).hexdigest()[:32]
+
+    debit_event = MICEvent(
+        id=str(uuid.uuid4()),
+        user_id=user_id,
+        source=f"redeem:{request.item_id}",
+        amount=-cost,
+        multiplier=1.0,
+        final_amount=-cost,
+        meta={
+            "item_id": request.item_id,
+            "unlock_token": unlock_token,
+            "unlock_type": catalog_entry.get("unlock_type"),
+            "label": catalog_entry.get("label"),
+        },
+    )
+    db.add(debit_event)
+
+    redemption = Redemption(
+        id=str(uuid.uuid4()),
+        user_id=user_id,
+        item_id=request.item_id,
+        cost_mic=cost,
+        unlock_token=unlock_token,
+        idempotency_key=request.idempotency_key,
+    )
+    db.add(redemption)
+
+    wallet.balance_mic -= cost
+    wallet.updated_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(wallet)
+
+    return {
+        "ok": True,
+        "item_id": request.item_id,
+        "unlock_token": unlock_token,
+        "new_balance": wallet.balance_mic,
+        "already_redeemed": False,
+    }
+
+
+@app.get("/mic/unlocks", response_model=UnlocksResponse)
+async def list_unlocks(
+    auth: tuple = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """List item_ids the user has redeemed."""
+    user_id, _ = auth
+    rows = db.query(Redemption.item_id).filter(Redemption.user_id == user_id).all()
+    return {"unlocks": [row[0] for row in rows]}
 
 
 @app.get("/mic/events", response_model=list[EventResponse])
