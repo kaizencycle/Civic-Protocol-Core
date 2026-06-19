@@ -1,0 +1,167 @@
+From 31cfd8a462922bbabb49a12ecfa359f7401f65b0 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Fri, 19 Jun 2026 23:40:49 +0000
+Subject: [PATCH] feat(oaa): C-347-D POST /oaa/attest/learning-complete
+ endpoint
+
+Issue Ed25519-signed OAA tutor session completion proofs. Anchors to civic
+ledger when keys and LEDGER_URL are configured; returns credential_id.
+---
+ src/app/routers/oaa/models.py          | 20 ++++++++
+ src/app/routers/oaa/router.py          | 68 ++++++++++++++++++++++++++
+ tests/test_learning_complete_attest.py | 29 +++++++++++
+ 3 files changed, 117 insertions(+)
+ create mode 100644 tests/test_learning_complete_attest.py
+
+diff --git a/src/app/routers/oaa/models.py b/src/app/routers/oaa/models.py
+index c8aa3f6..0e28dfd 100644
+--- a/src/app/routers/oaa/models.py
++++ b/src/app/routers/oaa/models.py
+@@ -78,3 +78,23 @@ class VerifyResponse(BaseModel):
+     signer_known: bool | None = None
+     ts_ok: bool | None = None
+     nonce_ok: bool | None = None
++
++
++class LearningCompleteRequest(BaseModel):
++    type: str = "oaa.tutor.session_complete"
++    session_id: str
++    module_id: str
++    subject_id: str
++    mic_earned: float
++    accuracy: float
++    ts: str
++    nonce: str
++
++
++class LearningCompleteResponse(BaseModel):
++    ok: bool
++    attestation_id: str | None = None
++    credential_id: str | None = None
++    content_hash: str | None = None
++    attestation: dict[str, Any] | None = None
++    verification_url: str | None = None
+diff --git a/src/app/routers/oaa/router.py b/src/app/routers/oaa/router.py
+index 8164f53..d4d486e 100644
+--- a/src/app/routers/oaa/router.py
++++ b/src/app/routers/oaa/router.py
+@@ -13,6 +13,8 @@ from .models import (
+     FilterRequest,
+     FilterResult,
+     IngestRequest,
++    LearningCompleteRequest,
++    LearningCompleteResponse,
+     ReputeResult,
+     ReputeVote,
+     Source,
+@@ -228,6 +230,72 @@ async def cron_daily(
+     return {"ok": True, "queued": True, "ts": time.time()}
+ 
+ 
++@router.post("/attest/learning-complete", response_model=LearningCompleteResponse)
++async def attest_learning_complete(req: LearningCompleteRequest):
++    """
++    C-347-D: Issue an Ed25519-signed OAA tutor session completion proof.
++    Anchors to the civic ledger when keys and LEDGER_URL are configured.
++    """
++    content = {
++        "type": req.type,
++        "session_id": req.session_id,
++        "module_id": req.module_id,
++        "subject_id": req.subject_id,
++        "mic_earned": req.mic_earned,
++        "accuracy": req.accuracy,
++        "oaa_policy_version": "default_policy.yaml",
++        "oaa_version": "lab7-v1",
++        "ts": req.ts,
++        "nonce": req.nonce,
++    }
++
++    attestation = None
++    attestation_id = None
++    content_hash = None
++    priv_b64 = os.getenv("OAA_ED25519_PRIVATE_B64", "")
++    pub_b64 = os.getenv("OAA_ED25519_PUBLIC_B64", "")
++    ledger_url = os.getenv("LEDGER_URL", "").rstrip("/")
++
++    try:
++        if priv_b64 and pub_b64:
++            content_hash, sig_b64 = ed25519_sign(priv_b64, content)
++            attestation_id = f"attest-{content_hash[:16]}"
++            attestation = {
++                "content": content,
++                "content_hash": f"sha256:{content_hash}",
++                "signature": f"ed25519:{sig_b64}",
++                "public_key_b64": pub_b64,
++                "signing_key": "oaa:ed25519:v1",
++            }
++            if ledger_url:
++                async with httpx.AsyncClient(timeout=15) as client:
++                    r = await client.post(f"{ledger_url}/attest", json=attestation)
++                    r.raise_for_status()
++                    attestation["ledger_receipt"] = r.json()
++        else:
++            content_hash = sha256_hex(content)
++            attestation_id = f"attest-{content_hash[:16]}"
++            attestation = {"content": content, "content_hash": f"sha256:{content_hash}"}
++    except Exception as e:
++        content_hash = content_hash or sha256_hex(content)
++        attestation_id = attestation_id or f"attest-{content_hash[:16]}"
++        attestation = attestation or {"content": content, "error": str(e)}
++
++    verify_base = os.getenv("LAB7_PUBLIC_BASE", "").rstrip("/")
++    verification_url = (
++        f"{verify_base}/oaa/verify" if verify_base else "/oaa/verify"
++    )
++
++    return LearningCompleteResponse(
++        ok=True,
++        attestation_id=attestation_id,
++        credential_id=attestation_id,
++        content_hash=f"sha256:{content_hash}" if content_hash else None,
++        attestation=attestation,
++        verification_url=verification_url,
++    )
++
++
+ @router.post("/verify", response_model=VerifyResponse)
+ async def verify_attestation(req: VerifyRequest):
+     """
+diff --git a/tests/test_learning_complete_attest.py b/tests/test_learning_complete_attest.py
+new file mode 100644
+index 0000000..8960d1b
+--- /dev/null
++++ b/tests/test_learning_complete_attest.py
+@@ -0,0 +1,29 @@
++"""C-347-D: learning completion attestation endpoint."""
++
++from fastapi.testclient import TestClient
++
++from src.app.main import app
++
++client = TestClient(app)
++
++
++def test_learning_complete_attestation_returns_credential():
++    resp = client.post(
++        "/oaa/attest/learning-complete",
++        json={
++            "type": "oaa.tutor.session_complete",
++            "session_id": "sess-test-1",
++            "module_id": "mod-intro",
++            "subject_id": "user-abc",
++            "mic_earned": 5.0,
++            "accuracy": 0.92,
++            "ts": "2026-06-19T12:00:00Z",
++            "nonce": "nonce-123",
++        },
++    )
++    assert resp.status_code == 200, resp.text
++    data = resp.json()
++    assert data["ok"] is True
++    assert data["attestation_id"]
++    assert data["credential_id"] == data["attestation_id"]
++    assert data["content_hash"]
+-- 
+2.43.0
+

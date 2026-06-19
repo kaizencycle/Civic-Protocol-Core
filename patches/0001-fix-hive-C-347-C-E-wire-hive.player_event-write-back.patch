@@ -1,0 +1,526 @@
+From f4c5fbf29843271b3860763d7ee5daa896ae4170 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Fri, 19 Jun 2026 23:40:49 +0000
+Subject: [PATCH] fix(hive): C-347-C/E wire hive.player_event write-back and
+ realm redeem UI
+
+- HiveGameEmbed now POSTs hive.player_event with lab_source=hive (not EPICON human attest types)
+- Add hive-player-event.ts helper with idempotent dedup
+- Fix OAA memory path default to /api/oaa/memory (not /append)
+- Add HiveRealmUnlock panel for realm-of-self MIC redemption
+---
+ .env.example                                  |   2 +-
+ .env.local.example                            |   2 +-
+ api/hive/action.ts                            |   2 +-
+ components/Labs/HivePortal/HiveGameEmbed.tsx  |  96 +++++++--------
+ .../Labs/HivePortal/HiveRealmUnlock.tsx       | 113 ++++++++++++++++++
+ components/Labs/HivePortal/index.tsx          |   2 +
+ src/lib/hive-player-event.ts                  |  77 ++++++++++++
+ src/lib/hive-redeem.ts                        |  63 ++++++++++
+ 8 files changed, 304 insertions(+), 53 deletions(-)
+ create mode 100644 components/Labs/HivePortal/HiveRealmUnlock.tsx
+ create mode 100644 src/lib/hive-player-event.ts
+ create mode 100644 src/lib/hive-redeem.ts
+
+diff --git a/.env.example b/.env.example
+index 767f80c..e21e6af 100644
+--- a/.env.example
++++ b/.env.example
+@@ -16,7 +16,7 @@
+ #
+ # HIVE playable actions (C-289) — server-side only:
+ # OAA_API_BASE=https://oaa-api-library.onrender.com
+-# OAA_HIVE_MEMORY_PATH=/api/oaa/memory/append
++# OAA_HIVE_MEMORY_PATH=/api/oaa/memory
+ # HIVE_ACTION_SKIP_EXTERNAL=true
+ 
+ # HIVE 16-bit world simulator (Higgsfield deploy) — optional, falls back to
+diff --git a/.env.local.example b/.env.local.example
+index d00d1e6..02778bf 100644
+--- a/.env.local.example
++++ b/.env.local.example
+@@ -39,7 +39,7 @@ VITE_HIVE_WORLD_BASE_URL=
+ # Player actions (interact, attest, earn) POST to /api/hive/action in the shell;
+ # that endpoint forwards telemetry to OAA memory and ATLAS events.
+ # OAA_API_BASE and OAA_HIVE_MEMORY_PATH control the forwarding destination.
+-OAA_HIVE_MEMORY_PATH=/api/oaa/memory/append
++OAA_HIVE_MEMORY_PATH=/api/oaa/memory
+ # Set to 'true' to skip external forwarding in local dev:
+ HIVE_ACTION_SKIP_EXTERNAL=false
+ 
+diff --git a/api/hive/action.ts b/api/hive/action.ts
+index dff27ef..e6e60b7 100644
+--- a/api/hive/action.ts
++++ b/api/hive/action.ts
+@@ -30,7 +30,7 @@ function setCors(res: VercelResponse, origin: string): void {
+ 
+ async function forwardMemoryEnvelope(payload: Record<string, unknown>): Promise<void> {
+   if (process.env.HIVE_ACTION_SKIP_EXTERNAL === 'true') return;
+-  const path = process.env.OAA_HIVE_MEMORY_PATH ?? '/api/oaa/memory/append';
++  const path = process.env.OAA_HIVE_MEMORY_PATH ?? '/api/oaa/memory';
+   try {
+     const res = await fetch(`${OAA_BASE}${path}`, {
+       method: 'POST',
+diff --git a/components/Labs/HivePortal/HiveGameEmbed.tsx b/components/Labs/HivePortal/HiveGameEmbed.tsx
+index 2ae71ac..17e77a5 100644
+--- a/components/Labs/HivePortal/HiveGameEmbed.tsx
++++ b/components/Labs/HivePortal/HiveGameEmbed.tsx
+@@ -5,9 +5,9 @@
+  *   1. ?data= passthrough — game overlays the shell's live current-world.json,
+  *      so both surfaces read the same substrate state.
+  *   2. postMessage listener (C-341 write-back) — game emits events on every
+- *      realm seal / fountain restore; shell catches them and POSTs to
+- *      /ledger/attest via the existing submitAttestation helper. This closes
+- *      the Sweep → Seal → Ledger loop the game's comment block promises.
++ *      realm seal / fountain restore; shell catches them and POSTs
++ *      hive.player_event to /ledger/attest (lab_source=hive). This closes
++ *      the Sweep → Seal → Ledger → citizen_history loop.
+  *   3. Fog-of-integrity CSS overlay — shell-side radial gradient driven by GI,
+  *      keeping the chamber chrome and the game interior atmospherically unified.
+  *
+@@ -15,10 +15,10 @@
+  *   { source: "mobius-hive-sim", type, cycle, live, gi, vault, mic,
+  *     sealed, total, won, ts, realm?, realmTitle?, realmColor? }
+  *
+- * Types we attest:
+- *   "seal"          → citizen sealed a realm beacon
+- *   "win"           → citizen restored the Forge Fountain (cycle complete)
+- *   "fountain_ready"→ all realms sealed, fountain now unlockable
++ * Types we attest as hive.player_event:
++ *   "seal"          → action channel_node on realm zone
++ *   "win"           → action restore_beacon on forge-of-civilization
++ *   "fountain_ready"→ action fountain_ready on forge-of-civilization
+  *
+  * Types we silently ignore (not consequential enough to attest):
+  *   "start", "ready" — game lifecycle, not player actions
+@@ -26,7 +26,11 @@
+ 
+ import React, { useEffect, useRef, useState } from 'react';
+ import { getHiveWorldBaseUrl } from '../../../src/lib/meshWorldFetch';
+-import { submitAttestation } from '../../../src/lib/epicon-attest';
++import {
++  defaultHiveAttestUrl,
++  postHivePlayerEvent,
++  type HivePlayerEventPayload,
++} from '../../../src/lib/hive-player-event';
+ import { env } from '../../../config/env';
+ 
+ export const GAME_BASE_URL =
+@@ -113,61 +117,49 @@ function isHiveEvent(data: unknown): data is HiveGameEvent {
+   );
+ }
+ 
+-// Map a game event to an attestation.
++// Map a game event to a hive.player_event payload.
+ // Returns null for event types that don't warrant ledger writes.
+-function toAttestation(
+-  ev: HiveGameEvent,
+-  civicId: string,
+-): Parameters<typeof submitAttestation>[0] | null {
+-  const cycle = ev.cycle ?? 'C-?';
+-  const gi = ev.gi ?? 0;
+-  const vault = ev.vault ?? 0;
++function toPlayerEvent(ev: HiveGameEvent, civicId: string): HivePlayerEventPayload | null {
++  const cycleId = ev.cycle ?? 'C-?';
++  const clientTs = new Date().toISOString();
+ 
+   if (ev.type === 'seal' && ev.realm) {
+     return {
++      world: 'hive-citadel',
++      zone: ev.realm,
++      action: 'channel_node',
++      target_id: `realm-${ev.realm}`,
++      cycle_id: cycleId,
+       civic_id: civicId,
+-      event_type: 'community-action',
+-      title: `Realm sealed: ${ev.realmTitle ?? ev.realm}`,
+-      summary: `A citizen swept the Signal Fog from ${ev.realmTitle ?? ev.realm} ` +
+-        `and lit its beacon. Cycle ${cycle}. ` +
+-        `Realms sealed: ${ev.sealed ?? '?'}/${ev.total ?? '?'}. ` +
+-        `GI after seal: ${gi.toFixed(3)}.`,
+-      location: ev.realm,
+-      evidence: JSON.stringify({ realm: ev.realm, sealed: ev.sealed, total: ev.total, gi, vault }),
+-      confidence: 0.95,
++      client_ts: clientTs,
+     };
+   }
+ 
+   if (ev.type === 'win') {
+     return {
++      world: 'hive-citadel',
++      zone: 'forge-of-civilization',
++      action: 'restore_beacon',
++      target_id: 'forge-fountain',
++      cycle_id: cycleId,
+       civic_id: civicId,
+-      event_type: 'governance-event',
+-      title: `Forge Fountain restored — ${cycle}`,
+-      summary: `A citizen restored the Forge Fountain, completing the cycle. ` +
+-        `All ${ev.total ?? '?'} realms sealed. ` +
+-        `Final GI: ${gi.toFixed(3)}, vault: ${(vault * 100).toFixed(1)}%. ` +
+-        `Cycle: ${cycle}.`,
+-      location: 'forge-of-civilization',
+-      evidence: JSON.stringify({ cycle, gi, vault, mic: ev.mic, live: ev.live }),
+-      confidence: 1.0,
++      client_ts: clientTs,
+     };
+   }
+ 
+   if (ev.type === 'fountain_ready') {
+     return {
++      world: 'hive-citadel',
++      zone: 'forge-of-civilization',
++      action: 'fountain_ready',
++      target_id: 'forge-fountain',
++      cycle_id: cycleId,
+       civic_id: civicId,
+-      event_type: 'civic-observation',
+-      title: `Fountain ready — all realms sealed (${cycle})`,
+-      summary: `All ${ev.total ?? '?'} realms sealed this session. ` +
+-        `The Forge Fountain is unlocked and awaiting final restoration. ` +
+-        `GI: ${gi.toFixed(3)}.`,
+-      location: 'forge-of-civilization',
+-      evidence: JSON.stringify({ cycle, gi, vault, total: ev.total }),
+-      confidence: 0.95,
++      client_ts: clientTs,
+     };
+   }
+ 
+-  return null; // "start", "ready", unknown — do not attest
++  return null;
+ }
+ 
+ // Status of the most recent ledger write — shown as a small non-blocking
+@@ -229,6 +221,8 @@ export const HiveGameEmbed: React.FC<HiveGameEmbedProps> = ({
+   useEffect(() => {
+     if (!env.api.ledger) return; // ledger not configured — skip silently
+ 
++    const attestUrl = defaultHiveAttestUrl();
++
+     const handler = async (ev: MessageEvent) => {
+       // P1: validate sender — must be our iframe's window at the expected origin.
+       // Rejects forged postMessages from any other frame or extension.
+@@ -237,8 +231,8 @@ export const HiveGameEmbed: React.FC<HiveGameEmbedProps> = ({
+       if (!isHiveEvent(ev.data)) return;
+       const gameEv = ev.data;
+ 
+-      const attestation = toAttestation(gameEv, civicId.current);
+-      if (!attestation) return;
++      const playerEvent = toPlayerEvent(gameEv, civicId.current);
++      if (!playerEvent) return;
+ 
+       // Dedup key: type + realm (or 'none') + cycle
+       const dedupKey = `${gameEv.type}:${gameEv.realm ?? 'none'}:${gameEv.cycle ?? '?'}`;
+@@ -246,11 +240,13 @@ export const HiveGameEmbed: React.FC<HiveGameEmbedProps> = ({
+       onEventTypeRef.current(gameEv.type);
+       onWriteStatusRef.current('writing');
+ 
+-      const result = await submitAttestation(attestation);
+-      if (result.ok && attested.current) {
+-        attested.current.add(dedupKey);
+-        saveAttested(civicId.current, attested.current);
+-      }
++      const result = await postHivePlayerEvent(attestUrl, playerEvent, {
++        cacheKey: dedupKey,
++        markPosted: (key) => {
++          attested.current?.add(key);
++          saveAttested(civicId.current, attested.current ?? new Set([key]));
++        },
++      });
+       onWriteStatusRef.current(result.ok ? 'ok' : 'fail');
+ 
+       // Clear indicator after 4s so it doesn't clutter the screen
+diff --git a/components/Labs/HivePortal/HiveRealmUnlock.tsx b/components/Labs/HivePortal/HiveRealmUnlock.tsx
+new file mode 100644
+index 0000000..992582f
+--- /dev/null
++++ b/components/Labs/HivePortal/HiveRealmUnlock.tsx
+@@ -0,0 +1,113 @@
++/**
++ * HiveRealmUnlock — minimal C-347-E redemption stub.
++ * Spend MIC to unlock the Realm of Self chamber (first gated realm in C-342 map).
++ */
++import React, { useCallback, useEffect, useState } from 'react';
++import { Lock, Unlock } from 'lucide-react';
++import { useAuth } from '../../../contexts/AuthContext';
++import { useWallet } from '../../../contexts/WalletContext';
++import {
++  fetchMicUnlocks,
++  redeemMicItem,
++  REALM_OF_SELF_UNLOCK,
++} from '../../../src/lib/hive-redeem';
++
++const REALM_COST_MIC = 10;
++
++export const HiveRealmUnlock: React.FC = () => {
++  const { token, status } = useAuth();
++  const { wallet, refreshWallet } = useWallet();
++  const [unlocked, setUnlocked] = useState(false);
++  const [loading, setLoading] = useState(false);
++  const [error, setError] = useState<string | null>(null);
++  const [open, setOpen] = useState(false);
++
++  useEffect(() => {
++    if (!token) return;
++    let cancelled = false;
++    fetchMicUnlocks(token)
++      .then((res) => {
++        if (!cancelled) {
++          setUnlocked(res.unlocks.includes(REALM_OF_SELF_UNLOCK));
++        }
++      })
++      .catch(() => {
++        /* unlock list unavailable — stay locked */
++      });
++    return () => {
++      cancelled = true;
++    };
++  }, [token]);
++
++  const onRedeem = useCallback(async () => {
++    if (!token) return;
++    setLoading(true);
++    setError(null);
++    try {
++      const result = await redeemMicItem(token, REALM_OF_SELF_UNLOCK);
++      setUnlocked(true);
++      await refreshWallet();
++      if (result.already_redeemed) {
++        setError(null);
++      }
++    } catch (e) {
++      setError(e instanceof Error ? e.message : 'Redemption unavailable');
++    } finally {
++      setLoading(false);
++    }
++  }, [token, refreshWallet]);
++
++  const balance = wallet?.balance ?? 0;
++  const canAfford = balance >= REALM_COST_MIC;
++  const needsAuth = status !== 'authenticated' || !token;
++
++  return (
++    <div className="border-t border-gray-800/60 px-3 py-1.5 font-mono text-[10px]">
++      <button
++        type="button"
++        onClick={() => setOpen((o) => !o)}
++        className="flex items-center gap-1.5 text-stone-400 hover:text-amber-300 transition-colors"
++      >
++        {unlocked ? <Unlock className="w-3 h-3 text-teal-400" /> : <Lock className="w-3 h-3" />}
++        <span className="uppercase tracking-wider">Realm unlock</span>
++        <span className="text-stone-600">{open ? '▾' : '▸'}</span>
++      </button>
++
++      {open && (
++        <div className="mt-1.5 pl-4 text-stone-400 space-y-1">
++          <p>
++            <span className="text-amber-300">Realm of Self</span>
++            {' — '}
++            {unlocked ? (
++              <span className="text-teal-400">unlocked</span>
++            ) : (
++              <span>{REALM_COST_MIC} MIC</span>
++            )}
++          </p>
++
++          {needsAuth ? (
++            <p className="text-stone-500 italic">Sign in to redeem chamber access</p>
++          ) : unlocked ? (
++            <p className="text-teal-400/80">Chamber available in the HIVE map</p>
++          ) : (
++            <>
++              <p className="text-stone-500">Balance: {balance.toFixed(1)} MIC</p>
++              {!canAfford && (
++                <p className="text-amber-400/90">Insufficient balance — earn more MIC first</p>
++              )}
++              {error && <p className="text-rose-400">{error}</p>}
++              <button
++                type="button"
++                disabled={loading || !canAfford}
++                onClick={() => void onRedeem()}
++                className="mt-1 px-2 py-0.5 rounded border border-amber-500/40 text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-amber-500/10"
++              >
++                {loading ? 'Redeeming…' : 'Unlock realm'}
++              </button>
++            </>
++          )}
++        </div>
++      )}
++    </div>
++  );
++};
+diff --git a/components/Labs/HivePortal/index.tsx b/components/Labs/HivePortal/index.tsx
+index de95965..7e366c0 100644
+--- a/components/Labs/HivePortal/index.tsx
++++ b/components/Labs/HivePortal/index.tsx
+@@ -3,6 +3,7 @@ import { useHiveWorld } from '../../../hooks/useHiveWorld';
+ import { HivePulseBar } from './HivePulseBar';
+ import { HiveGameEmbed, GAME_BASE_URL, type WriteStatus } from './HiveGameEmbed';
+ import { HiveLoadingScreen, HiveErrorScreen } from './HiveStatusScreens';
++import { HiveRealmUnlock } from './HiveRealmUnlock';
+ 
+ export const HivePortal: React.FC = () => {
+   const { world, loading, error, lastFetched, refresh } = useHiveWorld();
+@@ -50,6 +51,7 @@ export const HivePortal: React.FC = () => {
+         writeStatus={writeStatus}
+         lastEventType={lastEventType}
+       />
++      <HiveRealmUnlock />
+       {/* game renderer — full remaining height */}
+       <div className="flex-1 min-h-0 overflow-hidden">
+         <HiveGameEmbed
+diff --git a/src/lib/hive-player-event.ts b/src/lib/hive-player-event.ts
+new file mode 100644
+index 0000000..e7e7b04
+--- /dev/null
++++ b/src/lib/hive-player-event.ts
+@@ -0,0 +1,77 @@
++import { env } from '../../config/env';
++
++/** Payload for ledger event_type=hive.player_event (C-341 citizen_history lane). */
++export interface HivePlayerEventPayload {
++  world: string;
++  zone: string;
++  action: string;
++  target_id: string;
++  cycle_id: string;
++  civic_id: string;
++  client_ts: string;
++}
++
++export interface PostHivePlayerEventResult {
++  ok: boolean;
++  eventId?: string;
++  error?: string;
++}
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === 'object' && value !== null && !Array.isArray(value);
++}
++
++function readString(value: unknown): string | undefined {
++  return typeof value === 'string' ? value : undefined;
++}
++
++/**
++ * Fire-and-forget POST of hive.player_event to the Civic ledger pseudonymous lane.
++ * One retry; never throws. Marks target posted on success for idempotent reloads.
++ */
++export async function postHivePlayerEvent(
++  attestUrl: string,
++  payload: HivePlayerEventPayload,
++  options?: { markPosted?: (key: string) => void; cacheKey?: string },
++): Promise<PostHivePlayerEventResult> {
++  const body = {
++    event_type: 'hive.player_event',
++    civic_id: payload.civic_id,
++    lab_source: 'hive',
++    payload,
++  };
++
++  for (let attempt = 0; attempt < 2; attempt++) {
++    try {
++      const res = await fetch(attestUrl, {
++        method: 'POST',
++        headers: { 'Content-Type': 'application/json' },
++        body: JSON.stringify(body),
++        signal: AbortSignal.timeout(8000),
++      });
++      if (!res.ok) {
++        if (attempt === 1) return { ok: false, error: `ledger_${res.status}` };
++        continue;
++      }
++
++      const data: unknown = await res.json();
++      const eventId = isRecord(data)
++        ? readString(data['event_id']) ?? readString(data['id'])
++        : undefined;
++
++      if (options?.markPosted && options.cacheKey) {
++        options.markPosted(options.cacheKey);
++      }
++
++      return { ok: true, eventId };
++    } catch (err) {
++      if (attempt === 1) return { ok: false, error: String(err) };
++    }
++  }
++
++  return { ok: false, error: 'unknown' };
++}
++
++export function defaultHiveAttestUrl(): string {
++  return `${env.api.ledger.replace(/\/$/, '')}/ledger/attest`;
++}
+diff --git a/src/lib/hive-redeem.ts b/src/lib/hive-redeem.ts
+new file mode 100644
+index 0000000..0808d1d
+--- /dev/null
++++ b/src/lib/hive-redeem.ts
+@@ -0,0 +1,63 @@
++import { env } from '../../config/env';
++
++export interface RedeemRequest {
++  item_id: string;
++  idempotency_key?: string;
++}
++
++export interface RedeemResponse {
++  ok: boolean;
++  item_id: string;
++  unlock_token: string;
++  new_balance: number;
++  already_redeemed?: boolean;
++}
++
++export interface UnlockStatus {
++  unlocks: string[];
++}
++
++function authHeaders(token: string): HeadersInit {
++  return {
++    'Content-Type': 'application/json',
++    Authorization: `Bearer ${token}`,
++  };
++}
++
++export async function redeemMicItem(
++  token: string,
++  itemId: string,
++  idempotencyKey?: string,
++): Promise<RedeemResponse> {
++  const base = env.api.micWallet.replace(/\/$/, '');
++  const res = await fetch(`${base}/mic/redeem`, {
++    method: 'POST',
++    headers: authHeaders(token),
++    body: JSON.stringify({ item_id: itemId, idempotency_key: idempotencyKey }),
++    signal: AbortSignal.timeout(10000),
++  });
++
++  if (!res.ok) {
++    const detail = await res.text().catch(() => '');
++    throw new Error(detail || `redeem_${res.status}`);
++  }
++
++  return res.json() as Promise<RedeemResponse>;
++}
++
++export async function fetchMicUnlocks(token: string): Promise<UnlockStatus> {
++  const base = env.api.micWallet.replace(/\/$/, '');
++  const res = await fetch(`${base}/mic/unlocks`, {
++    headers: authHeaders(token),
++    signal: AbortSignal.timeout(8000),
++  });
++
++  if (!res.ok) {
++    throw new Error(`unlocks_${res.status}`);
++  }
++
++  return res.json() as Promise<UnlockStatus>;
++}
++
++/** First gated realm in the C-342 ten-realm map — unlock costs 10 MIC. */
++export const REALM_OF_SELF_UNLOCK = 'realm-of-self';
+-- 
+2.43.0
+

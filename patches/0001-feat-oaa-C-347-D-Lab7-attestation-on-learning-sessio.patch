@@ -1,0 +1,152 @@
+From 3324881749fabf2dd51ab668b20d4c4974761ab0 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Fri, 19 Jun 2026 23:40:49 +0000
+Subject: [PATCH] feat(oaa): C-347-D Lab7 attestation on learning session
+ complete
+
+Non-blocking call to lab7-proof /oaa/attest/learning-complete after MIC mint.
+Degrades to pending_attestation when Lab7 is unreachable; never blocks reward.
+---
+ app/main.py                      | 17 +++++++-
+ app/models/learning.py           |  4 ++
+ app/services/lab7_attestation.py | 71 ++++++++++++++++++++++++++++++++
+ 3 files changed, 90 insertions(+), 2 deletions(-)
+ create mode 100644 app/services/lab7_attestation.py
+
+diff --git a/app/main.py b/app/main.py
+index 8c23724..002c865 100644
+--- a/app/main.py
++++ b/app/main.py
+@@ -36,6 +36,7 @@ from app.models.learning import (
+ from app.services.learning_store import learning_store
+ from app.services.mic_minting import MICMintingService
+ from app.services.mic_ledger_store import mic_ledger_store
++from app.services.lab7_attestation import request_learning_completion_attestation
+ 
+ # Initialize services
+ mic_service = MICMintingService()
+@@ -1156,7 +1157,16 @@ async def complete_learning_session(
+     
+     # Get new wallet balance from ledger (DERIVED, never stored)
+     new_wallet_balance = mic_ledger_store.get_balance(subject_id)
+-    
++
++    # C-347-D: request Lab7 completion attestation (non-blocking for reward path)
++    attestation_result = await request_learning_completion_attestation(
++        session_id=session_id,
++        module_id=module_id,
++        subject_id=subject_id,
++        mic_earned=float(mic_earned),
++        accuracy=req.accuracy,
++    )
++
+     return SessionCompleteResponse(
+         session_id=session_id,
+         module_id=module_id,
+@@ -1176,7 +1186,10 @@ async def complete_learning_session(
+             "receipt_hash": receipt.receipt_hash  # 🧾 Hash receipt for verification
+         },
+         bonuses=reward_result["breakdown"],
+-        circuit_breaker_status=CircuitBreakerStatus(reward_result["system_status"])
++        circuit_breaker_status=CircuitBreakerStatus(reward_result["system_status"]),
++        attestation_status=attestation_result.get("status"),
++        attestation_id=attestation_result.get("attestation_id"),
++        credential_id=attestation_result.get("credential_id"),
+     )
+ 
+ 
+diff --git a/app/models/learning.py b/app/models/learning.py
+index e8a3959..1098bdf 100644
+--- a/app/models/learning.py
++++ b/app/models/learning.py
+@@ -224,6 +224,10 @@ class SessionCompleteResponse(BaseModel):
+     rewards: Dict[str, int]
+     bonuses: Dict[str, float]
+     circuit_breaker_status: CircuitBreakerStatus
++    # C-347-D: Lab7 completion attestation (non-blocking; pending if Lab7 down)
++    attestation_status: Optional[str] = None
++    attestation_id: Optional[str] = None
++    credential_id: Optional[str] = None
+     
+     class Config:
+         from_attributes = True
+diff --git a/app/services/lab7_attestation.py b/app/services/lab7_attestation.py
+new file mode 100644
+index 0000000..b1c5757
+--- /dev/null
++++ b/app/services/lab7_attestation.py
+@@ -0,0 +1,71 @@
++"""C-347-D: Non-blocking Lab7 completion attestation for OAA learning sessions."""
++
++from __future__ import annotations
++
++import logging
++import os
++import uuid
++from datetime import datetime, timezone
++from typing import Any
++
++import httpx
++
++logger = logging.getLogger("oaa.lab7_attestation")
++
++LAB7_API_BASE = os.getenv("LAB7_API_BASE", "https://lab7-proof.onrender.com").rstrip("/")
++LAB7_ATTEST_TIMEOUT = float(os.getenv("LAB7_ATTEST_TIMEOUT_SECONDS", "5"))
++
++
++async def request_learning_completion_attestation(
++    *,
++    session_id: str,
++    module_id: str,
++    subject_id: str,
++    mic_earned: float,
++    accuracy: float,
++) -> dict[str, Any]:
++    """
++    Request an Ed25519-signed completion proof from Lab7.
++    Returns {status, attestation_id?, credential_id?, error?}.
++  Never raises — callers treat failures as pending attestation.
++    """
++    payload = {
++        "type": "oaa.tutor.session_complete",
++        "session_id": session_id,
++        "module_id": module_id,
++        "subject_id": subject_id,
++        "mic_earned": mic_earned,
++        "accuracy": accuracy,
++        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
++        "nonce": str(uuid.uuid4()),
++    }
++
++    try:
++        async with httpx.AsyncClient(timeout=LAB7_ATTEST_TIMEOUT) as client:
++            resp = await client.post(
++                f"{LAB7_API_BASE}/oaa/attest/learning-complete",
++                json=payload,
++            )
++            if resp.status_code >= 400:
++                logger.warning(
++                    "Lab7 attestation failed: %s %s",
++                    resp.status_code,
++                    resp.text[:200],
++                )
++                return {
++                    "status": "pending_attestation",
++                    "error": f"lab7_{resp.status_code}",
++                }
++
++            data = resp.json()
++            attestation_id = data.get("attestation_id") or data.get("content_hash")
++            credential_id = data.get("credential_id") or attestation_id
++            return {
++                "status": "attested",
++                "attestation_id": attestation_id,
++                "credential_id": credential_id,
++                "verification_url": data.get("verification_url"),
++            }
++    except Exception as exc:
++        logger.warning("Lab7 attestation unreachable: %s", exc)
++        return {"status": "pending_attestation", "error": str(exc)}
+-- 
+2.43.0
+

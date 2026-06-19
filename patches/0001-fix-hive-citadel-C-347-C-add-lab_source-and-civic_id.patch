@@ -1,0 +1,42 @@
+From 63e3ec0c58bedbf93ca568ccbc07a0783b6a746b Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Fri, 19 Jun 2026 23:40:49 +0000
+Subject: [PATCH] fix(hive-citadel): C-347-C add lab_source and civic_id to
+ player_event POST
+
+hive.player_event attestations require top-level civic_id and lab_source=hive
+for the Civic ledger pseudonymous lane. Fixes silent 422s on write-back.
+---
+ artifacts/hive-citadel/public/client.js | 2 ++
+ artifacts/hive-world-simulator/game.js  | 2 ++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/artifacts/hive-citadel/public/client.js b/artifacts/hive-citadel/public/client.js
+index 7974d21..010c1e8 100644
+--- a/artifacts/hive-citadel/public/client.js
++++ b/artifacts/hive-citadel/public/client.js
+@@ -62,6 +62,8 @@ async function postOnce(url, body) {
+ export async function postPlayerEvent(attestUrl, { world, zone, action, targetId, cycleId, civicId }) {
+   const body = {
+     event_type: "hive.player_event",
++    civic_id: civicId,
++    lab_source: "hive",
+     payload: {
+       world,
+       zone,
+diff --git a/artifacts/hive-world-simulator/game.js b/artifacts/hive-world-simulator/game.js
+index 5f32d3b..048ea90 100644
+--- a/artifacts/hive-world-simulator/game.js
++++ b/artifacts/hive-world-simulator/game.js
+@@ -313,6 +313,8 @@ function emitEvent(type, extra) {
+       method: "POST", headers: { "Content-Type": "application/json" },
+       body: JSON.stringify({
+         event_type: "hive.player_event",
++        civic_id: getCivicId(),
++        lab_source: "hive",
+         payload: {
+           world: "hive-citadel",
+           zone: (extra && extra.zone) || "castle",
+-- 
+2.43.0
+
