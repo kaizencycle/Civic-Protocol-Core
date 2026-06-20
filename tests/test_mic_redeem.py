@@ -96,3 +96,46 @@ def test_redeem_unlocks_realm_and_is_idempotent():
     unlocks = client.get("/mic/unlocks", headers=_auth_headers(user))
     assert unlocks.status_code == 200
     assert "realm-of-self" in unlocks.json()["unlocks"]
+
+
+def test_idempotency_key_scoped_to_user_and_item():
+    """Another account's idempotency_key must not leak their unlock_token."""
+    user_a = "user-idem-a"
+    user_b = "user-idem-b"
+    shared_key = "shared-client-idem-key"
+
+    for user in (user_a, user_b):
+        for _ in range(3):
+            r = client.post(
+                "/mic/earn",
+                headers=_auth_headers(user),
+                json={"source": "oaa_tutor_session_complete"},
+            )
+            assert r.status_code == 201, r.text
+
+    first_a = client.post(
+        "/mic/redeem",
+        headers=_auth_headers(user_a),
+        json={"item_id": "realm-of-self", "idempotency_key": shared_key},
+    )
+    assert first_a.status_code == 201, first_a.text
+    token_a = first_a.json()["unlock_token"]
+
+    first_b = client.post(
+        "/mic/redeem",
+        headers=_auth_headers(user_b),
+        json={"item_id": "realm-of-self", "idempotency_key": shared_key},
+    )
+    assert first_b.status_code == 201, first_b.text
+    token_b = first_b.json()["unlock_token"]
+    assert token_b != token_a
+    assert first_b.json()["already_redeemed"] is False
+
+    retry_b = client.post(
+        "/mic/redeem",
+        headers=_auth_headers(user_b),
+        json={"item_id": "realm-of-self", "idempotency_key": shared_key},
+    )
+    assert retry_b.status_code == 201, retry_b.text
+    assert retry_b.json()["unlock_token"] == token_b
+    assert retry_b.json()["already_redeemed"] is True

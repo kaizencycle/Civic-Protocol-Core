@@ -19,7 +19,18 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
-from sqlalchemy import JSON, Column, DateTime, Float, String, create_engine, desc, func
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    Float,
+    String,
+    UniqueConstraint,
+    create_engine,
+    desc,
+    func,
+)
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -121,13 +132,22 @@ class MICEvent(Base):
 
 class Redemption(Base):
     __tablename__ = "mic_redemptions"
+    __table_args__ = (
+        UniqueConstraint("user_id", "item_id", name="uq_mic_redemption_user_item"),
+        UniqueConstraint(
+            "user_id",
+            "item_id",
+            "idempotency_key",
+            name="uq_mic_redemption_user_item_idem",
+        ),
+    )
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), nullable=False, index=True)
     item_id = Column(String(100), nullable=False, index=True)
     cost_mic = Column(Float, nullable=False)
     unlock_token = Column(String(64), nullable=False)
-    idempotency_key = Column(String(128), unique=True, nullable=True)
+    idempotency_key = Column(String(128), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
@@ -291,6 +311,48 @@ def get_or_create_wallet(user_id: str, civic_id: str | None, db: Session) -> Wal
     return wallet
 
 
+def _find_user_redemption(
+    db: Session,
+    user_id: str,
+    item_id: str,
+    idempotency_key: str | None = None,
+) -> Redemption | None:
+    """Lookup redemption scoped to authenticated user and requested item."""
+    if idempotency_key:
+        return (
+            db.query(Redemption)
+            .filter(
+                Redemption.user_id == user_id,
+                Redemption.item_id == item_id,
+                Redemption.idempotency_key == idempotency_key,
+            )
+            .first()
+        )
+    return (
+        db.query(Redemption)
+        .filter(Redemption.user_id == user_id, Redemption.item_id == item_id)
+        .first()
+    )
+
+
+def _redeem_response(
+    redemption: Redemption,
+    user_id: str,
+    civic_id: str | None,
+    db: Session,
+    *,
+    already_redeemed: bool,
+) -> dict:
+    wallet = get_or_create_wallet(user_id, civic_id, db)
+    return {
+        "ok": True,
+        "item_id": redemption.item_id,
+        "unlock_token": redemption.unlock_token,
+        "new_balance": wallet.balance_mic,
+        "already_redeemed": already_redeemed,
+    }
+
+
 # FastAPI app
 app = FastAPI(
     title="Mobius MIC Wallet Service",
@@ -430,35 +492,17 @@ async def redeem_mic(
     cost = float(catalog_entry["cost"])
 
     if request.idempotency_key:
-        existing = (
-            db.query(Redemption)
-            .filter(Redemption.idempotency_key == request.idempotency_key)
-            .first()
+        existing = _find_user_redemption(
+            db, user_id, request.item_id, request.idempotency_key
         )
         if existing:
-            wallet = get_or_create_wallet(user_id, civic_id, db)
-            return {
-                "ok": True,
-                "item_id": existing.item_id,
-                "unlock_token": existing.unlock_token,
-                "new_balance": wallet.balance_mic,
-                "already_redeemed": True,
-            }
+            return _redeem_response(
+                existing, user_id, civic_id, db, already_redeemed=True
+            )
 
-    prior = (
-        db.query(Redemption)
-        .filter(Redemption.user_id == user_id, Redemption.item_id == request.item_id)
-        .first()
-    )
+    prior = _find_user_redemption(db, user_id, request.item_id)
     if prior:
-        wallet = get_or_create_wallet(user_id, civic_id, db)
-        return {
-            "ok": True,
-            "item_id": prior.item_id,
-            "unlock_token": prior.unlock_token,
-            "new_balance": wallet.balance_mic,
-            "already_redeemed": True,
-        }
+        return _redeem_response(prior, user_id, civic_id, db, already_redeemed=True)
 
     wallet = get_or_create_wallet(user_id, civic_id, db)
     if wallet.balance_mic < cost:
@@ -500,7 +544,25 @@ async def redeem_mic(
     wallet.balance_mic -= cost
     wallet.updated_at = datetime.utcnow()
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raced = _find_user_redemption(
+            db,
+            user_id,
+            request.item_id,
+            request.idempotency_key,
+        )
+        if raced:
+            return _redeem_response(
+                raced, user_id, civic_id, db, already_redeemed=True
+            )
+        raise HTTPException(
+            status_code=409,
+            detail="Redemption conflict — retry with the same idempotency_key",
+        ) from None
+
     db.refresh(wallet)
 
     return {
