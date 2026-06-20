@@ -5,14 +5,13 @@ import sys
 import tempfile
 
 import jwt
-import pytest
 from fastapi.testclient import TestClient
 
 MIC_WALLET_ROOT = os.path.join(os.path.dirname(__file__), "..", "mic-wallet")
 sys.path.insert(0, MIC_WALLET_ROOT)
 
 os.environ["DATABASE_URL"] = f"sqlite:///{tempfile.mkdtemp(prefix='mic_wallet_redeem_')}/test.db"
-os.environ["SECRET_KEY"] = "test-secret-key-for-redeem"
+os.environ["SECRET_KEY"] = "test-secret-key-for-redeem"  # noqa: S105
 
 from app import main as wallet_main  # noqa: E402
 
