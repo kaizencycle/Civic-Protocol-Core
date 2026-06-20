@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-a36a8f58bbc4401c979cc02a0ce4fa987e17cb1f",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:26eadee3b95e7f92:mesh-sync",
+    "source_hash": "26eadee3b95e7f9282180f8c9a239ef00975aec904018381f0ef09ec3094da7a",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-20T11:50:33-04:00",
+    "author": "Michael Judan",
+    "sha": "a36a8f58bbc4401c979cc02a0ce4fa987e17cb1f",
+    "title": "Merge pull request #82 from kaizencycle/cursor/c347-cde-writeback-attest-redeem-b844\n\nC-347-E: MIC redemption stub (POST /mic/redeem, GET /mic/unlocks)",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-69827bf38377ab36dbf42e6260681d68ff72f5a0",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:fd62f9263ec5e166:mesh-sync",
     "source_hash": "fd62f9263ec5e166b615b1dfbbfde6c7a596d2c97fc276800f88a65eee9e65a2",
