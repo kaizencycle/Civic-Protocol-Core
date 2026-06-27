@@ -84,6 +84,8 @@ ingest:
       - MIC_READINESS_V1
       - MIC_SEAL_V1
       - MIC_RESERVE_RECONCILIATION_V1
+      - RESERVE_BLOCK_SEALED_V1
+      - RESERVE_BLOCK_INDEX_SNAPSHOT_V1
       - MIC_GENESIS_BLOCK
       - MOBIUS_PULSE_V1
       - OAA_MEMORY_ENTRY_V1
@@ -96,6 +98,8 @@ ingest:
     - MIC_READINESS_V1
     - MIC_SEAL_V1
     - MIC_RESERVE_RECONCILIATION_V1
+    - RESERVE_BLOCK_SEALED_V1
+    - RESERVE_BLOCK_INDEX_SNAPSHOT_V1
     - MIC_GENESIS_BLOCK
     - MOBIUS_PULSE_V1
     - MESH_STATE_V1
@@ -153,6 +157,11 @@ mcp:
       method: "POST"
       auth: "none"
       epicon_tag: "tool:mic-read"
+  planned_tools:
+    - name: "get_reserve_block_index"
+      status: "planned"
+      description: "Reserve Block proof index; advertise under tools only after /api/mcp registers the handler and tests expect it."
+      epicon_tag: "tool:reserve-block-read"
 
 jobs:
   enabled: true
@@ -178,6 +187,13 @@ jobs:
       role: "repo_commit_to_epicon_feed"
       output:
         - "ledger/feed.json"
+    - id: "reserve-block-proof-index"
+      file: ".github/workflows/reserve-block-proof-index.yml"
+      status: "planned"
+      trigger: "manual_or_schedule"
+      role: "hash_anchor_index_over_portable_dat_artifacts"
+      output:
+        - "ledger/reserve-block-index.json"
 
 governance:
   agent_prs_allowed: true
@@ -194,4 +210,7 @@ policy:
   terminal_is_storage: false
   substrate_is_memory: true
   ledger_is_proof: true
+  reserve_blocks_are_canon_artifacts: true
+  hot_database_is_cache: true
+  cpc_stores_hash_anchors_not_full_canon: true
   human_merge_required_for_canon: true
