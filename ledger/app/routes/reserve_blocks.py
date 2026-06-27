@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from ..db import get_db_connection
 from ..reserve_dat import (
@@ -44,8 +44,20 @@ class ReserveBlockAnchor(BaseModel):
     mic_minted: float = Field(ge=0.0)
     quorum_met: bool
     sealed_at: str = Field(min_length=1)
-    sha256: str | None = None
+    sha256: str = Field(
+        min_length=64,
+        max_length=64,
+        description="SHA-256 hex digest of the sealed .dat artifact",
+    )
     dat_path: str | None = None
+
+    @field_validator("sha256")
+    @classmethod
+    def _validate_sha256_hex(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        if len(normalized) != 64 or not all(ch in "0123456789abcdef" for ch in normalized):
+            raise ValueError("sha256 must be a 64-character hexadecimal digest")
+        return normalized
 
 
 def _anchor_entry_id(block_id: str) -> str:
@@ -92,7 +104,7 @@ def anchor_reserve_block(anchor: ReserveBlockAnchor) -> dict[str, Any]:
                 entry_id,
                 now,
                 f"Reserve Block sealed {anchor.block_id}",
-                anchor.sha256 or "",
+                anchor.sha256,
                 "reserve-block-anchor",
                 json.dumps(raw, sort_keys=True),
             ),

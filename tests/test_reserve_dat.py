@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from ledger.app.reserve_dat import (
+    _parse_cycle_number,
     build_reserve_block_index,
     load_reserve_block_index,
     read_reserve_block_dat,
@@ -83,3 +84,17 @@ def test_verify_chain_empty_dir(dat_dirs):
     dat_dir, _ = dat_dirs
     dat_dir.mkdir(parents=True, exist_ok=True)
     assert verify_chain(dat_dir) == []
+
+
+def test_parse_cycle_hyphenated_notation(dat_dirs):
+    dat_dir, _ = dat_dirs
+    path = write_reserve_block_dat(
+        {"block_id": "reserve-block-C355-001", "cycle": "C-355", "sequence": 1},
+        cycle="C-355",
+        sequence=1,
+        output_dir=dat_dir,
+    )
+    assert path.name == "reserve-block-C355-001.dat"
+    block = read_reserve_block_dat(path)
+    assert block["cycle"] == "C355"
+    assert _parse_cycle_number("C-355") == 355

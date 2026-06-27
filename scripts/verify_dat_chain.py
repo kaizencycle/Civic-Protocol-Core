@@ -3,7 +3,14 @@
 
 from __future__ import annotations
 
-from ledger.app.reserve_dat import DEFAULT_RESERVE_BLOCKS_DIR, verify_chain
+from _repo_bootstrap import ensure_repo_root_on_path
+
+ensure_repo_root_on_path()
+
+from ledger.app.reserve_dat import (  # noqa: E402
+    DEFAULT_RESERVE_BLOCKS_DIR,
+    verify_chain,
+)
 
 
 def main() -> int:

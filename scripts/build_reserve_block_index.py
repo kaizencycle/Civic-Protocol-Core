@@ -3,7 +3,11 @@
 
 from __future__ import annotations
 
-from ledger.app.reserve_dat import build_reserve_block_index, verify_chain
+from _repo_bootstrap import ensure_repo_root_on_path
+
+ensure_repo_root_on_path()
+
+from ledger.app.reserve_dat import build_reserve_block_index, verify_chain  # noqa: E402
 
 
 def main() -> int:

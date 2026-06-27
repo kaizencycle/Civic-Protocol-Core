@@ -18,11 +18,19 @@ DEFAULT_INDEX_PATH = _LEDGER_PKG / "reserve-block-index.json"
 
 
 def _parse_cycle_number(cycle: str) -> int:
-    return int(cycle.lstrip("Cc"))
+    digits = "".join(ch for ch in cycle if ch.isdigit())
+    if not digits:
+        raise ValueError(f"Invalid cycle identifier: {cycle!r}")
+    return int(digits)
+
+
+def _normalize_cycle_label(cycle: str) -> str:
+    """Canonical cycle label for filenames (C355 from C-355 or C355)."""
+    return f"C{_parse_cycle_number(cycle)}"
 
 
 def _block_filename(cycle: str, sequence: int) -> str:
-    return f"reserve-block-{cycle}-{sequence:03d}.dat"
+    return f"reserve-block-{_normalize_cycle_label(cycle)}-{sequence:03d}.dat"
 
 
 def write_reserve_block_dat(

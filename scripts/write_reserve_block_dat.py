@@ -7,7 +7,14 @@ import argparse
 import json
 import sys
 
-from ledger.app.reserve_dat import build_reserve_block_index, write_reserve_block_dat
+from _repo_bootstrap import ensure_repo_root_on_path
+
+ensure_repo_root_on_path()
+
+from ledger.app.reserve_dat import (  # noqa: E402
+    build_reserve_block_index,
+    write_reserve_block_dat,
+)
 
 
 def main() -> int:
