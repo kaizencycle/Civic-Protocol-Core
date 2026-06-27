@@ -23,6 +23,7 @@ lib/substrate/
   kv-registry.ts        # KEY_TIERS map — single source of truth for classification
   resilient-read.ts     # resilientGet(), resilientMget()
   resilient-write.ts    # extend existing resilientWrite with suspension handling
+  reserve-block-dat-digest.ts  # computeReserveBlockDatSha256() — sync with CPC Python
   derive/
     gi.ts               # deriveGiFromSubstrate()
     journal-index.ts    # deriveJournalIndexFromEpicon()
@@ -217,11 +218,58 @@ export async function resilientSet(
 
 ## Step 5 — Substrate derivations
 
+CPC `get_integrity_snapshot` returns `gi`, not `global_integrity` (see
+`ledger/app/routes/mcp_tools.py`). Terminal `GiSnapshot` uses `global_integrity`.
+**Always normalize** before passing to `computeNextGi`.
+
 ```typescript
 // lib/substrate/derive/gi.ts
 
 const CPC_BASE = process.env.CIVIC_LEDGER_URL
   ?? 'https://civic-protocol-core-ledger.onrender.com';
+
+/** MCP payload shape from CPC get_integrity_snapshot */
+type McpGiSnapshot = {
+  ok?: boolean;
+  gi?: number;
+  mode?: string;
+  terminal_status?: string;
+  signals?: Record<string, number>;
+  source?: string;
+  timestamp?: string;
+  gi_verified?: boolean;
+  gi_verification_method?: string;
+};
+
+/** Terminal KV / heartbeat shape */
+export type GiSnapshot = {
+  global_integrity: number;
+  mode: string;
+  terminal_status?: string;
+  primary_driver?: string;
+  source?: string;
+  gi_write_source?: string;
+  signals?: Record<string, number>;
+  gi_verified?: boolean;
+  gi_verification_method?: string;
+  timestamp: string;
+};
+
+export function normalizeMcpGiSnapshot(mcp: McpGiSnapshot): GiSnapshot | null {
+  const gi = mcp.gi;
+  if (typeof gi !== 'number' || Number.isNaN(gi)) return null;
+  return {
+    global_integrity: gi,
+    mode: mcp.mode ?? 'yellow',
+    terminal_status: mcp.terminal_status,
+    source: mcp.source ?? 'substrate-fallback',
+    gi_write_source: 'integrity',
+    signals: mcp.signals,
+    gi_verified: mcp.gi_verified,
+    gi_verification_method: mcp.gi_verification_method,
+    timestamp: mcp.timestamp ?? new Date().toISOString(),
+  };
+}
 
 export async function deriveGiFromSubstrate(): Promise<GiSnapshot | null> {
   const res = await fetch(`${CPC_BASE}/api/mcp`, {
@@ -241,7 +289,8 @@ export async function deriveGiFromSubstrate(): Promise<GiSnapshot | null> {
   const body = await res.json();
   const text = body?.result?.content?.[0]?.text;
   if (!text) return null;
-  return JSON.parse(text) as GiSnapshot;
+  const mcp = JSON.parse(text) as McpGiSnapshot;
+  return normalizeMcpGiSnapshot(mcp);
 }
 ```
 
@@ -268,7 +317,8 @@ export async function deriveJournalIndexFromEpicon(): Promise<JournalIndexEntry[
 ```typescript
 // app/api/cron/heartbeat/route.ts  (pattern)
 
-import { resilientGet, resilientSet } from '@/lib/substrate/resilient-read';
+import { resilientGet } from '@/lib/substrate/resilient-read';
+import { resilientSet } from '@/lib/substrate/resilient-write';
 import { deriveGiFromSubstrate } from '@/lib/substrate/derive/gi';
 
 export async function GET(req: Request) {
@@ -343,13 +393,112 @@ export async function POST(req: Request) {
 
 ## Step 8 — Vault attestation + C-355 seal dispatch
 
-When quorum is met, **never** depend on KV for the seal:
+When quorum is met, **never** depend on KV for the seal.
+
+**Critical:** CPC `sha256` must be the **MOBIUS01 .dat digest** (same bytes as
+`ledger/app/reserve_dat.py` indexes), **not** `readiness_proof.hash`. The latter
+may differ from the canonical `.dat` footer hash. Compute the digest deterministically
+before anchoring — the GitHub workflow writes the same payload with the same rules.
 
 ```typescript
-async function sealReserveBlock(block: ReserveBlockPayload): Promise<SealResult> {
-  const sha256 = block.readiness_proof.hash;
+// lib/substrate/reserve-block-dat-digest.ts
+// Must stay in sync with ledger/app/reserve_dat.py (MOBIUS01 format)
 
-  // 1. CPC hash anchor (required)
+import { createHash } from 'crypto';
+
+const MAGIC = Buffer.from('MOBIUS01');
+const VERSION = Buffer.from([0x00, 0x01]);
+
+function parseCycleNumber(cycle: string): number {
+  const digits = cycle.replace(/\D/g, '');
+  if (!digits) throw new Error(`Invalid cycle: ${cycle}`);
+  return parseInt(digits, 10);
+}
+
+function sortKeysDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortKeysDeep);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value as object)
+        .sort()
+        .map((k) => [k, sortKeysDeep((value as Record<string, unknown>)[k])]),
+    );
+  }
+  return value;
+}
+
+/** Matches Python: json.dumps(payload, separators=(',', ':'), sort_keys=True) */
+function canonicalPayloadBytes(payload: Record<string, unknown>): Buffer {
+  return Buffer.from(JSON.stringify(sortKeysDeep(payload)), 'utf-8');
+}
+
+function packUint32BE(n: number): Buffer {
+  const buf = Buffer.alloc(4);
+  buf.writeUInt32BE(n, 0);
+  return buf;
+}
+
+/** SHA-256 over header + payload (footer excluded) — same as read_reserve_block_dat().hash */
+export function computeReserveBlockDatSha256(
+  payload: Record<string, unknown>,
+  cycle: string,
+  sequence: number,
+): string {
+  const cycleNum = parseCycleNumber(cycle);
+  const payloadBytes = canonicalPayloadBytes(payload);
+  const header = Buffer.concat([
+    MAGIC,
+    VERSION,
+    packUint32BE(cycleNum),
+    packUint32BE(sequence),
+    packUint32BE(payloadBytes.length),
+  ]);
+  const content = Buffer.concat([header, payloadBytes]);
+  return createHash('sha256').update(content).digest('hex');
+}
+
+async function dispatchReserveBlockDat(
+  block: ReserveBlockPayload,
+): Promise<void> {
+  const token = process.env.SUBSTRATE_GITHUB_TOKEN;
+  if (!token) {
+    throw new Error('SUBSTRATE_GITHUB_TOKEN missing — cannot write .dat canon');
+  }
+
+  const res = await fetch(
+    'https://api.github.com/repos/kaizencycle/Civic-Protocol-Core/dispatches',
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/vnd.github+json',
+      },
+      body: JSON.stringify({
+        event_type: 'reserve-block-sealed',
+        client_payload: {
+          block_id: block.block_id,
+          cycle: block.cycle,
+          sequence: block.sequence,
+          payload: block,
+        },
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(
+      `GitHub repository_dispatch failed: ${res.status} ${detail}`,
+    );
+  }
+  // GitHub returns 204 No Content on success
+}
+
+async function anchorReserveBlockOnCpc(
+  block: ReserveBlockPayload,
+  datSha256: string,
+): Promise<void> {
   const anchor = await fetch(`${CPC_BASE}/api/reserve-blocks/anchor`, {
     method: 'POST',
     headers: {
@@ -364,40 +513,50 @@ async function sealReserveBlock(block: ReserveBlockPayload): Promise<SealResult>
       mic_minted: block.mic_minted,
       quorum_met: true,
       sealed_at: block.sealed_at,
-      sha256,
+      sha256: datSha256,
+      dat_path: `ledger/reserve-blocks/reserve-block-${block.cycle.replace(/-/g, '').replace(/^c/i, 'C')}-${String(block.sequence).padStart(3, '0')}.dat`,
     }),
   });
-  if (!anchor.ok) throw new Error(`CPC anchor failed: ${anchor.status}`);
+  if (!anchor.ok) {
+    const detail = await anchor.text();
+    throw new Error(`CPC anchor failed: ${anchor.status} ${detail}`);
+  }
+}
 
-  // 2. GitHub .dat canon (required)
-  await fetch(
-    'https://api.github.com/repos/kaizencycle/Civic-Protocol-Core/dispatches',
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.SUBSTRATE_GITHUB_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        event_type: 'reserve-block-sealed',
-        client_payload: {
-          block_id: block.block_id,
-          cycle: block.cycle,
-          sequence: block.sequence,
-          payload: block,
-        },
-      }),
-    },
+async function sealReserveBlock(block: ReserveBlockPayload): Promise<SealResult> {
+  // Canonical payload written to .dat (include readiness_proof for audit, not as anchor hash)
+  const datPayload = {
+    ...block,
+    block_id: block.block_id,
+    cycle: block.cycle,
+    sequence: block.sequence,
+  };
+
+  // 1. Deterministic .dat digest — MUST match write-reserve-block-dat.yml output
+  const datSha256 = computeReserveBlockDatSha256(
+    datPayload,
+    block.cycle,
+    block.sequence,
   );
 
-  // 3. KV hot cache (optional — non-fatal)
+  // 2. GitHub .dat canon (required) — before CPC anchor so canon exists if dispatch fails
+  await dispatchReserveBlockDat(block);
+
+  // 3. CPC hash anchor (required) — points at the .dat digest above
+  await anchorReserveBlockOnCpc(block, datSha256);
+
+  // 4. KV hot cache (optional — non-fatal)
   await resilientSet(`reserve_block:${block.block_id}`, JSON.stringify(block), {
     ex: 60 * 60 * 24 * 30,
   });
 
-  return { ok: true, sha256 };
+  return { ok: true, sha256: datSha256 };
 }
 ```
+
+**Seal order rationale:** dispatch first so a failed GitHub token does not leave
+an orphaned CPC anchor without a `.dat` artifact. If dispatch succeeds but anchor
+fails, the `.dat` exists in GitHub and can be anchored on retry (idempotent).
 
 ---
 
@@ -406,7 +565,8 @@ async function sealReserveBlock(block: ReserveBlockPayload): Promise<SealResult>
 ```bash
 git commit -m "feat(C-356): add lib/substrate/kv-errors + kv-registry"
 git commit -m "feat(C-356): add resilient-read.ts and extend resilient-write.ts"
-git commit -m "feat(C-356): add derive/gi + derive/journal-index substrate fallbacks"
+git commit -m "feat(C-356): add derive/gi (normalize MCP gi→global_integrity) + journal-index"
+git commit -m "feat(C-356): add reserve-block-dat-digest.ts (MOBIUS01 sha256)"
 git commit -m "fix(C-356): heartbeat cron — 200 on KV suspension, derive GI from CPC"
 git commit -m "fix(C-356): agent journal — CPC first, KV meta non-fatal"
 git commit -m "fix(C-356): eve cycle-synthesize — tripwire write non-fatal on KV suspend"
@@ -440,6 +600,32 @@ describe('resilientGet', () => {
     const result = await resilientGet('gi:latest', async () => ({ global_integrity: 0.8 }));
     expect(result.source).toBe('fallback');
     expect(result.kv_suspended).toBe(true);
+  });
+});
+
+describe('normalizeMcpGiSnapshot', () => {
+  it('maps MCP gi to Terminal global_integrity', () => {
+    const out = normalizeMcpGiSnapshot({ gi: 0.71, mode: 'yellow', timestamp: 't' });
+    expect(out?.global_integrity).toBe(0.71);
+  });
+});
+
+describe('computeReserveBlockDatSha256', () => {
+  it('matches CPC Python writer for same payload', async () => {
+    // golden-vector test: run scripts/write_reserve_block_dat.py locally, compare footer hash
+    const hash = computeReserveBlockDatSha256(
+      { block_id: 'reserve-block-C355-001', cycle: 'C-355', sequence: 1 },
+      'C-355',
+      1,
+    );
+    expect(hash).toMatch(/^[a-f0-9]{64}$/);
+  });
+});
+
+describe('dispatchReserveBlockDat', () => {
+  it('throws when GitHub returns 401', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => 'Bad credentials' });
+    await expect(dispatchReserveBlockDat(fixtureBlock)).rejects.toThrow(/repository_dispatch failed/);
   });
 });
 ```

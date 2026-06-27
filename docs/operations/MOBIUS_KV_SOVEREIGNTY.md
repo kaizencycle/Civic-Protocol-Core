@@ -135,11 +135,15 @@ Base URL: `https://civic-protocol-core-ledger.onrender.com`
 KV suspension must **not** block sealing. Order of operations:
 
 ```text
-1. Compute seal payload + readiness_proof.hash
-2. POST /api/reserve-blocks/anchor  (hash only — CPC)
-3. repository_dispatch → write .dat   (GitHub canon)
+1. Compute seal payload + deterministic MOBIUS01 .dat digest (Terminal-side)
+2. repository_dispatch → write .dat (GitHub canon) — fail fast if 401/403/422
+3. POST /api/reserve-blocks/anchor (sha256 = .dat digest, NOT readiness_proof.hash)
 4. KV write (optional, hot cache)   (may fail — non-fatal)
 ```
+
+The anchor `sha256` must match `ledger/app/reserve_dat.py` footer hash over
+`header + canonical JSON payload`. `readiness_proof.hash` is an audit field inside
+the payload, not the CPC witness hash.
 
 ---
 
