@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-c1fc7b45474b74715eee58ab641dd9b338a393bd",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:fb37f4cfa734aeb9:mesh-sync",
+    "source_hash": "fb37f4cfa734aeb94d9f8846dc72fbef615e1f15cdc99207658b52e46aeed0cd",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-27T12:46:34-04:00",
+    "author": "Michael Judan",
+    "sha": "c1fc7b45474b74715eee58ab641dd9b338a393bd",
+    "title": "Merge pull request #84 from kaizencycle/c355-aurea-epicon-reserve-blocks\n\nC-355 AUREA \u2014 EPICON Reserve Block Proof Index Entry",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-c7848b32f0e77c71a1f7c3b824de12df46c62e01",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:35effa2e5be3a92e:mesh-sync",
     "source_hash": "35effa2e5be3a92e45a3d8d8bf9d2f377688203fb42cefa0dadb756f16395f20",
