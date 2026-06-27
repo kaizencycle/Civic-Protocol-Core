@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-b799f94d09302fa90530bb050d2173d866c98079",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:25c0d296d068e55d:mesh-sync",
+    "source_hash": "25c0d296d068e55dc8cc13aff83c47c9d30a187daf7d11906333c01a8efe3748",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-27T19:45:25-04:00",
+    "author": "Michael Judan",
+    "sha": "b799f94d09302fa90530bb050d2173d866c98079",
+    "title": "Merge pull request #87 from kaizencycle/cursor/c356-kv-sovereignty-spec-7179\n\ndocs(C-356): KV sovereignty spec + Terminal resilience handoff",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-85638561d2a703b6f72811d74d5d0b894ea05f2e",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:df4a6890cbe336ca:mesh-sync",
     "source_hash": "df4a6890cbe336ca03f5954537c33cbed9f132a816506e4ec4f965c2be4ec51a",
