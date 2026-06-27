@@ -18,6 +18,7 @@ from ..mcp_integrity import (
     load_gi_state,
     log_mcp_invocation,
 )
+from ledger.reserve_dat import load_reserve_block_index
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -464,6 +465,21 @@ async def get_mic_readiness() -> str:
     else:
         body = {"ok": False, "error": "no_snapshot"}
     _maybe_log("get_mic_readiness", {}, bool(raw), gate.gi)
+    return json.dumps(body, indent=2)
+
+
+@mcp.tool(
+    name="get_reserve_block_index",
+    description=(
+        "Reserve Block proof index over portable .dat canon artifacts "
+        "(file-backed hash anchors; no full canon in CPC DB)."
+    ),
+    annotations={"readOnlyHint": True},
+)
+async def get_reserve_block_index() -> str:
+    gate = check_integrity_gate(0.0)
+    body = load_reserve_block_index()
+    _maybe_log("get_reserve_block_index", {}, True, gate.gi)
     return json.dumps(body, indent=2)
 
 

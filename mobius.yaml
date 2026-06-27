@@ -157,11 +157,13 @@ mcp:
       method: "POST"
       auth: "none"
       epicon_tag: "tool:mic-read"
-  planned_tools:
     - name: "get_reserve_block_index"
-      status: "planned"
-      description: "Reserve Block proof index; advertise under tools only after /api/mcp registers the handler and tests expect it."
+      description: "Reserve Block proof index over portable .dat canon artifacts"
+      endpoint: "/api/mcp"
+      method: "POST"
+      auth: "none"
       epicon_tag: "tool:reserve-block-read"
+  planned_tools: []
 
 jobs:
   enabled: true
@@ -189,7 +191,7 @@ jobs:
         - "ledger/feed.json"
     - id: "reserve-block-proof-index"
       file: ".github/workflows/reserve-block-proof-index.yml"
-      status: "planned"
+      status: "active"
       trigger: "manual_or_schedule"
       role: "hash_anchor_index_over_portable_dat_artifacts"
       output:

@@ -23,13 +23,14 @@ def _rpc(method: str, params: dict, req_id: int = 1):
     )
 
 
-def test_tools_list_six_tools():
+def test_tools_list_seven_tools():
     r = _rpc("tools/list", {})
     assert r.status_code == 200
     data = r.json()
     names = [t["name"] for t in data["result"]["tools"]]
-    assert len(names) == 6
+    assert len(names) == 7
     assert "get_integrity_snapshot" in names
+    assert "get_reserve_block_index" in names
     assert "post_epicon_entry" in names
 
 

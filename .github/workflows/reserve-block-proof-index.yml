@@ -1,0 +1,40 @@
+name: Reserve Block Proof Index
+
+# C-355: verify portable .dat canon artifacts and rebuild hash anchor index.
+# Hot DB is cache; .dat files are canon; this index is the CPC witness surface.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify .dat chain integrity
+        run: python3 scripts/verify_dat_chain.py
+
+      - name: Rebuild reserve block index
+        run: python3 scripts/build_reserve_block_index.py
+
+      - name: Commit updated index
+        run: |
+          git config user.name "ATLAS"
+          git config user.email "atlas@mobius-substrate.io"
+          git add ledger/reserve-block-index.json
+          if git diff --staged --quiet; then
+            echo "Index unchanged — nothing to commit."
+            exit 0
+          fi
+          git commit -m "chore(C-auto): rebuild reserve-block-index.json [skip ci]"
+          git push
