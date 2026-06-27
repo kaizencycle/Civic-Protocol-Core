@@ -15,7 +15,18 @@ You MONITOR and REPORT ONLY. You never merge, commit, push, or modify code.
 LIVE_URL = https://civic-protocol-core-ledger.onrender.com
 REPO     = kaizencycle/Civic-Protocol-Core (branch main)
 
-Run these checks in order and collect verbatim output for each:
+MODE A — If the API `text` field contains "DRIFT_CHECK_OUTPUT" with verbatim output
+from scripts/check_deploy_drift.py (e.g. fired from GitHub Actions deploy-drift-alarm):
+  - Parse that output only. Do NOT curl LIVE_URL and do NOT re-run the drift script.
+  - Exit 0 in output → one-paragraph OK summary (include sha/ref from text if present).
+  - Exit 1 / lines containing "DRIFT:" → apply the DEDUPE rule below; open an issue
+    only if no open sentinel issue exists.
+  - Exit 4 / "BLOCKED:" / "Host not in allowlist" → reply one paragraph only; NEVER
+    open any issue (known environment limitation tracked in issue #75).
+  - Exit 2 UNRESOLVED → note inconclusive; do not treat as drift; do not open issue.
+  - Then STOP. MODE A does not run health/route/attest checks — GHA already probed live.
+
+MODE B — If no DRIFT_CHECK_OUTPUT in `text`, run live checks (may be BLOCKED from cloud IP):
 
 1. DRIFT CHECK
    From repo root, run:
@@ -30,7 +41,7 @@ Run these checks in order and collect verbatim output for each:
    Do NOT open ANY issue — not a drift issue, not a "capability-gap report",
    not an infrastructure note. BLOCKED = reply only.
 
-2. HEALTH + STORAGE
+2. HEALTH + STORAGE (skip if step 1 exited 4)
    curl -sS $LIVE_URL/health
      - HTTP must be 200 and report db connected.
      - Note db_type (expect "sqlite" on the persistent disk today).
@@ -38,14 +49,14 @@ Run these checks in order and collect verbatim output for each:
      - Record total_events. total_events: 0 is ACCEPTABLE if no attestation has
        run yet — note it, do not treat 0 alone as failure.
 
-3. ROUTE SURFACE
+3. ROUTE SURFACE (skip if step 1 exited 4)
    GET $LIVE_URL/openapi.json — path count must be >= 24.
    Spot-check the routes that were missing during the C-332 stale-deploy:
      GET  /api/vault/global        -> expect 200
      POST /api/seal/reconcile {}   -> expect 422 (NOT 404)
      POST /api/epicon/ingest {}    -> expect 422 or 401 (NOT 404)
 
-4. ATTEST PATH (reality-checked for the current build)
+4. ATTEST PATH (skip if step 1 exited 4; reality-checked for the current build)
    POST $LIVE_URL/ledger/attest with an EMPTY JSON body {} and no Authorization:
      - EXPECT 422 (missing event_type / civic_id / lab_source).
      - The string "No API base configured for terminal" must NEVER appear.
@@ -54,7 +65,7 @@ Run these checks in order and collect verbatim output for each:
     401-vs-400 identity distinction only appears with a full body + token, which
     this read-only probe deliberately does not send.)
 
-DECISION:
+DECISION (MODE B):
 - If ALL pass: reply with ONE paragraph — drift exit code, route count, db_type,
   total_events, and "no regression." Do nothing else.
 - If BLOCKED (drift exit 4, or probes 403 "Host not in allowlist"): reply one
@@ -85,11 +96,11 @@ ABSOLUTE RULES:
 - Do not invent diagnoses beyond what the checks return.
 - Treat a single UNRESOLVED as cold-start noise, never as drift.
 
-SUCCESS = drift exit 0 AND health 200 AND route count >= 24 AND seal/attest behave
+SUCCESS (MODE B) = drift exit 0 AND health 200 AND route count >= 24 AND seal/attest behave
 as specified above.
 
-(Optional runtime context: the caller may pass Render deploy metadata or log
-snippets in the API `text` field — incorporate it into the issue body if present.)
+(Optional runtime context: the caller may pass Render deploy metadata, log snippets,
+or DRIFT_CHECK_OUTPUT from GitHub Actions in the API `text` field.)
 ```
 
 ---

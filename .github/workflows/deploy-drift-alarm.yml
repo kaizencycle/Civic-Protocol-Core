@@ -69,18 +69,18 @@ jobs:
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" = "4" ]; then
             echo "::warning::Probe blocked by Render inbound IP allowlist (exit 4) — inconclusive, not drift."
-            exit 0
-          fi
-          if [ "$code" = "2" ]; then
+          elif [ "$code" = "2" ]; then
             echo "::warning::Ledger unreachable within cold-start budget — inconclusive (not failing the run)."
-            exit 0
+          elif [ "$code" = "1" ]; then
+            echo "::error::Deploy drift detected — live is missing expected operations."
           fi
-          exit $code
+          # Do not fail this step yet — MODE A must fire the routine with captured
+          # output before the gate step applies exit 1.
       - name: Fire sentinel routine with captured output (MODE A pass-through)
         # secrets.* is not a valid context in step `if:` — gate on the env var
         # inside the script instead (an invalid expression here fails the whole
         # workflow at startup with zero jobs).
-        if: ${{ !cancelled() }}
+        if: ${{ always() && !cancelled() && steps.drift.outcome != 'skipped' }}
         env:
           ROUTINE_TRIGGER_ID: ${{ secrets.ROUTINE_TRIGGER_ID }}
           ROUTINE_TOKEN: ${{ secrets.ROUTINE_TOKEN }}
@@ -108,3 +108,11 @@ jobs:
           )
           print(json.dumps({"text": text}))
           PYEOF
+      - name: Gate workflow on drift result
+        if: ${{ always() && !cancelled() && steps.drift.outcome != 'skipped' }}
+        run: |
+          code="${{ steps.drift.outputs.exit_code }}"
+          if [ "$code" = "4" ] || [ "$code" = "2" ]; then
+            exit 0
+          fi
+          exit "$code"
