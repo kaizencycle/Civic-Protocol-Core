@@ -137,12 +137,6 @@ mcp:
       method: "POST"
       auth: "none"
       epicon_tag: "tool:vault-read"
-    - name: "get_reserve_block_index"
-      description: "Reserve Block proof index: .dat hash anchors, state roots, attestation roots, and storage pointers"
-      endpoint: "/api/mcp"
-      method: "POST"
-      auth: "none"
-      epicon_tag: "tool:reserve-block-read"
     - name: "get_agent_journal"
       description: "Recent agent-oriented EPICON rows (mcp-bridge, mesh-node)"
       endpoint: "/api/mcp"
@@ -163,6 +157,11 @@ mcp:
       method: "POST"
       auth: "none"
       epicon_tag: "tool:mic-read"
+  planned_tools:
+    - name: "get_reserve_block_index"
+      status: "planned"
+      description: "Reserve Block proof index; advertise under tools only after /api/mcp registers the handler and tests expect it."
+      epicon_tag: "tool:reserve-block-read"
 
 jobs:
   enabled: true
