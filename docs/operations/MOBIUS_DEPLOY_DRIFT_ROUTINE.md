@@ -13,8 +13,8 @@ internet. Disallowed clients get **HTTP 403** with a body like `Host not in allo
 **Claude Code routine cloud sessions** use Anthropic-managed egress IPs. Those IPs are
 **not** stable and usually **cannot** be allowlisted on Render. If the routine curls
 the ledger directly, you will see persistent 403s — **not deploy drift**, not cold
-start. Issue [#40](https://github.com/kaizencycle/Civic-Protocol-Core/issues/40) is
-this failure mode.
+start. Issue [#75](https://github.com/kaizencycle/Civic-Protocol-Core/issues/75) tracks
+this capability gap.
 
 | Runner | Can curl live ledger? | Role |
 |--------|------------------------|------|
@@ -99,7 +99,7 @@ absorbs a not-yet-live service.
 
 ## Operational notes
 
-- Close [#40](https://github.com/kaizencycle/Civic-Protocol-Core/issues/40) when the
+- Close [#75](https://github.com/kaizencycle/Civic-Protocol-Core/issues/75) when the
   routine uses MODE A or GHA-only probes — production was not proven broken.
 - Routine `/fire` token shown once; no idempotency on retries.
 - Beta header: `experimental-cc-routine-2026-04-01`.

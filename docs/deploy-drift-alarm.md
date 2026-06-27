@@ -47,6 +47,10 @@ After shipping current `main` to Render (Starter+, disk at `/var/lib/ledger`, `I
 2. Expect **OK** (exit 0) and `/health` with `data_dir: "/var/lib/ledger"`.
 3. Until then, CI correctly reports **DRIFT** with the missing vault/seal/epicon routes.
 
+When `ROUTINE_TRIGGER_ID` and `ROUTINE_TOKEN` repo secrets are set, the workflow
+fires the Mobius sentinel routine with `DRIFT_CHECK_OUTPUT` (MODE A) before applying
+the drift gate — so DRIFT (exit 1) still reaches the routine for issue filing.
+
 ## Mobius routine sentinel
 
 For an always-on, read-only watcher (a Claude Code routine that runs this
