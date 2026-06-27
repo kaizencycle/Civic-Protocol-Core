@@ -107,4 +107,6 @@ AUREA recommends C-355 as a safe additive protocol alignment.
 
 No runtime mutation is required in this entry. This is an EPICON/protocol PR intended to bind the design before implementation.
 
+**Follow-on:** C-356 KV sovereignty — [`docs/operations/MOBIUS_KV_SOVEREIGNTY.md`](../docs/operations/MOBIUS_KV_SOVEREIGNTY.md) (Upstash suspension → substrate fallbacks).
+
 **Seal phrase:** Integrity before scale. Canon survives by being portable.
