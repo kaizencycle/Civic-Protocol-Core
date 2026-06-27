@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-85638561d2a703b6f72811d74d5d0b894ea05f2e",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:df4a6890cbe336ca:mesh-sync",
+    "source_hash": "df4a6890cbe336ca03f5954537c33cbed9f132a816506e4ec4f965c2be4ec51a",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-27T19:22:14-04:00",
+    "author": "Michael Judan",
+    "sha": "85638561d2a703b6f72811d74d5d0b894ea05f2e",
+    "title": "Merge pull request #86 from kaizencycle/cursor/c355-reserve-block-dat-7179\n\nfeat(C-355): Reserve Block .dat canon + hash anchor index",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-bb0089d5bf1c48222a9dbd88813ad1d7d555ba7f",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:567d7413c5f8759f:mesh-sync",
     "source_hash": "567d7413c5f8759fdc20e032be56630c59e3143d4f578babf952ae6d8436d19d",
