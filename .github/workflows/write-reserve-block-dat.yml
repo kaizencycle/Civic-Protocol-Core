@@ -1,0 +1,39 @@
+name: Write Reserve Block .dat
+
+# C-355: seal a Reserve Block into ledger/reserve-blocks/ via repository_dispatch.
+# Triggered by mobius-civic-ai-terminal after 5-of-5 quorum seal.
+
+on:
+  repository_dispatch:
+    types: [reserve-block-sealed]
+
+permissions:
+  contents: write
+
+jobs:
+  write-dat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Write .dat file and rebuild index
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          CLIENT_PAYLOAD: ${{ toJSON(github.event.client_payload) }}
+        run: |
+          python3 scripts/write_reserve_block_dat.py "$CLIENT_PAYLOAD"
+
+      - name: Commit canon artifact
+        env:
+          BLOCK_ID: ${{ github.event.client_payload.block_id }}
+          CYCLE: ${{ github.event.client_payload.cycle }}
+        run: |
+          git config user.name "ATLAS"
+          git config user.email "atlas@mobius-substrate.io"
+          git add ledger/reserve-blocks/ ledger/reserve-block-index.json
+          git commit -m "canon(${CYCLE}): seal ${BLOCK_ID} [skip ci]"
+          git push

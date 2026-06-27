@@ -16,7 +16,8 @@
         "get_vault_status",
         "get_agent_journal",
         "post_epicon_entry",
-        "get_mic_readiness"
+        "get_mic_readiness",
+        "get_reserve_block_index"
       ],
       "description": "Civic Ledger API — SQLite-backed attestations, EPICON feed, mesh ingest, integrity-governed MCP tools",
       "cursor_config": {

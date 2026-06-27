@@ -11,6 +11,7 @@ import logging
 import os
 import socket
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -29,6 +30,7 @@ from sqlalchemy import (
     create_engine,
     desc,
     func,
+    text,
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declarative_base
@@ -151,8 +153,34 @@ class Redemption(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+_db_ready = False
+
+
+def _init_database() -> bool:
+    """Create tables when the database is reachable; return success."""
+    global _db_ready
+    try:
+        Base.metadata.create_all(bind=engine)
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        _db_ready = True
+        logger.info("[DB] Tables verified/created")
+        return True
+    except Exception as e:
+        _db_ready = False
+        logger.warning(
+            "[DB WARN] Startup connection failed: %s — "
+            "service starting without DB; data endpoints will return 503 until reachable",
+            e,
+        )
+        return False
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    _init_database()
+    yield
+
 
 # Security
 security = HTTPBearer()
@@ -267,6 +295,13 @@ class StatsResponse(BaseModel):
 
 # Database dependency
 def get_db():
+    if not _db_ready:
+        _init_database()
+    if not _db_ready:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database unavailable — provision DATABASE_URL or retry after cold start",
+        )
     db = SessionLocal()
     try:
         yield db
@@ -357,7 +392,8 @@ def _redeem_response(
 app = FastAPI(
     title="Mobius MIC Wallet Service",
     description="MIC earning and wallet management for Mobius",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=_lifespan,
 )
 
 # CORS
@@ -390,9 +426,10 @@ async def root():
 @app.get("/health")
 async def health():
     return {
-        "status": "ok",
+        "status": "ok" if _db_ready else "degraded",
         "service": "Mobius MIC Wallet Service",
-        "timestamp": datetime.utcnow().isoformat()
+        "db_connected": _db_ready,
+        "timestamp": datetime.utcnow().isoformat(),
     }
 
 
