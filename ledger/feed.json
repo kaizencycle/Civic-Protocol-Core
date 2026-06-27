@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-bb0089d5bf1c48222a9dbd88813ad1d7d555ba7f",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:567d7413c5f8759f:mesh-sync",
+    "source_hash": "567d7413c5f8759fdc20e032be56630c59e3143d4f578babf952ae6d8436d19d",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-27T12:57:09-04:00",
+    "author": "Michael Judan",
+    "sha": "bb0089d5bf1c48222a9dbd88813ad1d7d555ba7f",
+    "title": "Merge pull request #85 from kaizencycle/cursor/fix-issue-75-sentinel-mode-a-7179\n\nfix(sentinel): restore MODE A pass-through and drift gate ordering (#75)",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-c1fc7b45474b74715eee58ab641dd9b338a393bd",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:fb37f4cfa734aeb9:mesh-sync",
     "source_hash": "fb37f4cfa734aeb94d9f8846dc72fbef615e1f15cdc99207658b52e46aeed0cd",
