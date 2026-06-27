@@ -1,6 +1,5 @@
 """HTTP tests for /api/reserve-blocks (C-355)."""
 
-import json
 import os
 
 from fastapi.testclient import TestClient

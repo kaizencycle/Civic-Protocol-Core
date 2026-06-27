@@ -296,6 +296,8 @@ class StatsResponse(BaseModel):
 # Database dependency
 def get_db():
     if not _db_ready:
+        _init_database()
+    if not _db_ready:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database unavailable — provision DATABASE_URL or retry after cold start",

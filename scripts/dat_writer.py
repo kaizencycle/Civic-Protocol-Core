@@ -1,3 +1,3 @@
-"""CLI shim — canonical module is ledger.reserve_dat."""
+"""CLI shim — canonical module is ledger.app.reserve_dat."""
 
-from ledger.reserve_dat import *  # noqa: F403
+from ledger.app.reserve_dat import *  # noqa: F403

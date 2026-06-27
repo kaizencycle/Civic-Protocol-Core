@@ -12,7 +12,7 @@ from typing import Any
 MAGIC = b"MOBIUS01"
 VERSION = b"\x00\x01"
 
-_LEDGER_PKG = Path(__file__).resolve().parent
+_LEDGER_PKG = Path(__file__).resolve().parents[1]
 DEFAULT_RESERVE_BLOCKS_DIR = _LEDGER_PKG / "reserve-blocks"
 DEFAULT_INDEX_PATH = _LEDGER_PKG / "reserve-block-index.json"
 

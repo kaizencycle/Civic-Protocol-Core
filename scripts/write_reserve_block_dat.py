@@ -7,7 +7,7 @@ import argparse
 import json
 import sys
 
-from ledger.reserve_dat import build_reserve_block_index, write_reserve_block_dat
+from ledger.app.reserve_dat import build_reserve_block_index, write_reserve_block_dat
 
 
 def main() -> int:

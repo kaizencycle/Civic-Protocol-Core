@@ -10,27 +10,29 @@ from typing import Any
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, Field
 
-from ledger.reserve_dat import (
+from ..db import get_db_connection
+from ..reserve_dat import (
     build_reserve_block_index,
     load_reserve_block_index,
 )
 
-from ..db import get_db_connection
-
 router = APIRouter(prefix="/api/reserve-blocks", tags=["reserve-blocks"])
 
-_AGENT_SERVICE_TOKEN = os.environ.get("AGENT_SERVICE_TOKEN", "")
+
+def _agent_service_token() -> str:
+    return os.environ.get("AGENT_SERVICE_TOKEN", "")
 
 
 def _require_auth(authorization: str | None = Header(default=None)) -> None:
-    if not _AGENT_SERVICE_TOKEN:
+    token = _agent_service_token()
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Anchor auth not configured (AGENT_SERVICE_TOKEN missing)",
         )
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
-    if authorization.removeprefix("Bearer ").strip() != _AGENT_SERVICE_TOKEN:
+    if authorization.removeprefix("Bearer ").strip() != token:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
 

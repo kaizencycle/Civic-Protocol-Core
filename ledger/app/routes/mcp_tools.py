@@ -18,7 +18,7 @@ from ..mcp_integrity import (
     load_gi_state,
     log_mcp_invocation,
 )
-from ledger.reserve_dat import load_reserve_block_index
+from ..reserve_dat import load_reserve_block_index
 
 F = TypeVar("F", bound=Callable[..., Any])
 

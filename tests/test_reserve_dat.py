@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from ledger.reserve_dat import (
+from ledger.app.reserve_dat import (
     build_reserve_block_index,
     load_reserve_block_index,
     read_reserve_block_dat,
@@ -18,8 +18,8 @@ from ledger.reserve_dat import (
 def dat_dirs(tmp_path: Path, monkeypatch):
     dat_dir = tmp_path / "reserve-blocks"
     index_path = tmp_path / "reserve-block-index.json"
-    monkeypatch.setattr("ledger.reserve_dat.DEFAULT_RESERVE_BLOCKS_DIR", dat_dir)
-    monkeypatch.setattr("ledger.reserve_dat.DEFAULT_INDEX_PATH", index_path)
+    monkeypatch.setattr("ledger.app.reserve_dat.DEFAULT_RESERVE_BLOCKS_DIR", dat_dir)
+    monkeypatch.setattr("ledger.app.reserve_dat.DEFAULT_INDEX_PATH", index_path)
     return dat_dir, index_path
 
 

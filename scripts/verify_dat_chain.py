@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from ledger.reserve_dat import DEFAULT_RESERVE_BLOCKS_DIR, verify_chain
+from ledger.app.reserve_dat import DEFAULT_RESERVE_BLOCKS_DIR, verify_chain
 
 
 def main() -> int:
