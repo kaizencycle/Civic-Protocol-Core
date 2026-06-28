@@ -30,6 +30,7 @@ from .db import DATA_DIR, LEDGER_DB_PATH, assert_persistent_storage, get_db_conn
 from .mcp_integrity import load_gi_state
 from .observability import configure_logging, install_operational_middleware
 from .routes import (
+    canon_reserve_blocks,
     epicon,
     mcp_tools,
     mesh,
@@ -64,6 +65,7 @@ app.include_router(epicon.router)
 app.include_router(oaa_memory.router, prefix="/api")
 app.include_router(seal_reconciliation.router)
 app.include_router(reserve_blocks.router)
+app.include_router(canon_reserve_blocks.router)
 app.include_router(mcp_tools.mcp, prefix="/api/mcp")
 app.include_router(vault_router)
 
