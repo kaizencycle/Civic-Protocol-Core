@@ -14,11 +14,19 @@ import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from ..db import get_db_connection
 
 router = APIRouter(prefix="/api/canon", tags=["canon"])
+
+
+def _normalize_sha256_digest(value: str) -> str:
+    """Accept sha256:<hex> or bare 64-char hex; store as sha256:<hex>."""
+    raw = value.removeprefix("sha256:").strip().lower()
+    if len(raw) != 64 or not all(ch in "0123456789abcdef" for ch in raw):
+        raise ValueError("hash must be sha256:<64-char-hex> or a 64-character hex digest")
+    return f"sha256:{raw}"
 
 
 def _agent_service_token() -> str:
@@ -48,6 +56,18 @@ class DatHashAnchorPayload(BaseModel):
     manifest_hash: str | None = Field(None, max_length=80)
     version: str = Field(..., max_length=10)
     canonized_at: str = Field(...)
+
+    @field_validator("file_hash", "chain_tip_hash")
+    @classmethod
+    def _validate_required_hash(cls, value: str) -> str:
+        return _normalize_sha256_digest(value)
+
+    @field_validator("manifest_hash")
+    @classmethod
+    def _validate_optional_hash(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return _normalize_sha256_digest(value)
 
 
 class DatHashAnchorResponse(BaseModel):
