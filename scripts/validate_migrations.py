@@ -26,6 +26,10 @@ def _sqlite_compatible(sql: str) -> str:
         "NOW()": "CURRENT_TIMESTAMP",
         "DEFAULT FALSE": "DEFAULT 0",
         "DEFAULT TRUE": "DEFAULT 1",
+        "SERIAL PRIMARY KEY": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "VARCHAR(32)": "TEXT",
+        "VARCHAR(80)": "TEXT",
+        "VARCHAR(10)": "TEXT",
     }
     for old, new in replacements.items():
         translated = translated.replace(old, new)
