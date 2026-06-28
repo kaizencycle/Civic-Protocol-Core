@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-e269787ce1534f765ef03530f0d178d37dba1811",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:6f27d4d8208ce79a:mesh-sync",
+    "source_hash": "6f27d4d8208ce79a1cd4290523fc339a50cac17b672e9844a0b900952ebf1662",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-28T19:38:58-04:00",
+    "author": "Michael Judan",
+    "sha": "e269787ce1534f765ef03530f0d178d37dba1811",
+    "title": "Merge pull request #88 from kaizencycle/cursor/c357-dat-canonization-a40d\n\nfeat(C-357): dat_hash_anchors + canon reserve-block anchor routes",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-b799f94d09302fa90530bb050d2173d866c98079",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:25c0d296d068e55d:mesh-sync",
     "source_hash": "25c0d296d068e55dc8cc13aff83c47c9d30a187daf7d11906333c01a8efe3748",
