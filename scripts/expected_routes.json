@@ -1,7 +1,7 @@
 {
   "generated_from": "ledger.app.main:app OpenAPI (METHOD + path)",
-  "operation_count": 29,
-  "path_count": 27,
+  "operation_count": 32,
+  "path_count": 30,
   "operations": [
     "DELETE /api/mcp",
     "GET /",
@@ -9,6 +9,7 @@
     "GET /api/oaa/memory/{proof_hash}",
     "GET /api/canon/reserve-blocks/manifest",
     "GET /api/canon/reserve-blocks/verify",
+    "GET /api/reserve-blocks/index",
     "GET /api/seal/quarantine",
     "GET /api/vault/global",
     "GET /api/vault/seals",
