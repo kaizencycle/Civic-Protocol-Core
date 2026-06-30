@@ -83,9 +83,15 @@ services:
     buildCommand: pip install -r identity/requirements.txt
     startCommand: cd identity && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
+    # C-358: persistent disk — without this, SQLite users are wiped every deploy
+    # and signup writes fail (500), breaking Terminal → ledger attest (401).
+    disk:
+      name: identity-data
+      mountPath: /var/lib/identity
+      sizeGB: 1
     envVars:
       - key: DATABASE_URL
-        sync: false
+        value: sqlite:////var/lib/identity/identity.db
       - key: SECRET_KEY
         generateValue: true
       - key: PORT

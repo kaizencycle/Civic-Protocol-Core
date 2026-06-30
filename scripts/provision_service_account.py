@@ -8,13 +8,13 @@ Credentials belong in a secret manager; JWTs are minted at runtime via login.
 Usage:
   # Create account (one-time)
   python scripts/provision_service_account.py signup \\
-    --email terminal-service@mobius.systems \\
+    --email terminal@mobius-substrate.com \\
     --password "$IDENTITY_SERVICE_PASSWORD" \\
     --name "Mobius Civic AI Terminal"
 
   # Smoke test: login → introspect → attest
   python scripts/provision_service_account.py smoke \\
-    --email terminal-service@mobius.systems \\
+    --email terminal@mobius-substrate.com \\
     --password "$IDENTITY_SERVICE_PASSWORD"
 
 Environment (smoke/signup may omit --email/--password when set):

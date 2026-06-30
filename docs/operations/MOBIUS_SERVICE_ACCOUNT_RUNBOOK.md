@@ -27,6 +27,18 @@ This runbook provisions a **dedicated service account** (robot identity) and wir
 
 ## Phase 1 — Provision service account (one-time)
 
+### 1.0 One-command reset (C-358)
+
+After Identity has a **writable** `DATABASE_URL` (Render disk or Postgres):
+
+```bash
+cd Civic-Protocol-Core
+pip install httpx
+./scripts/reset_terminal_identity_account.sh
+```
+
+Default email: `terminal@mobius-substrate.com`. Script generates `IDENTITY_SERVICE_PASSWORD`, signs up (or reuses existing), smoke-tests `/ledger/attest`, and prints Vercel env lines.
+
 ### 1.1 Create the robot user
 
 From Civic-Protocol-Core repo root:
@@ -35,7 +47,7 @@ From Civic-Protocol-Core repo root:
 export IDENTITY_SERVICE_PASSWORD="$(openssl rand -base64 32)"
 
 python scripts/provision_service_account.py signup \
-  --email terminal-service@mobius.systems \
+  --email terminal@mobius-substrate.com \
   --password "$IDENTITY_SERVICE_PASSWORD" \
   --name "Mobius Civic AI Terminal"
 ```
@@ -45,14 +57,14 @@ Store in your secret manager (Vercel → Settings → Environment Variables):
 | Variable | Value | Notes |
 |----------|-------|-------|
 | `IDENTITY_API_BASE` | `https://mobius-identity-service.onrender.com` | No `/auth` suffix |
-| `IDENTITY_SERVICE_EMAIL` | `terminal-service@mobius.systems` | Service account only |
+| `IDENTITY_SERVICE_EMAIL` | `terminal@mobius-substrate.com` | Service account only |
 | `IDENTITY_SERVICE_PASSWORD` | *(generated)* | Never commit; rotate on exposure |
 | `CIVIC_LEDGER_URL` | `https://civic-protocol-core-ledger.onrender.com` | CPC ledger |
 
 ### 1.2 Smoke test (local or CI)
 
 ```bash
-export IDENTITY_SERVICE_EMAIL=terminal-service@mobius.systems
+export IDENTITY_SERVICE_EMAIL=terminal@mobius-substrate.com
 export IDENTITY_SERVICE_PASSWORD='...'
 
 # Reads IDENTITY_SERVICE_EMAIL/PASSWORD from env (or pass --email/--password)
@@ -120,6 +132,8 @@ curl -sS -X POST "https://mobius-civic-ai-terminal.vercel.app/api/cron/reattest-
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `401 Token verification failed` + introspect URL | Bad/expired JWT or wrong Identity base | Run `provision_service_account.py smoke`; confirm CPC `IDENTITY_API_BASE` |
+| Creds set on Vercel but `identity_login_ok: false` | Identity DB wiped (Render SQLite without disk) or wrong password | Deploy Identity with persistent disk (`render.yaml` C-358); re-run signup; update `IDENTITY_SERVICE_PASSWORD` on Vercel |
+| `503 Identity database write failed` on signup | `DATABASE_URL` not writable | Wire Render disk at `/var/lib/identity` or managed Postgres |
 | `400 IDENTITY_API_BASE is not configured` | CPC env gap | Set on ledger Render service (see [deploy-ledger-c330-c331.md](../deploy-ledger-c330-c331.md)) |
 | `400 Email already registered` on signup | Account exists | Use smoke/login only |
 | Attest 403 civic_id | Wrong lab_source or civic_id | Use `lab_source: terminal`, `civic_id: mobius-civic-ai-terminal` |
