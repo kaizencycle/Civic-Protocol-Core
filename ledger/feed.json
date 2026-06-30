@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-b2234057278dcfe09c0040ba44e9e94b452eb5df",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:d3d5089eafe349e1:mesh-sync",
+    "source_hash": "d3d5089eafe349e14f1f00f7346df031635de4bd19cf12e16652186f52b5a6b7",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-30T20:02:44Z",
+    "author": "Cursor Agent",
+    "sha": "b2234057278dcfe09c0040ba44e9e94b452eb5df",
+    "title": "Merge pull request #90: fix(C-358) Identity signup + Codex P1/P2\n\nCo-authored-by: michaeljjudan <michaeljjudan@gmail.com>",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-2eff3c6f0fd6beb401c679ec70dad669d91428da",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:5ffd92fee989ea4f:mesh-sync",
     "source_hash": "5ffd92fee989ea4f34a2775fef242ffe7082bf95500f6cd5af9256e78d1fa231",
