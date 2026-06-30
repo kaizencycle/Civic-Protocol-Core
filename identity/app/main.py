@@ -13,11 +13,11 @@ import uuid
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
+import bcrypt
 import jwt
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import Column, DateTime, String, create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
@@ -141,8 +141,17 @@ class User(Base):
 # Create tables
 Base.metadata.create_all(bind=engine)
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing (native bcrypt — passlib 1.7.4 breaks on bcrypt 4.1+)
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    except Exception:
+        return False
+
 
 # Security
 security = HTTPBearer()
@@ -315,7 +324,7 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
         user = User(
             id=user_id,
             email=request.email.lower(),
-            password_hash=pwd_context.hash(request.password),
+            password_hash=hash_password(request.password),
             name=request.name,
             civic_id=civic_id
         )
@@ -353,7 +362,7 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # Verify password
-    if not pwd_context.verify(request.password, user.password_hash):
+    if not verify_password(request.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # Create token
