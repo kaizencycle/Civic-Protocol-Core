@@ -13,11 +13,11 @@ import uuid
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
+import bcrypt
 import jwt
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import Column, DateTime, String, create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
@@ -77,7 +77,21 @@ def get_engine_kwargs(database_url: str) -> dict:
     return kwargs
 
 # Configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./identity.db")
+# Operator may set DATABASE_URL (Postgres). When unset, prefer Render disk SQLite if mounted.
+_DISK_SQLITE = "sqlite:////var/lib/identity/identity.db"
+_DEFAULT_SQLITE = "sqlite:///./identity.db"
+
+
+def resolve_database_url() -> str:
+    explicit = (os.getenv("DATABASE_URL") or "").strip()
+    if explicit:
+        return explicit
+    if os.path.isdir("/var/lib/identity"):
+        return _DISK_SQLITE
+    return _DEFAULT_SQLITE
+
+
+DATABASE_URL = resolve_database_url()
 
 # Handle common database URL formats
 if DATABASE_URL.startswith("https://") or DATABASE_URL.startswith("http://"):
@@ -127,8 +141,17 @@ class User(Base):
 # Create tables
 Base.metadata.create_all(bind=engine)
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing (native bcrypt — passlib 1.7.4 breaks on bcrypt 4.1+)
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(password: str, password_hash: str) -> bool:
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
+    except Exception:
+        return False
+
 
 # Security
 security = HTTPBearer()
@@ -301,7 +324,7 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
         user = User(
             id=user_id,
             email=request.email.lower(),
-            password_hash=pwd_context.hash(request.password),
+            password_hash=hash_password(request.password),
             name=request.name,
             civic_id=civic_id
         )
@@ -322,11 +345,11 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         db.rollback()
-        logger.exception("Signup failed — likely DATABASE_URL / disk not writable on Render")
-        raise HTTPException(
-            status_code=503,
-            detail="Identity database write failed — wire persistent DATABASE_URL or Render disk",
-        ) from e
+        logger.exception("Signup failed: %s", e)
+        detail = "Identity database write failed — wire persistent DATABASE_URL or Render disk"
+        if "bcrypt" in str(e).lower() or "passlib" in str(e).lower():
+            detail = "Password hashing failed — check bcrypt/passlib versions in identity/requirements.txt"
+        raise HTTPException(status_code=503, detail=detail) from e
 
 
 @app.post("/auth/login", response_model=TokenResponse)
@@ -339,7 +362,7 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # Verify password
-    if not pwd_context.verify(request.password, user.password_hash):
+    if not verify_password(request.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     # Create token

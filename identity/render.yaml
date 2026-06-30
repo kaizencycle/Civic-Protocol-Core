@@ -17,8 +17,9 @@ services:
       mountPath: /var/lib/identity
       sizeGB: 1
     envVars:
+      # Operator-supplied — when unset, app defaults to disk-backed SQLite at /var/lib/identity.
       - key: DATABASE_URL
-        value: sqlite:////var/lib/identity/identity.db
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: PORT

@@ -133,7 +133,7 @@ curl -sS -X POST "https://mobius-civic-ai-terminal.vercel.app/api/cron/reattest-
 |---------|-------|-----|
 | `401 Token verification failed` + introspect URL | Bad/expired JWT or wrong Identity base | Run `provision_service_account.py smoke`; confirm CPC `IDENTITY_API_BASE` |
 | Creds set on Vercel but `identity_login_ok: false` | Identity DB wiped (Render SQLite without disk) or wrong password | Deploy Identity with persistent disk (`render.yaml` C-358); re-run signup; update `IDENTITY_SERVICE_PASSWORD` on Vercel |
-| `503 Identity database write failed` on signup | `DATABASE_URL` not writable | Wire Render disk at `/var/lib/identity` or managed Postgres |
+| `503 Identity database write failed` on signup | `DATABASE_URL` not writable or bcrypt/passlib version mismatch | Wire Render disk; pin `bcrypt==4.0.1` with `passlib==1.7.4` (see identity/requirements.txt) |
 | `400 IDENTITY_API_BASE is not configured` | CPC env gap | Set on ledger Render service (see [deploy-ledger-c330-c331.md](../deploy-ledger-c330-c331.md)) |
 | `400 Email already registered` on signup | Account exists | Use smoke/login only |
 | Attest 403 civic_id | Wrong lab_source or civic_id | Use `lab_source: terminal`, `civic_id: mobius-civic-ai-terminal` |

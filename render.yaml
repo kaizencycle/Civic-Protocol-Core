@@ -90,8 +90,10 @@ services:
       mountPath: /var/lib/identity
       sizeGB: 1
     envVars:
+      # Operator-supplied — do not sync a literal value (would overwrite managed Postgres).
+      # When unset, identity/app/main.py falls back to sqlite on /var/lib/identity disk.
       - key: DATABASE_URL
-        value: sqlite:////var/lib/identity/identity.db
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: PORT
