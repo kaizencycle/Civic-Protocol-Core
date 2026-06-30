@@ -12,7 +12,10 @@ NAME="${IDENTITY_SERVICE_NAME:-Mobius Civic AI Terminal}"
 IDENTITY_BASE="${IDENTITY_API_BASE:-https://mobius-identity-service.onrender.com}"
 LEDGER_URL="${CIVIC_LEDGER_URL:-https://civic-protocol-core-ledger.onrender.com}"
 
-if [[ -z "${IDENTITY_SERVICE_PASSWORD:-}" ]]; then
+PASSWORD_PROVIDED=false
+if [[ -n "${IDENTITY_SERVICE_PASSWORD:-}" ]]; then
+  PASSWORD_PROVIDED=true
+else
   IDENTITY_SERVICE_PASSWORD="$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)"
   echo "Generated IDENTITY_SERVICE_PASSWORD (${#IDENTITY_SERVICE_PASSWORD} chars)"
 fi
@@ -31,7 +34,7 @@ if echo "$HEALTH" | jq -e '.db_write_ok == false' >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "==> Signup (or use login if account exists): $EMAIL"
+echo "==> Signup: $EMAIL"
 set +e
 SIGNUP_OUT="$(python3 scripts/provision_service_account.py signup \
   --email "$EMAIL" \
@@ -42,7 +45,16 @@ set -e
 echo "$SIGNUP_OUT"
 
 if [[ $SIGNUP_CODE -eq 2 ]]; then
-  echo "Account already exists — smoke test will use login only."
+  if [[ "$PASSWORD_PROVIDED" != "true" ]]; then
+    echo "" >&2
+    echo "ERROR: Account $EMAIL already exists but IDENTITY_SERVICE_PASSWORD was auto-generated." >&2
+    echo "       Signup does not update an existing password hash." >&2
+    echo "       Re-run with the current password:" >&2
+    echo "         IDENTITY_SERVICE_PASSWORD='...' $0" >&2
+    echo "       Or use a fresh email / delete the user in Identity DB before auto-generating." >&2
+    exit 2
+  fi
+  echo "Account already exists — verifying login with supplied password..."
 elif [[ $SIGNUP_CODE -ne 0 ]]; then
   echo "Signup failed (exit $SIGNUP_CODE). Fix Identity DB, then re-run." >&2
   exit "$SIGNUP_CODE"

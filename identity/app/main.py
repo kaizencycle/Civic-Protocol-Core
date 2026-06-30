@@ -77,7 +77,21 @@ def get_engine_kwargs(database_url: str) -> dict:
     return kwargs
 
 # Configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./identity.db")
+# Operator may set DATABASE_URL (Postgres). When unset, prefer Render disk SQLite if mounted.
+_DISK_SQLITE = "sqlite:////var/lib/identity/identity.db"
+_DEFAULT_SQLITE = "sqlite:///./identity.db"
+
+
+def resolve_database_url() -> str:
+    explicit = (os.getenv("DATABASE_URL") or "").strip()
+    if explicit:
+        return explicit
+    if os.path.isdir("/var/lib/identity"):
+        return _DISK_SQLITE
+    return _DEFAULT_SQLITE
+
+
+DATABASE_URL = resolve_database_url()
 
 # Handle common database URL formats
 if DATABASE_URL.startswith("https://") or DATABASE_URL.startswith("http://"):
@@ -322,11 +336,11 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         db.rollback()
-        logger.exception("Signup failed — likely DATABASE_URL / disk not writable on Render")
-        raise HTTPException(
-            status_code=503,
-            detail="Identity database write failed — wire persistent DATABASE_URL or Render disk",
-        ) from e
+        logger.exception("Signup failed: %s", e)
+        detail = "Identity database write failed — wire persistent DATABASE_URL or Render disk"
+        if "bcrypt" in str(e).lower() or "passlib" in str(e).lower():
+            detail = "Password hashing failed — check bcrypt/passlib versions in identity/requirements.txt"
+        raise HTTPException(status_code=503, detail=detail) from e
 
 
 @app.post("/auth/login", response_model=TokenResponse)
