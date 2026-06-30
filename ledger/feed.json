@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-2eff3c6f0fd6beb401c679ec70dad669d91428da",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:5ffd92fee989ea4f:mesh-sync",
+    "source_hash": "5ffd92fee989ea4f34a2775fef242ffe7082bf95500f6cd5af9256e78d1fa231",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-06-30T14:36:11-04:00",
+    "author": "Michael Judan",
+    "sha": "2eff3c6f0fd6beb401c679ec70dad669d91428da",
+    "title": "Merge pull request #89 from kaizencycle/cursor/c358-identity-db-persist-39a2\n\nfix(C-358): persist Identity DB on Render disk \u2014 unblock ledger attest",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-e269787ce1534f765ef03530f0d178d37dba1811",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:6f27d4d8208ce79a:mesh-sync",
     "source_hash": "6f27d4d8208ce79a1cd4290523fc339a50cac17b672e9844a0b900952ebf1662",
