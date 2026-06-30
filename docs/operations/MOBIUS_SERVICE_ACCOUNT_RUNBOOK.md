@@ -27,6 +27,18 @@ This runbook provisions a **dedicated service account** (robot identity) and wir
 
 ## Phase 1 — Provision service account (one-time)
 
+### 1.0 One-command reset (C-358)
+
+After Identity has a **writable** `DATABASE_URL` (Render disk or Postgres):
+
+```bash
+cd Civic-Protocol-Core
+pip install httpx
+./scripts/reset_terminal_identity_account.sh
+```
+
+Default email: `terminal@mobius-substrate.com`. Script generates `IDENTITY_SERVICE_PASSWORD`, signs up (or reuses existing), smoke-tests `/ledger/attest`, and prints Vercel env lines.
+
 ### 1.1 Create the robot user
 
 From Civic-Protocol-Core repo root:
@@ -35,7 +47,7 @@ From Civic-Protocol-Core repo root:
 export IDENTITY_SERVICE_PASSWORD="$(openssl rand -base64 32)"
 
 python scripts/provision_service_account.py signup \
-  --email terminal-service@mobius.systems \
+  --email terminal@mobius-substrate.com \
   --password "$IDENTITY_SERVICE_PASSWORD" \
   --name "Mobius Civic AI Terminal"
 ```
@@ -45,14 +57,14 @@ Store in your secret manager (Vercel → Settings → Environment Variables):
 | Variable | Value | Notes |
 |----------|-------|-------|
 | `IDENTITY_API_BASE` | `https://mobius-identity-service.onrender.com` | No `/auth` suffix |
-| `IDENTITY_SERVICE_EMAIL` | `terminal-service@mobius.systems` | Service account only |
+| `IDENTITY_SERVICE_EMAIL` | `terminal@mobius-substrate.com` | Service account only |
 | `IDENTITY_SERVICE_PASSWORD` | *(generated)* | Never commit; rotate on exposure |
 | `CIVIC_LEDGER_URL` | `https://civic-protocol-core-ledger.onrender.com` | CPC ledger |
 
 ### 1.2 Smoke test (local or CI)
 
 ```bash
-export IDENTITY_SERVICE_EMAIL=terminal-service@mobius.systems
+export IDENTITY_SERVICE_EMAIL=terminal@mobius-substrate.com
 export IDENTITY_SERVICE_PASSWORD='...'
 
 # Reads IDENTITY_SERVICE_EMAIL/PASSWORD from env (or pass --email/--password)
