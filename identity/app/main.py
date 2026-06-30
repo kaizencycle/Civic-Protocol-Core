@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import Column, DateTime, String, create_engine
+from sqlalchemy import Column, DateTime, String, create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -250,11 +250,37 @@ async def root():
 
 
 @app.get("/health")
-async def health():
+async def health(db: Session = Depends(get_db)):
+    db_ok = False
+    db_write_ok = False
+    db_error: str | None = None
+    try:
+        db.execute(text("SELECT 1"))
+        db_ok = True
+        # C-358: verify writes — ephemeral SQLite on Render returns 500 on signup when read-only.
+        probe_id = f"health-probe-{uuid.uuid4().hex[:12]}"
+        db.execute(
+            text("CREATE TABLE IF NOT EXISTS _health_probe (id TEXT PRIMARY KEY, created_at TEXT)")
+        )
+        db.execute(
+            text("INSERT INTO _health_probe (id, created_at) VALUES (:id, :ts)"),
+            {"id": probe_id, "ts": datetime.utcnow().isoformat()},
+        )
+        db.execute(text("DELETE FROM _health_probe WHERE id = :id"), {"id": probe_id})
+        db.commit()
+        db_write_ok = True
+    except Exception as e:
+        db_error = str(e)[:200]
+        db.rollback()
+
+    status_code = "ok" if db_ok and db_write_ok else "degraded"
     return {
-        "status": "ok",
+        "status": status_code,
         "service": "Mobius Identity Service",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
+        "db_ok": db_ok,
+        "db_write_ok": db_write_ok,
+        "db_error": db_error,
     }
 
 
@@ -267,30 +293,40 @@ async def signup(request: SignupRequest, db: Session = Depends(get_db)):
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    # Create user
-    user_id = str(uuid.uuid4())
-    civic_id = generate_civic_id(user_id)
+    try:
+        # Create user
+        user_id = str(uuid.uuid4())
+        civic_id = generate_civic_id(user_id)
 
-    user = User(
-        id=user_id,
-        email=request.email.lower(),
-        password_hash=pwd_context.hash(request.password),
-        name=request.name,
-        civic_id=civic_id
-    )
+        user = User(
+            id=user_id,
+            email=request.email.lower(),
+            password_hash=pwd_context.hash(request.password),
+            name=request.name,
+            civic_id=civic_id
+        )
 
-    db.add(user)
-    db.commit()
-    db.refresh(user)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
 
-    # Create token
-    token = create_access_token({"user_id": user.id, "civic_id": civic_id})
+        # Create token
+        token = create_access_token({"user_id": user.id, "civic_id": civic_id})
 
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user": user
-    }
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": user
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.exception("Signup failed — likely DATABASE_URL / disk not writable on Render")
+        raise HTTPException(
+            status_code=503,
+            detail="Identity database write failed — wire persistent DATABASE_URL or Render disk",
+        ) from e
 
 
 @app.post("/auth/login", response_model=TokenResponse)
