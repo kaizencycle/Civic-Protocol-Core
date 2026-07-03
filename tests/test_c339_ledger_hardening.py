@@ -125,7 +125,12 @@ def test_health_response_does_not_expose_backend_details(monkeypatch):
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "service": "civic-ledger-api"}
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["service"] == "civic-ledger-api"
+    assert "data_dir" in payload
+    assert payload["vault_db"]["ok"] is True
+    assert payload["ledger_db"]["ok"] is True
 
 
 def test_pulse_state_returns_cycle_gi_and_latest_attestation(monkeypatch):
