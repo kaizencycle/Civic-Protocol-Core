@@ -128,9 +128,14 @@ services:
     buildCommand: pip install -r mic-wallet/requirements.txt
     startCommand: cd mic-wallet && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
+    # C-360: persistent disk — without this, wallet balances reset every deploy.
+    disk:
+      name: mic-wallet-data
+      mountPath: /var/lib/mic-wallet
+      sizeGB: 1
     envVars:
       - key: DATABASE_URL
-        sync: false
+        value: sqlite:////var/lib/mic-wallet/mic_wallet.db
       - key: SECRET_KEY
         sync: false  # Must match Identity Service SECRET_KEY
       - key: PORT

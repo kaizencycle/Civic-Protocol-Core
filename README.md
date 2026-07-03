@@ -94,6 +94,28 @@ civic-protocol-core/
 
 ## Quick Start
 
+### Live Render Services (C-360)
+
+| Service | Render name | Health probe | Persistence |
+|---------|-------------|--------------|-------------|
+| Civic Ledger API | `civic-ledger-api` | `GET /health` → `data_dir`, `vault_db`, `ledger_db` | Disk at `/var/lib/ledger` |
+| Identity | `mobius-identity` | `GET /health` → `db_write_ok` | Disk at `/var/lib/identity` |
+| MIC Wallet | `mobius-mic-wallet` | `GET /health` → `db_write_ok` | Disk at `/var/lib/mic-wallet` |
+| MIC Indexer | `mic-indexer` | `GET /health` | `./data/index.db` |
+
+Deploy via `render.yaml` blueprint. `/health` on ledger and wallet services is the deploy-drift canary — see `docs/deploy-drift-alarm.md`.
+
+### Database Migrations
+
+Schema changes live in ordered SQL files under `migrations/*.sql` (no Alembic). CI validates them in the `migration-check` job:
+
+```bash
+# Local guard before deploy
+python scripts/validate_migrations.py
+```
+
+Postgres-oriented DDL is also applied against a scratch Postgres instance in CI (`.github/workflows/ci.yml`).
+
 ### Option 1: Start All Services (Recommended)
 
 ```bash

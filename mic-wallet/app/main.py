@@ -89,8 +89,10 @@ def get_engine_kwargs(database_url: str) -> dict:
 
     return kwargs
 
-# Configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./mic_wallet.db")
+# Configuration — C-360: default to Render disk path when DATABASE_URL unset
+_MIC_DATA_DIR = (os.getenv("MIC_WALLET_DATA_DIR") or "/var/lib/mic-wallet").strip()
+_DEFAULT_SQLITE_URL = f"sqlite:///{_MIC_DATA_DIR}/mic_wallet.db"
+DATABASE_URL = os.getenv("DATABASE_URL", _DEFAULT_SQLITE_URL).strip() or _DEFAULT_SQLITE_URL
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
 elif DATABASE_URL.startswith("postgresql://"):
@@ -423,12 +425,48 @@ async def root():
     }
 
 
+def _probe_db_write() -> tuple[bool, bool, str | None]:
+    """Return (db_ok, db_write_ok, db_error) without requiring auth."""
+    db_ok = False
+    db_write_ok = False
+    db_error: str | None = None
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        db_ok = True
+        probe_id = f"health-probe-{uuid.uuid4().hex[:12]}"
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "CREATE TABLE IF NOT EXISTS _health_probe "
+                    "(id TEXT PRIMARY KEY, created_at TEXT)"
+                )
+            )
+            conn.execute(
+                text("INSERT INTO _health_probe (id, created_at) VALUES (:id, :ts)"),
+                {"id": probe_id, "ts": datetime.utcnow().isoformat()},
+            )
+            conn.execute(
+                text("DELETE FROM _health_probe WHERE id = :id"),
+                {"id": probe_id},
+            )
+        db_write_ok = True
+    except Exception as e:
+        db_error = str(e)[:200]
+    return db_ok, db_write_ok, db_error
+
+
 @app.get("/health")
 async def health():
+    db_ok, db_write_ok, db_error = _probe_db_write()
+    healthy = db_ok and db_write_ok
     return {
-        "status": "ok" if _db_ready else "degraded",
-        "service": "Mobius MIC Wallet Service",
-        "db_connected": _db_ready,
+        "status": "ok" if healthy else "degraded",
+        "service": "mobius-mic-wallet",
+        "db_ok": db_ok,
+        "db_write_ok": db_write_ok,
+        "db_connected": healthy,
+        "db_error": db_error,
         "timestamp": datetime.utcnow().isoformat(),
     }
 

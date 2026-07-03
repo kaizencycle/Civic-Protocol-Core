@@ -26,7 +26,13 @@ from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
 from .database import Base, check_db_health, engine
-from .db import DATA_DIR, LEDGER_DB_PATH, assert_persistent_storage, get_db_connection
+from .db import (
+    DATA_DIR,
+    LEDGER_DB_PATH,
+    assert_persistent_storage,
+    get_db_connection,
+    is_ephemeral_path,
+)
 from .mcp_integrity import load_gi_state
 from .observability import configure_logging, install_operational_middleware
 from .routes import (
@@ -362,25 +368,48 @@ def root():
 
 @app.get("/health")
 def health():
-    """Health check endpoint"""
-    # Check vault DB (PostgreSQL / SQLite fallback)
-    db_status = check_db_health()
-    if not db_status["ok"]:
-        logger.error("Vault DB unhealthy: %s", db_status.get("error"))
-        raise HTTPException(status_code=503, detail="Vault DB unhealthy")
+    """Health check with vault + ledger sub-probes for deploy drift alarms."""
+    vault_status = check_db_health()
+    vault_ok = vault_status["ok"]
 
-    # Also verify the ledger event DB that /ledger/attest writes to
+    ledger_ok = False
+    ledger_error: str | None = None
+    event_count: int | None = None
     try:
         with get_db_connection() as conn:
-            conn.execute("SELECT COUNT(*) FROM events")
+            row = conn.execute("SELECT COUNT(*) FROM events").fetchone()
+            event_count = int(row[0]) if row else 0
+        ledger_ok = True
     except Exception as e:
+        ledger_error = str(e)[:200]
         logger.exception("Ledger DB unhealthy")
-        raise HTTPException(status_code=503, detail="Ledger DB unhealthy") from e
 
-    return {
-        "status": "ok",
+    overall_ok = vault_ok and ledger_ok
+    if not vault_ok:
+        logger.error("Vault DB unhealthy: %s", vault_status.get("error"))
+
+    body = {
+        "status": "ok" if overall_ok else "degraded",
         "service": "civic-ledger-api",
+        "data_dir": DATA_DIR,
+        "ephemeral_storage": is_ephemeral_path(DATA_DIR),
+        "vault_db": {
+            "ok": vault_ok,
+            "url_type": vault_status.get("url_type"),
+            "error": vault_status.get("error"),
+        },
+        "ledger_db": {
+            "ok": ledger_ok,
+            "path": LEDGER_DB_PATH,
+            "event_count": event_count,
+            "error": ledger_error,
+        },
     }
+
+    if not overall_ok:
+        raise HTTPException(status_code=503, detail=body)
+
+    return body
 
 
 @app.get("/pulse/state")
