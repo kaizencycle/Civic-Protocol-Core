@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-eef7a87653668ee326e761066eca2002d85436ca",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:8422aa65b9587593:mesh-sync",
+    "source_hash": "8422aa65b958759372cde2758003d7408d89f8ed650cb8aa2e3100285da68b9e",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-07-03T07:50:50-04:00",
+    "author": "Michael Judan",
+    "sha": "eef7a87653668ee326e761066eca2002d85436ca",
+    "title": "Merge pull request #91 from kaizencycle/cursor/c360-pr-a-cpc-health-39a2",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-b2234057278dcfe09c0040ba44e9e94b452eb5df",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:d3d5089eafe349e1:mesh-sync",
     "source_hash": "d3d5089eafe349e14f1f00f7346df031635de4bd19cf12e16652186f52b5a6b7",
