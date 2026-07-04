@@ -1,7 +1,7 @@
 {
   "schema": "MNS_LEDGER_PULSE_SNAPSHOT_V1",
   "node_id": "civic-protocol-core",
-  "captured_at": "2026-07-04T12:19:27.531069+00:00",
+  "captured_at": "2026-07-04T14:45:33.104332+00:00",
   "ledger_base_url": "https://civic-protocol-core-ledger.onrender.com",
   "health": {
     "status": "ok",
@@ -156,6 +156,6 @@
         "type": "mesh-commit"
       }
     ],
-    "timestamp": "2026-07-04T12:19:27.494191+00:00"
+    "timestamp": "2026-07-04T14:45:33.097029+00:00"
   }
 }
