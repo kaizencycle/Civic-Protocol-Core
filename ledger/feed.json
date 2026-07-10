@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-dda09a78963790c5ea66fb39ee4a3719a7424d3d",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:e462dcc24ae19aba:mesh-sync",
+    "source_hash": "e462dcc24ae19aba4730eefd946e82ba9423b89f2559eef94df1e25fbc088938",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-07-09T20:39:44-04:00",
+    "author": "Michael Judan",
+    "sha": "dda09a78963790c5ea66fb39ee4a3719a7424d3d",
+    "title": "Merge pull request #92 from kaizencycle/cursor/epicon-guard-rollout-cpc-7f49\n\nci(epicon): install Intent Publication Gate and tier policy (C-367)",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-eef7a87653668ee326e761066eca2002d85436ca",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:8422aa65b9587593:mesh-sync",
     "source_hash": "8422aa65b958759372cde2758003d7408d89f8ed650cb8aa2e3100285da68b9e",
