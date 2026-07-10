@@ -1,0 +1,45 @@
+{
+  "$comment": "EPICON tier policy for Civic-Protocol-Core. Declarative, proposer-independent (Rule 5.1). Unmatched paths classify EP-3 (Rule 5.2). PR tier = max across changed files (Rule 5.3).",
+  "policy_id": "cpc-ledger-policy-v1",
+  "EP-1": [
+    "docs/**",
+    "**/*.md",
+    "*.md",
+    "examples/**"
+  ],
+  "EP-2": [
+    "sdk/**",
+    "tools/**",
+    "scripts/**",
+    "integrations/**",
+    "mesh/**",
+    "frontend/**",
+    "tests/**",
+    "deploy-shim/**",
+    "patches/**",
+    "config/**",
+    "governance/**",
+    "identity/**",
+    "gic-indexer/**",
+    "package.json",
+    "requirements.txt"
+  ],
+  "EP-3": [
+    "ledger/**",
+    "mic-wallet/**",
+    "mic-indexer/**",
+    "migrations/**",
+    "consensus/**",
+    "policies/**",
+    "registry/**",
+    "epicon/**",
+    "events/**",
+    ".github/workflows/**",
+    "CODEOWNERS",
+    "SECURITY.md",
+    "render.yaml",
+    "Dockerfile",
+    "docker-compose*.yml",
+    "mobius.yaml"
+  ]
+}
