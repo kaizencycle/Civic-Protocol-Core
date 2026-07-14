@@ -1,0 +1,124 @@
+name: cpc-post-deploy-drift-gate
+
+# C-372: Tripwire on every main push touching the ledger — catches deploy drift
+# before canon anchoring / vault manifest lanes silently 404 for weeks.
+#
+# Complements deploy-drift-alarm.yml (daily schedule). This gate is immediate.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ledger/**'
+      - 'scripts/expected_routes.json'
+      - 'scripts/check_deploy_drift.py'
+      - 'scripts/gen_route_manifest.py'
+      - 'asgi.py'
+      - 'requirements.txt'
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Live ledger base URL to probe'
+        required: false
+        default: 'https://civic-protocol-core-ledger.onrender.com'
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  CPC_LIVE_URL: ${{ github.event.inputs.url || 'https://civic-protocol-core-ledger.onrender.com' }}
+
+jobs:
+  drift-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Probe live CPC for route drift
+        id: drift
+        run: |
+          set +e
+          python3 scripts/check_deploy_drift.py \
+            --url "$CPC_LIVE_URL" \
+            --attempts 8 \
+            --base-delay 10 2>&1 | tee /tmp/drift_output.txt
+          code=${PIPESTATUS[0]}
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          echo "drift_output<<EOF" >> "$GITHUB_OUTPUT"
+          cat /tmp/drift_output.txt >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Canon route smoke (manifest + verify)
+        if: steps.drift.outputs.exit_code == '0'
+        run: |
+          set -euo pipefail
+          for path in /api/canon/reserve-blocks/manifest /api/canon/reserve-blocks/verify; do
+            code=$(curl -sS -o /tmp/smoke.json -w "%{http_code}" "${CPC_LIVE_URL}${path}")
+            echo "${path} → HTTP ${code}"
+            if [ "$code" != "200" ]; then
+              echo "::error::Canon smoke failed: ${path} returned ${code}"
+              exit 1
+            fi
+          done
+          echo "Canon routes smoke OK ✓"
+
+      - name: Open issue on deploy drift (exit 1)
+        if: steps.drift.outputs.exit_code == '1'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = 'CPC deploy drift detected — canon routes missing on live';
+            const body = [
+              '**Auto-filed by cpc-post-deploy-drift-gate**',
+              '',
+              'Live CPC is missing expected operations from `scripts/expected_routes.json`.',
+              'Canon reserve-block anchoring and vault manifest proxy will 404 until redeployed.',
+              '',
+              '```',
+              process.env.DRIFT_OUTPUT,
+              '```',
+              '',
+              '**Remediation:**',
+              '1. Provision/wire persistent `DATABASE_URL` (Postgres) on civic-ledger-api',
+              '2. Redeploy CPC from current `main`',
+              '3. Run `check_deploy_drift.py` until exit 0',
+              '4. Replay anchors: `node scripts/replay-canon-anchors.mjs` (terminal repo)',
+              '',
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            ].join('\n');
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'deploy-drift',
+            });
+            if (existing.data.some((i) => i.title === title)) {
+              core.info('Open deploy-drift issue already exists — skipping duplicate');
+              return;
+            }
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['deploy-drift', 'infra', 'C-372'],
+            });
+        env:
+          DRIFT_OUTPUT: ${{ steps.drift.outputs.drift_output }}
+
+      - name: Fail gate on drift
+        if: steps.drift.outputs.exit_code == '1'
+        run: |
+          echo "::error::Deploy drift — redeploy CPC from main before canon lanes can work"
+          exit 1
+
+      - name: Warn on inconclusive probe
+        if: steps.drift.outputs.exit_code == '2' || steps.drift.outputs.exit_code == '4'
+        run: |
+          echo "::warning::Drift probe inconclusive (exit ${{ steps.drift.outputs.exit_code }}) — manual check required"
+          echo "${{ steps.drift.outputs.drift_output }}"
