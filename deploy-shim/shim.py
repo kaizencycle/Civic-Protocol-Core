@@ -11,6 +11,8 @@ Required env vars:
 
 Optional env vars:
   SHIM_SECRET         — if set, callers must send it as x-shim-secret header
+  GITHUB_DISPATCH_TOKEN — PAT with repo scope; dispatches cpc-deploy-live after ledger deploy
+  GITHUB_DISPATCH_REPO  — default kaizencycle/Civic-Protocol-Core
   PORT                — Render sets this automatically
 """
 from __future__ import annotations
@@ -66,6 +68,35 @@ def _service_name(body: dict) -> str:
     return "civic-protocol-core-ledger"
 
 
+def _is_ledger_service(service: str) -> bool:
+    lowered = service.lower()
+    return "civic-ledger" in lowered or "civic-protocol-core-ledger" in lowered
+
+
+async def _maybe_dispatch_drift_gate(service: str) -> dict:
+    """Optional: trigger cpc-post-deploy-drift-gate after Render deploy succeeds."""
+    token = os.environ.get("GITHUB_DISPATCH_TOKEN", "").strip()
+    repo = os.environ.get("GITHUB_DISPATCH_REPO", "kaizencycle/Civic-Protocol-Core").strip()
+    if not token or not _is_ledger_service(service):
+        return {"skipped": True, "reason": "token missing or non-ledger service"}
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            f"https://api.github.com/repos/{repo}/dispatches",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+            json={
+                "event_type": "cpc-deploy-live",
+                "client_payload": {"service": service},
+            },
+        )
+        response.raise_for_status()
+        return {"dispatched": True, "repo": repo}
+
+
 @app.get("/health")
 def health() -> dict:
     configured = bool(
@@ -119,11 +150,14 @@ async def render_deploy(request: Request) -> dict:
         response.raise_for_status()
         payload = response.json()
 
+    dispatch_result = await _maybe_dispatch_drift_gate(service)
+
     return {
         "fired": True,
         "status": status,
         "fire_status_code": response.status_code,
         "session_url": payload.get("claude_code_session_url"),
+        "drift_gate_dispatch": dispatch_result,
     }
 
 

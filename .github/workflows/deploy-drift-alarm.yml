@@ -118,5 +118,6 @@ jobs:
           fi
           if [ "$code" = "2" ] || [ "$code" = "4" ]; then
             echo "::warning::Drift probe inconclusive (exit $code) — schedule manual workflow_dispatch check"
+            exit 0
           fi
-          exit 0
+          exit "$code"

@@ -1,26 +1,31 @@
 name: cpc-post-deploy-drift-gate
 
-# C-372: Tripwire on every main push touching the ledger — catches deploy drift
-# before canon anchoring / vault manifest lanes silently 404 for weeks.
+# C-372: Post-deploy tripwire — probe live CPC AFTER Render serves the new revision.
 #
-# Complements deploy-drift-alarm.yml (daily schedule). This gate is immediate.
+# Does NOT run on push: push fires before Render finishes building, causing false
+# drift failures while the previous deployment is still live (see fire-drift-routine.yml).
+#
+# Triggers:
+#   repository_dispatch (cpc-deploy-live) — from deploy-shim after deploy_succeeded
+#   workflow_dispatch — manual post-deploy gate
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'ledger/**'
-      - 'scripts/expected_routes.json'
-      - 'scripts/check_deploy_drift.py'
-      - 'scripts/gen_route_manifest.py'
-      - 'asgi.py'
-      - 'requirements.txt'
+  repository_dispatch:
+    types: [cpc-deploy-live]
   workflow_dispatch:
     inputs:
       url:
         description: 'Live ledger base URL to probe'
         required: false
         default: 'https://civic-protocol-core-ledger.onrender.com'
+      rollout_patience:
+        description: 'Retry drift probe on exit 1 (in-flight deploy window)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 permissions:
   contents: read
@@ -40,14 +45,51 @@ jobs:
 
       - name: Probe live CPC for route drift
         id: drift
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          ROLLOUT_INPUT: ${{ github.event.inputs.rollout_patience || 'false' }}
         run: |
           set +e
-          python3 scripts/check_deploy_drift.py \
-            --url "$CPC_LIVE_URL" \
-            --attempts 8 \
-            --base-delay 10 2>&1 | tee /tmp/drift_output.txt
-          code=${PIPESTATUS[0]}
+          if [ "$EVENT_NAME" = "repository_dispatch" ] || [ "$ROLLOUT_INPUT" = "true" ]; then
+            ROLLOUT_ATTEMPTS=15
+            ROLLOUT_DELAY=60
+            echo "Rollout patience enabled — up to $((ROLLOUT_ATTEMPTS * ROLLOUT_DELAY))s for live to catch up"
+          else
+            ROLLOUT_ATTEMPTS=1
+            ROLLOUT_DELAY=0
+          fi
+
+          code=2
+          for attempt in $(seq 1 "$ROLLOUT_ATTEMPTS"); do
+            python3 scripts/check_deploy_drift.py \
+              --url "$CPC_LIVE_URL" \
+              --attempts 6 \
+              --base-delay 8 2>&1 | tee /tmp/drift_output.txt
+            code=${PIPESTATUS[0]}
+
+            if [ "$code" -eq 0 ]; then
+              echo "Drift check OK on attempt ${attempt}"
+              break
+            fi
+
+            if [ "$code" -eq 1 ] && [ "$attempt" -lt "$ROLLOUT_ATTEMPTS" ]; then
+              echo "::warning::Drift on attempt ${attempt}/${ROLLOUT_ATTEMPTS} — may be in-flight deploy; retrying in ${ROLLOUT_DELAY}s"
+              sleep "$ROLLOUT_DELAY"
+              continue
+            fi
+
+            if [ "$code" -eq 2 ] || [ "$code" -eq 4 ]; then
+              if [ "$attempt" -lt "$ROLLOUT_ATTEMPTS" ]; then
+                echo "::warning::Probe inconclusive (exit ${code}) on attempt ${attempt}; retrying in ${ROLLOUT_DELAY}s"
+                sleep "$ROLLOUT_DELAY"
+                continue
+              fi
+            fi
+
+            break
+          done
           set -e
+
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           echo "drift_output<<EOF" >> "$GITHUB_OUTPUT"
           cat /tmp/drift_output.txt >> "$GITHUB_OUTPUT"
@@ -122,3 +164,9 @@ jobs:
         run: |
           echo "::warning::Drift probe inconclusive (exit ${{ steps.drift.outputs.exit_code }}) — manual check required"
           echo "${{ steps.drift.outputs.drift_output }}"
+
+      - name: Fail on checker usage errors
+        if: steps.drift.outputs.exit_code == '3'
+        run: |
+          echo "::error::check_deploy_drift.py usage/IO error (exit 3)"
+          exit 3
