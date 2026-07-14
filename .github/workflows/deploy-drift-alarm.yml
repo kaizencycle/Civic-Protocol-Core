@@ -112,7 +112,12 @@ jobs:
         if: ${{ always() && !cancelled() && steps.drift.outcome != 'skipped' }}
         run: |
           code="${{ steps.drift.outputs.exit_code }}"
-          if [ "$code" = "4" ] || [ "$code" = "2" ]; then
+          if [ "$code" = "1" ]; then
+            echo "::error::Deploy drift detected — live CPC missing canon routes (vault manifest will 404)"
+            exit 1
+          fi
+          if [ "$code" = "2" ] || [ "$code" = "4" ]; then
+            echo "::warning::Drift probe inconclusive (exit $code) — schedule manual workflow_dispatch check"
             exit 0
           fi
           exit "$code"
