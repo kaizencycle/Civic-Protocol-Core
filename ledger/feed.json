@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-7024931dd623acc02cbac80147813d8de14799a6",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:46a27968eebed538:mesh-sync",
+    "source_hash": "46a27968eebed538e58ecb5a32e97445cb1dec899dfc025dcb41e0de323d2f7b",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-07-14T11:57:58-04:00",
+    "author": "Michael Judan",
+    "sha": "7024931dd623acc02cbac80147813d8de14799a6",
+    "title": "Merge pull request #93 from kaizencycle/cursor/cpc-drift-tripwire-0e02\n\ninfra(C-372): CPC post-deploy drift tripwire + canon smoke",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-dda09a78963790c5ea66fb39ee4a3719a7424d3d",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:e462dcc24ae19aba:mesh-sync",
     "source_hash": "e462dcc24ae19aba4730eefd946e82ba9423b89f2559eef94df1e25fbc088938",
