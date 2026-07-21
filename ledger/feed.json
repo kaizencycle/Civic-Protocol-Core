@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-044f583d04dac4e2ccd1be5a0ac074f703739193",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:b54f07f60d952350:mesh-sync",
+    "source_hash": "b54f07f60d9523500592e77d3762896d6860d2ee7080551eeb73d23c55094eaf",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-07-21T14:00:32-04:00",
+    "author": "Michael Judan",
+    "sha": "044f583d04dac4e2ccd1be5a0ac074f703739193",
+    "title": "Merge pull request #95 from kaizencycle/cursor/c379-item6-wallet-db-fix-0e02\n\nfix(infra): C-379 item 6 \u2014 wallet DATABASE_URL dashboard override fix",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-9e51f26b7a87ccd6f35ef87bcae743ae9cdaa3f4",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:3734651d1304b9a9:mesh-sync",
     "source_hash": "3734651d1304b9a95fe9bccc4b57643c97eba2dd22a6c467aa0793c12e79fe5d",
