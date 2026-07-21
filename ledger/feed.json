@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-3333cfc5a92a5ee30b433614f098dd2e31675b30",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:aa2c92cc0d903db8:mesh-sync",
+    "source_hash": "aa2c92cc0d903db8845b7078a86a73cf6522aebf2fd8879243a21feaa9c81e13",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-07-21T22:43:45Z",
+    "author": "Cursor Agent",
+    "sha": "3333cfc5a92a5ee30b433614f098dd2e31675b30",
+    "title": "merge: C-379 item 6 partial closeout docs (post-#97)\n\nDurability redeploy-survival blocking per Codex P1 \u2014 landed after #97 merged.\n\nCo-authored-by: michaeljjudan <michaeljjudan@gmail.com>",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-048eda2bc10a07d3ae5ec7d98803e2414a471bd6",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:681a2bbea9798b76:mesh-sync",
     "source_hash": "681a2bbea9798b76f7536784206614cc1082c3e31fe691dae267c58947e05f99",
