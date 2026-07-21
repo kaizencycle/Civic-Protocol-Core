@@ -37,8 +37,21 @@ def test_mic_wallet_health_reports_write_probe(monkeypatch, tmp_path):
     assert payload["db_connected"] is True
 
 
-def test_resolve_database_url_falls_back_when_disk_mount_missing(monkeypatch):
+def test_resolve_database_url_fail_closed_when_disk_mount_missing(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("MIC_WALLET_ALLOW_EPHEMERAL", raising=False)
+
+    def _no_disk(path: str) -> bool:
+        return False
+
+    monkeypatch.setattr("os.path.isdir", _no_disk)
+    module = _load_mic_app()
+    assert module.resolve_database_url() == "sqlite:////var/lib/mic-wallet/mic_wallet.db"
+
+
+def test_resolve_database_url_allows_ephemeral_only_when_flag_set(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("MIC_WALLET_ALLOW_EPHEMERAL", "1")
 
     def _no_disk(path: str) -> bool:
         return False
@@ -59,15 +72,28 @@ def test_resolve_database_url_uses_disk_sqlite_when_mounted(monkeypatch):
     assert module.resolve_database_url() == "sqlite:////var/lib/mic-wallet/mic_wallet.db"
 
 
-def test_resolve_database_url_explicit_disk_sqlite_falls_back_without_mount(monkeypatch):
+def test_resolve_database_url_honors_mic_wallet_data_dir(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.setenv("MIC_WALLET_DATA_DIR", "/data/custom-wallet")
+
+    def _custom_disk(path: str) -> bool:
+        return path == "/data/custom-wallet"
+
+    monkeypatch.setattr("os.path.isdir", _custom_disk)
+    module = _load_mic_app()
+    assert module.resolve_database_url() == "sqlite:////data/custom-wallet/mic_wallet.db"
+
+
+def test_resolve_database_url_explicit_disk_sqlite_fail_closed_without_mount(monkeypatch):
     monkeypatch.setenv(
         "DATABASE_URL",
         "sqlite:////var/lib/mic-wallet/mic_wallet.db",
     )
+    monkeypatch.delenv("MIC_WALLET_ALLOW_EPHEMERAL", raising=False)
 
     def _no_disk(path: str) -> bool:
         return False
 
     monkeypatch.setattr("os.path.isdir", _no_disk)
     module = _load_mic_app()
-    assert module.resolve_database_url() == "sqlite:///./mic_wallet.db"
+    assert module.resolve_database_url() == "sqlite:////var/lib/mic-wallet/mic_wallet.db"

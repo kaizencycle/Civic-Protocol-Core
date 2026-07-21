@@ -89,33 +89,55 @@ def get_engine_kwargs(database_url: str) -> dict:
 
     return kwargs
 
-# Configuration — C-360 / C-379: match identity service disk detection pattern
-_MIC_DISK_DIR = "/var/lib/mic-wallet"
-_DISK_SQLITE = "sqlite:////var/lib/mic-wallet/mic_wallet.db"
-_DEFAULT_SQLITE = "sqlite:///./mic_wallet.db"
-_MIC_DATA_DIR = (os.getenv("MIC_WALLET_DATA_DIR") or _MIC_DISK_DIR).strip()
+# Configuration — C-360 / C-379: disk-backed SQLite; fail closed on Render (no ephemeral substitute)
+_DEFAULT_RENDER_DISK_DIR = "/var/lib/mic-wallet"
+_MIC_DATA_DIR = (os.getenv("MIC_WALLET_DATA_DIR") or _DEFAULT_RENDER_DISK_DIR).strip()
+_DEV_SQLITE = "sqlite:///./mic_wallet.db"
+
+
+def disk_sqlite_url(data_dir: str) -> str:
+    """Build absolute SQLite URL for a persistent data directory."""
+    normalized = data_dir.rstrip("/")
+    if normalized.startswith("/"):
+        return f"sqlite:////{normalized.lstrip('/')}/mic_wallet.db"
+    return f"sqlite:///{normalized}/mic_wallet.db"
+
+
+def _allows_ephemeral_fallback() -> bool:
+    """Local dev only — never silently substitute ephemeral DB on Render."""
+    flag = (os.getenv("MIC_WALLET_ALLOW_EPHEMERAL") or "").strip().lower()
+    return flag in ("1", "true", "yes")
 
 
 def resolve_database_url() -> str:
-    """Prefer operator DATABASE_URL; else Render disk SQLite when mounted; else local file."""
+    """Prefer operator DATABASE_URL; else disk SQLite when mounted; else fail closed."""
     explicit = (os.getenv("DATABASE_URL") or "").strip()
+    data_dir = _MIC_DATA_DIR
+
     if explicit:
-        # C-379: dashboard may set sqlite on disk path before mount is live — fall back if missing
-        if (
-            explicit.startswith("sqlite")
-            and "/var/lib/mic-wallet" in explicit
-            and not os.path.isdir(_MIC_DISK_DIR)
-        ):
-            logger.warning(
-                "[DB] DATABASE_URL points at %s but disk mount missing — falling back to %s",
-                _MIC_DISK_DIR,
-                _DEFAULT_SQLITE,
+        # C-379 Codex P1: do not swap persistent paths for ephemeral storage
+        if explicit.startswith("sqlite") and data_dir in explicit and not os.path.isdir(data_dir):
+            logger.error(
+                "[DB] DATABASE_URL targets %s but mount missing — fail closed (no ephemeral fallback)",
+                data_dir,
             )
-            return _DEFAULT_SQLITE
         return explicit
-    if os.path.isdir(_MIC_DISK_DIR):
-        return _DISK_SQLITE
-    return _DEFAULT_SQLITE
+
+    if os.path.isdir(data_dir):
+        return disk_sqlite_url(data_dir)
+
+    if _allows_ephemeral_fallback():
+        logger.warning(
+            "[DB] %s not mounted — MIC_WALLET_ALLOW_EPHEMERAL set, using dev SQLite",
+            data_dir,
+        )
+        return _DEV_SQLITE
+
+    logger.error(
+        "[DB] %s not mounted and DATABASE_URL unset — fail closed",
+        data_dir,
+    )
+    return disk_sqlite_url(data_dir)
 
 
 def ensure_sqlite_parent_dir(database_url: str) -> None:
