@@ -185,10 +185,12 @@ No `dpg-` string appears in `mic-wallet/` source. If Postgres is in use at runti
 |------|--------|
 | Dashboard check | ✅ Confirmed (custodian, 2026-07-21) |
 | Dashboard fix + redeploy | ✅ Complete |
-| `/health` green | ✅ `db_ok:true` @ 2026-07-21T22:29:11Z |
-| Write survives redeploy | Recommended (non-blocking) |
+| `/health` green | ✅ `db_ok:true` @ 2026-07-21T22:29:11Z (connectivity) |
+| Write survives redeploy | ⏳ **BLOCKING** — required before full item 6 closeout (Codex P1) |
 
-**Item 6: CLOSED.**
+**Item 6: PARTIAL CLOSEOUT** — connectivity restored; durability verification pending.
+
+> Codex P1: `/health` alone cannot certify persistent storage. Ephemeral fallback (pre-#98) could report green while balances reset on redeploy. Merge [#98](https://github.com/kaizencycle/Civic-Protocol-Core/pull/98) fail-closed + pass redeploy-survival test before full closure.
 
 ---
 
