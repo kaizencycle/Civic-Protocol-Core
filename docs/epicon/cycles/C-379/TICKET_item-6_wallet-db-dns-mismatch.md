@@ -62,7 +62,7 @@ justification:
   COUNTERFACTUAL: >
     If the Render dashboard env var group shows no Postgres override and the app code
     itself constructs that hostname from some other config, this escalates further —
-  it's a code-level bug, not config drift, and the fix path in section 5 changes accordingly.
+    it's a code-level bug, not config drift, and the fix path in section 5 changes accordingly.
 counterfactuals:
   - If tests fail, do not merge
   - If MII drops below 0.95, revert immediately
