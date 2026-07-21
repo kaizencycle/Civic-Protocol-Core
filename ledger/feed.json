@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-ab73cb89df1ce316a8cf489825627ed09facb44b",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:70b398fcde5d6b76:mesh-sync",
+    "source_hash": "70b398fcde5d6b76b570cc2ae0e88546d2f15dc6a27db494120ef7d3dff53bec",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-07-21T18:17:30-04:00",
+    "author": "Michael Judan",
+    "sha": "ab73cb89df1ce316a8cf489825627ed09facb44b",
+    "title": "Merge pull request #96 from kaizencycle/cursor/c379-item6-wallet-sqlite-disk-fix-0e02\n\nfix(mic-wallet): C-379 item 6 phase 2 \u2014 SQLite disk mount detection",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-044f583d04dac4e2ccd1be5a0ac074f703739193",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:b54f07f60d952350:mesh-sync",
     "source_hash": "b54f07f60d9523500592e77d3762896d6860d2ee7080551eeb73d23c55094eaf",
