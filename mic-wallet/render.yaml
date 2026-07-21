@@ -11,6 +11,12 @@ services:
     startCommand: |
       uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
+    # C-360 / C-379: persistent disk — without this, wallet balances reset every deploy.
+    # Live service mobius-mic-wallet-service was missing this block (deploy logs 2026-07-21).
+    disk:
+      name: mic-wallet-data
+      mountPath: /var/lib/mic-wallet
+      sizeGB: 1
     envVars:
       - key: DATABASE_URL
         sync: false
