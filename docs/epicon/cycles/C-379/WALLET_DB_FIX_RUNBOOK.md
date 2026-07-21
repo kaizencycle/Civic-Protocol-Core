@@ -1,6 +1,6 @@
 # C-379 Item 6 — Wallet DB fix runbook
 
-**Status:** dashboard witness confirmed (2026-07-21) — hypothesis 1 TRUE  
+**Status:** **CLOSED** — production witness @ 2026-07-21T22:29:11Z  
 **Service:** `mobius-mic-wallet-service` (`srv-d4r3b4c9c44c73bmh6ng`)
 
 ## Witness Table (dashboard check)
