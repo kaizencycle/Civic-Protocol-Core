@@ -2,7 +2,7 @@ services:
   - type: web
     name: mobius-mic-wallet
     env: python
-    plan: free
+    plan: starter
     region: oregon
     runtime: python
     rootDir: mic-wallet
@@ -12,7 +12,7 @@ services:
       uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     # C-360 / C-379: persistent disk — without this, wallet balances reset every deploy.
-    # Live service mobius-mic-wallet-service was missing this block (deploy logs 2026-07-21).
+    # Render requires a paid plan (starter+) for persistent disks on web services.
     disk:
       name: mic-wallet-data
       mountPath: /var/lib/mic-wallet
