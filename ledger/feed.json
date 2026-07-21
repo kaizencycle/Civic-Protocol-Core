@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-2d9380c75d19b3df5bd40d0cc8ecb63b4d02e659",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:52d8ca1c86d88520:mesh-sync",
+    "source_hash": "52d8ca1c86d885204d1697516f1c23f3693288a1bf554ddd0d88e0dabbfe2410",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-07-21T18:59:58-04:00",
+    "author": "Michael Judan",
+    "sha": "2d9380c75d19b3df5bd40d0cc8ecb63b4d02e659",
+    "title": "Merge pull request #99 from kaizencycle/cursor/c379-wallet-disk-blueprint-0e02\n\nfix(mic-wallet): disk blueprint + disk_mounted health field (C-379 item 6)",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-3333cfc5a92a5ee30b433614f098dd2e31675b30",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:aa2c92cc0d903db8:mesh-sync",
     "source_hash": "aa2c92cc0d903db8845b7078a86a73cf6522aebf2fd8879243a21feaa9c81e13",
