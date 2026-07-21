@@ -3,6 +3,7 @@ services:
   - type: web
     name: civic-ledger-api
     env: python
+    plan: starter
     # Ledger deps live in ledger/requirements.txt; root requirements.txt also lists them for single-pip installs.
     buildCommand: pip install -r requirements.txt && pip install -r ledger/requirements.txt
     # Clear dashboard "Start Command" so this runs; override may use: uvicorn ledger.app.main:app --host 0.0.0.0 --port $PORT (no trailing dot on host).
@@ -11,6 +12,7 @@ services:
     # C-331: persistent disk for the core ledger SQLite db. db.py writes events,
     # identities, mesh_entries, epicon_entries, seal_records to a FILE (it does
     # NOT use DATABASE_URL), so durability requires a non-ephemeral mount.
+    # Render requires starter+ for persistent disks on web services.
     disk:
       name: ledger-data
       mountPath: /var/lib/ledger
@@ -78,13 +80,14 @@ services:
   - type: web
     name: mobius-identity
     env: python
-    plan: free
+    plan: starter
     region: oregon
     buildCommand: pip install -r identity/requirements.txt
     startCommand: cd identity && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     # C-358: persistent disk — without this, SQLite users are wiped every deploy
     # and signup writes fail (500), breaking Terminal → ledger attest (401).
+    # Render requires starter+ for persistent disks on web services.
     disk:
       name: identity-data
       mountPath: /var/lib/identity
@@ -129,6 +132,7 @@ services:
     startCommand: cd mic-wallet && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     # C-360: persistent disk — without this, wallet balances reset every deploy.
+    # Render requires starter+ for persistent disks on web services.
     disk:
       name: mic-wallet-data
       mountPath: /var/lib/mic-wallet
