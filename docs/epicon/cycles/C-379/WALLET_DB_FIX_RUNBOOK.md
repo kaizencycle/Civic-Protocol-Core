@@ -1,6 +1,6 @@
 # C-379 Item 6 — Wallet DB fix runbook
 
-**Status:** **PARTIAL CLOSEOUT** — connectivity witness ✅ @ 2026-07-21T22:29Z; **durability redeploy-survival ⏳ BLOCKING**  
+**Status:** **PARTIAL CLOSEOUT** — connectivity + disk mount ✅ @ 2026-07-21T23:09:47Z; **durability redeploy-survival ⏳ BLOCKING**  
 **Service:** `mobius-mic-wallet-service` (`srv-d4r3b4c9c44c73bmh6ng`)
 
 ## Witness Table (dashboard check)
@@ -92,6 +92,32 @@ Deploy logs after #98 merge:
 4. Manual deploy → expect `disk_mounted:true` and `db_ok:true` in `/health`
 
 > The 22:29Z green `/health` likely used ephemeral storage (pre-#98). #98 correctly refuses that path.
+
+## Phase 6 — infrastructure recovery witness (2026-07-21T23:09Z) ✅
+
+```json
+{
+  "status": "ok",
+  "service": "mobius-mic-wallet",
+  "db_ok": true,
+  "db_write_ok": true,
+  "db_connected": true,
+  "db_error": null,
+  "disk_mounted": true,
+  "data_dir": "/var/lib/mic-wallet",
+  "timestamp": "2026-07-21T23:09:47.103042"
+}
+```
+
+| Gate | Verdict |
+|------|---------|
+| Connectivity | **PASS** |
+| Disk mount (`ismount`) | **PASS** |
+| Fail-closed (#98) | **PASS** |
+| Blueprint disk (#99) | **PASS** |
+| Starter plan (#100) | **PASS** |
+| Federation disk plans (#101) | **PASS** |
+| Write survives redeploy | **BLOCKING** — see Phase 4 |
 
 ---
 
