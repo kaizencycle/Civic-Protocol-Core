@@ -89,14 +89,61 @@ def get_engine_kwargs(database_url: str) -> dict:
 
     return kwargs
 
-# Configuration — C-360: default to Render disk path when DATABASE_URL unset
-_MIC_DATA_DIR = (os.getenv("MIC_WALLET_DATA_DIR") or "/var/lib/mic-wallet").strip()
-_DEFAULT_SQLITE_URL = f"sqlite:///{_MIC_DATA_DIR}/mic_wallet.db"
-DATABASE_URL = os.getenv("DATABASE_URL", _DEFAULT_SQLITE_URL).strip() or _DEFAULT_SQLITE_URL
+# Configuration — C-360 / C-379: match identity service disk detection pattern
+_MIC_DISK_DIR = "/var/lib/mic-wallet"
+_DISK_SQLITE = "sqlite:////var/lib/mic-wallet/mic_wallet.db"
+_DEFAULT_SQLITE = "sqlite:///./mic_wallet.db"
+_MIC_DATA_DIR = (os.getenv("MIC_WALLET_DATA_DIR") or _MIC_DISK_DIR).strip()
+
+
+def resolve_database_url() -> str:
+    """Prefer operator DATABASE_URL; else Render disk SQLite when mounted; else local file."""
+    explicit = (os.getenv("DATABASE_URL") or "").strip()
+    if explicit:
+        # C-379: dashboard may set sqlite on disk path before mount is live — fall back if missing
+        if (
+            explicit.startswith("sqlite")
+            and "/var/lib/mic-wallet" in explicit
+            and not os.path.isdir(_MIC_DISK_DIR)
+        ):
+            logger.warning(
+                "[DB] DATABASE_URL points at %s but disk mount missing — falling back to %s",
+                _MIC_DISK_DIR,
+                _DEFAULT_SQLITE,
+            )
+            return _DEFAULT_SQLITE
+        return explicit
+    if os.path.isdir(_MIC_DISK_DIR):
+        return _DISK_SQLITE
+    return _DEFAULT_SQLITE
+
+
+def ensure_sqlite_parent_dir(database_url: str) -> None:
+    """Create parent directory for SQLite file paths when possible."""
+    if not database_url.startswith("sqlite"):
+        return
+    if database_url.startswith("sqlite:////"):
+        db_path = "/" + database_url[len("sqlite:////") :]
+    elif database_url.startswith("sqlite:///"):
+        db_path = database_url[len("sqlite:///") :]
+    else:
+        return
+    parent = os.path.dirname(db_path) or "."
+    if parent in (".", ""):
+        return
+    try:
+        os.makedirs(parent, exist_ok=True)
+    except OSError as exc:
+        logger.warning("[DB] Could not create SQLite parent dir %s: %s", parent, exc)
+
+
+DATABASE_URL = resolve_database_url()
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
 elif DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+
+ensure_sqlite_parent_dir(DATABASE_URL)
 
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-in-production")
 ALGORITHM = "HS256"

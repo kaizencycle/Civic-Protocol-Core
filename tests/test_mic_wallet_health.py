@@ -1,4 +1,4 @@
-"""C-360: MIC wallet /health exposes db_write_ok probe."""
+"""C-360 / C-379: MIC wallet database URL resolution and health."""
 
 import importlib.util
 import sys
@@ -8,19 +8,22 @@ from fastapi.testclient import TestClient
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MIC_MAIN = REPO_ROOT / "mic-wallet" / "app" / "main.py"
+MODULE_NAME = "mic_wallet_main_health_test"
 
 
-def _load_mic_app():
-    spec = importlib.util.spec_from_file_location("mic_wallet_main", MIC_MAIN)
+def _load_mic_app(*, fresh: bool = True):
+    if fresh and MODULE_NAME in sys.modules:
+        del sys.modules[MODULE_NAME]
+    spec = importlib.util.spec_from_file_location(MODULE_NAME, MIC_MAIN)
     module = importlib.util.module_from_spec(spec)
-    sys.modules["mic_wallet_main"] = module
+    sys.modules[MODULE_NAME] = module
     spec.loader.exec_module(module)
-    return module.app
+    return module
 
 
 def test_mic_wallet_health_reports_write_probe(monkeypatch, tmp_path):
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path}/mic_wallet.db")
-    app = _load_mic_app()
+    app = _load_mic_app().app
     client = TestClient(app)
 
     response = client.get("/health")
@@ -32,3 +35,39 @@ def test_mic_wallet_health_reports_write_probe(monkeypatch, tmp_path):
     assert payload["db_ok"] is True
     assert payload["db_write_ok"] is True
     assert payload["db_connected"] is True
+
+
+def test_resolve_database_url_falls_back_when_disk_mount_missing(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    def _no_disk(path: str) -> bool:
+        return False
+
+    monkeypatch.setattr("os.path.isdir", _no_disk)
+    module = _load_mic_app()
+    assert module.resolve_database_url() == "sqlite:///./mic_wallet.db"
+
+
+def test_resolve_database_url_uses_disk_sqlite_when_mounted(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+
+    def _disk_only(path: str) -> bool:
+        return path == "/var/lib/mic-wallet"
+
+    monkeypatch.setattr("os.path.isdir", _disk_only)
+    module = _load_mic_app()
+    assert module.resolve_database_url() == "sqlite:////var/lib/mic-wallet/mic_wallet.db"
+
+
+def test_resolve_database_url_explicit_disk_sqlite_falls_back_without_mount(monkeypatch):
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "sqlite:////var/lib/mic-wallet/mic_wallet.db",
+    )
+
+    def _no_disk(path: str) -> bool:
+        return False
+
+    monkeypatch.setattr("os.path.isdir", _no_disk)
+    module = _load_mic_app()
+    assert module.resolve_database_url() == "sqlite:///./mic_wallet.db"
