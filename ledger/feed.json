@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-122267034c7a5c34651fa06135091b57c20a1b6b",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:fbf1f1e919af3c3c:mesh-sync",
+    "source_hash": "fbf1f1e919af3c3c0183ae24979525945ecd1d522be8f3bef562a11c88e57b4b",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-07-21T23:22:11Z",
+    "author": "cursor[bot]",
+    "sha": "122267034c7a5c34651fa06135091b57c20a1b6b",
+    "title": "Merge pull request #102 from kaizencycle/cursor/c379-reaudit-runbook-phase6-0e02\n\ndocs(C-379): wallet runbook phase 6 \u2014 disk_mounted witness",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-fa1f6025d8200b7fc9249e2abe4d699988b95cec",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:bc26d445169c77a4:mesh-sync",
     "source_hash": "bc26d445169c77a4911e9ce49b48d504f9d191407e26db9614d9960abab5d923",
