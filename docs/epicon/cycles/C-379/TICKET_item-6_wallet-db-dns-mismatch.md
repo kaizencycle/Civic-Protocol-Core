@@ -184,9 +184,11 @@ No `dpg-` string appears in `mic-wallet/` source. If Postgres is in use at runti
 | Step | Status |
 |------|--------|
 | Dashboard check | ✅ Confirmed (custodian, 2026-07-21) |
-| Dashboard fix + redeploy | ⏳ Operator |
-| `/health` green | ⏳ Post-deploy |
-| Write survives redeploy | ⏳ Post-deploy |
+| Dashboard fix + redeploy | ✅ Complete |
+| `/health` green | ✅ `db_ok:true` @ 2026-07-21T22:29:11Z |
+| Write survives redeploy | Recommended (non-blocking) |
+
+**Item 6: CLOSED.**
 
 ---
 
