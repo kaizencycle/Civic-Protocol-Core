@@ -1,6 +1,6 @@
 # C-379 Item 6 — Wallet DB fix runbook
 
-**Status:** **CLOSED** — production witness @ 2026-07-21T22:29:11Z  
+**Status:** **PARTIAL CLOSEOUT** — connectivity witness ✅ @ 2026-07-21T22:29Z; **durability redeploy-survival ⏳ BLOCKING**  
 **Service:** `mobius-mic-wallet-service` (`srv-d4r3b4c9c44c73bmh6ng`)
 
 ## Witness Table (dashboard check)
@@ -52,9 +52,24 @@ sqlite3.OperationalError: unable to open database file
    curl -sS https://mobius-mic-wallet-service.onrender.com/health | jq '.status,.db_ok,.db_write_ok,.db_connected'
    ```
    Expect: `ok` / `true` / `true` / `true`
-7. Confirm a test wallet write survives redeploy (not just health check)
+7. **BLOCKING before item 6 full closeout:** confirm a test wallet write survives manual redeploy (not just `/health`). Without this, ephemeral DB false-green is possible if disk is misconfigured ([#98](https://github.com/kaizencycle/Civic-Protocol-Core/pull/98) fail-closed mitigates going forward).
 
-## Repo change (this PR)
+## Phase 3 — connectivity witness (2026-07-21T22:29Z) ✅
+
+```json
+{"status":"ok","db_ok":true,"db_write_ok":true,"db_connected":true}
+```
+
+Connectivity gate satisfied. Durability gate **open** until redeploy-survival test passes.
+
+## Phase 4 — durability gate (BLOCKING) ⏳
+
+1. Record a test wallet balance or earning event (note `user_id` / amount / timestamp)
+2. Manual redeploy `mobius-mic-wallet-service`
+3. Re-query balance — must match pre-redeploy
+4. Only then mark item 6 **fully closed**
+
+## Repo changes
 
 `render.yaml` mic-wallet `DATABASE_URL` aligned with identity service pattern (`sync: false` + comment). Blueprint no longer declares a literal SQLite URL that fights dashboard sync semantics — runtime falls back to `main.py` disk default when unset.
 
