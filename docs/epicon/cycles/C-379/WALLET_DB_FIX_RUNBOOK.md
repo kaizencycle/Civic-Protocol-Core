@@ -81,14 +81,15 @@ Deploy logs after #98 merge:
 | Claim | Verdict |
 |-------|---------|
 | #98 fail-closed working | **TRUE** — correctly degraded, no ephemeral false-green |
-| Disk mounted at `/var/lib/mic-wallet` | **FALSE** — `disk_mounted` would be false in `/health` |
-| Root cause | `mic-wallet/render.yaml` lacked `disk:` block; live service may not have persistent disk attached |
+| Disk mounted at `/var/lib/mic-wallet` | **FALSE** — `/health` `disk_mounted` uses `os.path.ismount()` (not plain `isdir`) |
+| Root cause | `mic-wallet/render.yaml` lacked `disk:` block; service on `plan: free` cannot provision disks |
 
 **Operator fix (Render console):**
 
-1. **mobius-mic-wallet-service** → **Disk** → Add disk `mic-wallet-data`, 1GB, mount `/var/lib/mic-wallet`
-2. **Environment** → **Delete** `DATABASE_URL` (let code auto-detect disk)
-3. Manual deploy → expect `disk_mounted:true` and `db_ok:true` in `/health`
+1. **mobius-mic-wallet-service** → **Settings** → upgrade to **Starter** plan (disks require paid web tier)
+2. **Disk** → Add disk `mic-wallet-data`, 1GB, mount `/var/lib/mic-wallet`
+3. **Environment** → **Delete** `DATABASE_URL` (let code auto-detect disk)
+4. Manual deploy → expect `disk_mounted:true` and `db_ok:true` in `/health`
 
 > The 22:29Z green `/health` likely used ephemeral storage (pre-#98). #98 correctly refuses that path.
 

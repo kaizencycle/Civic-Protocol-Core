@@ -103,6 +103,14 @@ def disk_sqlite_url(data_dir: str) -> str:
     return f"sqlite:///{normalized}/mic_wallet.db"
 
 
+def is_persistent_data_mount(path: str) -> bool:
+    """True when path is a real mount point (Render persistent disk), not a plain directory."""
+    try:
+        return os.path.isdir(path) and os.path.ismount(path)
+    except OSError:
+        return False
+
+
 def _allows_ephemeral_fallback() -> bool:
     """Local dev only — never silently substitute ephemeral DB on Render."""
     flag = (os.getenv("MIC_WALLET_ALLOW_EPHEMERAL") or "").strip().lower()
@@ -116,14 +124,14 @@ def resolve_database_url() -> str:
 
     if explicit:
         # C-379 Codex P1: do not swap persistent paths for ephemeral storage
-        if explicit.startswith("sqlite") and data_dir in explicit and not os.path.isdir(data_dir):
+        if explicit.startswith("sqlite") and data_dir in explicit and not is_persistent_data_mount(data_dir):
             logger.error(
                 "[DB] DATABASE_URL targets %s but mount missing — fail closed (no ephemeral fallback)",
                 data_dir,
             )
         return explicit
 
-    if os.path.isdir(data_dir):
+    if is_persistent_data_mount(data_dir):
         return disk_sqlite_url(data_dir)
 
     if _allows_ephemeral_fallback():
@@ -529,7 +537,7 @@ def _probe_db_write() -> tuple[bool, bool, str | None]:
 async def health():
     db_ok, db_write_ok, db_error = _probe_db_write()
     healthy = db_ok and db_write_ok
-    disk_mounted = os.path.isdir(_MIC_DATA_DIR)
+    disk_mounted = is_persistent_data_mount(_MIC_DATA_DIR)
     return {
         "status": "ok" if healthy else "degraded",
         "service": "mobius-mic-wallet",
