@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-9e51f26b7a87ccd6f35ef87bcae743ae9cdaa3f4",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:3734651d1304b9a9:mesh-sync",
+    "source_hash": "3734651d1304b9a95fe9bccc4b57643c97eba2dd22a6c467aa0793c12e79fe5d",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-07-21T12:30:09-04:00",
+    "author": "Michael Judan",
+    "sha": "9e51f26b7a87ccd6f35ef87bcae743ae9cdaa3f4",
+    "title": "Merge pull request #94 from kaizencycle/cursor/c379-item6-wallet-db-diagnostic-0e02\n\ndocs(epicon): C-379 item 6 \u2014 mic-wallet DB DNS diagnostic (Tier 2)",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-7024931dd623acc02cbac80147813d8de14799a6",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:46a27968eebed538:mesh-sync",
     "source_hash": "46a27968eebed538e58ecb5a32e97445cb1dec899dfc025dcb41e0de323d2f7b",
