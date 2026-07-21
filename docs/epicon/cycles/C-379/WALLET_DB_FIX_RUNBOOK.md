@@ -12,6 +12,29 @@
 | Code hardcodes `dpg-` hostname | **STALE** | `mic-wallet/app/main.py` uses `os.getenv("DATABASE_URL", _DEFAULT_SQLITE_URL)` only |
 | Postgres instance still exists | **FALSE** | DNS resolution failure — instance deleted/suspended (C-352 pattern recurrence) |
 
+## Witness update (2026-07-21T19:36Z) — phase 2
+
+Postgres override cleared. New error:
+
+```text
+sqlite3.OperationalError: unable to open database file
+```
+
+| Claim | Verdict |
+|-------|---------|
+| Postgres DNS failure | **STALE** — override cleared |
+| SQLite path unreachable | **TRUE** — disk mount missing or parent dir not writable |
+| Dashboard should set explicit sqlite URL | **OPTIONAL** — prefer **unset** `DATABASE_URL`; let `resolve_database_url()` detect disk |
+
+**Operator checks:**
+
+1. Render → **mobius-mic-wallet-service** → **Disk** — confirm `mic-wallet-data` mounted at `/var/lib/mic-wallet`
+2. If payment-failed banner is showing, disk may be unavailable — resolve billing first
+3. **Delete** `DATABASE_URL` from dashboard entirely (not just change to sqlite) so code can auto-detect
+4. Redeploy after [CPC fix PR] merges (`resolve_database_url` + `ensure_sqlite_parent_dir`, identity pattern)
+
+---
+
 ## Operator steps (Render console)
 
 > **Security:** The prior Postgres URL contained live credentials. Rotate or revoke that DB user if the instance is ever restored. Do not commit dashboard secrets to git.
