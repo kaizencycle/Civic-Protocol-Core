@@ -101,14 +101,17 @@ def resolve_database_url() -> str:
     explicit = (os.getenv("DATABASE_URL") or "").strip()
     if explicit:
         # C-379: dashboard may set sqlite on disk path before mount is live — fall back if missing
-        if explicit.startswith("sqlite") and "/var/lib/mic-wallet" in explicit:
-            if not os.path.isdir(_MIC_DISK_DIR):
-                logger.warning(
-                    "[DB] DATABASE_URL points at %s but disk mount missing — falling back to %s",
-                    _MIC_DISK_DIR,
-                    _DEFAULT_SQLITE,
-                )
-                return _DEFAULT_SQLITE
+        if (
+            explicit.startswith("sqlite")
+            and "/var/lib/mic-wallet" in explicit
+            and not os.path.isdir(_MIC_DISK_DIR)
+        ):
+            logger.warning(
+                "[DB] DATABASE_URL points at %s but disk mount missing — falling back to %s",
+                _MIC_DISK_DIR,
+                _DEFAULT_SQLITE,
+            )
+            return _DEFAULT_SQLITE
         return explicit
     if os.path.isdir(_MIC_DISK_DIR):
         return _DISK_SQLITE
