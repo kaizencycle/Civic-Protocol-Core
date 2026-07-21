@@ -35,6 +35,8 @@ def test_mic_wallet_health_reports_write_probe(monkeypatch, tmp_path):
     assert payload["db_ok"] is True
     assert payload["db_write_ok"] is True
     assert payload["db_connected"] is True
+    assert payload["disk_mounted"] is False
+    assert payload["data_dir"] == "/var/lib/mic-wallet"
 
 
 def test_resolve_database_url_fail_closed_when_disk_mount_missing(monkeypatch):

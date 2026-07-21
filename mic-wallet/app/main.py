@@ -529,6 +529,7 @@ def _probe_db_write() -> tuple[bool, bool, str | None]:
 async def health():
     db_ok, db_write_ok, db_error = _probe_db_write()
     healthy = db_ok and db_write_ok
+    disk_mounted = os.path.isdir(_MIC_DATA_DIR)
     return {
         "status": "ok" if healthy else "degraded",
         "service": "mobius-mic-wallet",
@@ -536,6 +537,8 @@ async def health():
         "db_write_ok": db_write_ok,
         "db_connected": healthy,
         "db_error": db_error,
+        "disk_mounted": disk_mounted,
+        "data_dir": _MIC_DATA_DIR,
         "timestamp": datetime.utcnow().isoformat(),
     }
 
