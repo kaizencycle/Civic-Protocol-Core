@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-048eda2bc10a07d3ae5ec7d98803e2414a471bd6",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:681a2bbea9798b76:mesh-sync",
+    "source_hash": "681a2bbea9798b76f7536784206614cc1082c3e31fe691dae267c58947e05f99",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-07-21T18:39:15-04:00",
+    "author": "Michael Judan",
+    "sha": "048eda2bc10a07d3ae5ec7d98803e2414a471bd6",
+    "title": "Merge pull request #98 from kaizencycle/cursor/c379-wallet-fail-closed-disk-0e02\n\nfix(mic-wallet): fail closed on missing disk (Codex P1/P2)",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-1924c739ab9387a9fc7b8c935f6633d783412c5d",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:0fbb68e5a707386a:mesh-sync",
     "source_hash": "0fbb68e5a707386a5f8d857a691d8fe401935bf32cdc4e48115fc0b804e3764f",
