@@ -134,8 +134,11 @@ services:
       mountPath: /var/lib/mic-wallet
       sizeGB: 1
     envVars:
+      # C-360 / C-379: operator-managed — do NOT point at expired Render Postgres.
+      # Dashboard override from C-352 era (dpg-d7deg2f41pts73a0djvg-a) caused DNS failure
+      # when instance was deleted. When unset, mic-wallet/app/main.py uses sqlite on disk.
       - key: DATABASE_URL
-        value: sqlite:////var/lib/mic-wallet/mic_wallet.db
+        sync: false
       - key: SECRET_KEY
         sync: false  # Must match Identity Service SECRET_KEY
       - key: PORT

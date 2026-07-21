@@ -171,7 +171,22 @@ No `dpg-` string appears in `mic-wallet/` source. If Postgres is in use at runti
 - [x] `review:atlas` — diagnosis methodology, hypothesis ordering
 - [x] steward review — required per Tier 2 (MIC-ledger-adjacent write path)
 
-**Notes for Sentinels:** Section 5 is a decision tree because the dashboard-vs-code root cause isn't confirmed yet. Don't skip straight to "clear the override" without step 1's confirmation.
+**Notes for Sentinels:** Section 5 is a decision tree because the dashboard-vs-code root cause wasn't confirmed yet. Don't skip straight to "clear the override" without step 1's confirmation.
+
+---
+
+## 10. Dashboard witness (2026-07-21T17:46Z)
+
+**Hypothesis 1 confirmed.** Render console for `mobius-mic-wallet-service` shows `DATABASE_URL` set to a Postgres URL with host `dpg-d7deg2f41pts73a0djvg-a` — matching live `/health` DNS error. Repo `render.yaml` declared SQLite; dashboard override wins at runtime.
+
+**Chosen path:** **5.2(a)** — clear Postgres override; use SQLite on mounted disk per C-360 intent. See [WALLET_DB_FIX_RUNBOOK.md](./WALLET_DB_FIX_RUNBOOK.md).
+
+| Step | Status |
+|------|--------|
+| Dashboard check | ✅ Confirmed (custodian, 2026-07-21) |
+| Dashboard fix + redeploy | ⏳ Operator |
+| `/health` green | ⏳ Post-deploy |
+| Write survives redeploy | ⏳ Post-deploy |
 
 ---
 
