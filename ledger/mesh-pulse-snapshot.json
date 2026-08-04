@@ -1,7 +1,7 @@
 {
   "schema": "MNS_LEDGER_PULSE_SNAPSHOT_V1",
   "node_id": "civic-protocol-core",
-  "captured_at": "2026-08-04T12:19:35.766365+00:00",
+  "captured_at": "2026-08-04T15:35:51.775339+00:00",
   "ledger_base_url": "https://civic-protocol-core-ledger.onrender.com",
   "health": {
     "ok": false,
