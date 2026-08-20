@@ -1,7 +1,7 @@
 {
   "schema": "MNS_LEDGER_PULSE_SNAPSHOT_V1",
   "node_id": "civic-protocol-core",
-  "captured_at": "2026-08-20T01:52:13.465390+00:00",
+  "captured_at": "2026-08-20T03:10:41.217990+00:00",
   "ledger_base_url": "https://civic-protocol-core-ledger.onrender.com",
   "health": {
     "status": "ok",
@@ -16,7 +16,7 @@
     "ledger_db": {
       "ok": true,
       "path": "/var/lib/ledger/ledger.db",
-      "event_count": 47733,
+      "event_count": 47795,
       "error": null
     }
   },
@@ -167,6 +167,6 @@
         "type": "mesh-commit"
       }
     ],
-    "timestamp": "2026-08-20T01:52:13.451934+00:00"
+    "timestamp": "2026-08-20T03:10:41.192164+00:00"
   }
 }
