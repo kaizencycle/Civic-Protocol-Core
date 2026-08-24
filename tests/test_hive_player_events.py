@@ -123,6 +123,60 @@ def test_ledger_events_since_unknown_event_id_returns_404():
     assert resp.status_code == 404
 
 
+def test_hive_attest_missing_top_level_lab_source_returns_422():
+    """C-347-C found mobius-hive/browser-shell clients that never set lab_source at
+    all (a plain omission bug, not a lab_source=hive request that fails hive-lane
+    checks) — Pydantic already rejects that at the request-model level. Pin it as
+    tested behavior so a fixed client can be verified against it."""
+    resp = client.post(
+        "/ledger/attest",
+        json={
+            "event_type": "hive.player_event",
+            "civic_id": VALID_CIVIC_ID,
+            "payload": PAYLOAD,
+        },
+    )
+    assert resp.status_code == 422
+
+
+def test_hive_attest_rejects_payload_missing_required_field():
+    """player_event.schema.json's required fields were documentation only —
+    the server accepted a payload missing e.g. target_id. This locks in the fix."""
+    incomplete_payload = {k: v for k, v in PAYLOAD.items() if k != "target_id"}
+    resp = _attest(payload=incomplete_payload)
+    assert resp.status_code == 422
+    assert "target_id" in resp.json()["detail"]
+
+
+def test_hive_attest_payload_validation_scoped_to_player_event_type():
+    """The required-field check only applies to event_type=hive.player_event —
+    the hive lab_source itself is not restricted to a single event_type."""
+    resp = _attest(event_type="hive.other_event", payload={})
+    assert resp.status_code == 200, resp.text
+
+
+def test_hive_attest_rejects_non_iso8601_client_ts():
+    """player_event.schema.json declares client_ts format=date-time — a non-empty
+    but non-ISO-8601 string must not be silently written to the ledger."""
+    resp = _attest(payload={**PAYLOAD, "client_ts": "not-a-date"})
+    assert resp.status_code == 422
+    assert "client_ts" in resp.json()["detail"]
+
+
+def test_hive_attest_invalid_payload_does_not_consume_rate_limit():
+    """A malformed payload must not burn the per-civic_id throttle — otherwise a
+    client that fixes its payload and retries immediately gets 429 instead of
+    another chance to succeed."""
+    civic_id = "mobius-anon-ratefix01"
+    bad_payload = {**PAYLOAD, "civic_id": civic_id, "target_id": ""}
+    bad = _attest(civic_id=civic_id, payload=bad_payload)
+    assert bad.status_code == 422
+
+    good_payload = {**PAYLOAD, "civic_id": civic_id}
+    good = _attest(civic_id=civic_id, payload=good_payload)
+    assert good.status_code == 200, good.text
+
+
 def test_ledger_events_without_since_keeps_legacy_descending_order():
     """Omitting `since` must behave exactly as before (newest first, offset pagination)."""
     civic_id = "mobius-anon-legacy01"

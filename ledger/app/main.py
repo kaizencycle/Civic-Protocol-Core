@@ -273,6 +273,40 @@ def clear_hive_rate_limit() -> None:
     _hive_last_attest.clear()
 
 
+HIVE_PLAYER_EVENT_TYPE = "hive.player_event"
+# Mirrors ledger/schemas/player_event.schema.json's "required" list. That file
+# was documentation only — nothing enforced it, so a hive.player_event payload
+# missing e.g. target_id/cycle_id was accepted and written into citizen_history
+# undetected. Scoped to event_type=="hive.player_event" only: the hive lane
+# itself is not restricted to a single event_type.
+_HIVE_PLAYER_EVENT_REQUIRED_FIELDS = (
+    "world", "zone", "action", "target_id", "cycle_id", "client_ts",
+)
+
+
+def _require_hive_player_event_payload(payload: dict[str, Any]) -> None:
+    """Enforce player_event.schema.json's required fields for hive.player_event."""
+    missing = [
+        field
+        for field in _HIVE_PLAYER_EVENT_REQUIRED_FIELDS
+        if not isinstance(payload.get(field), str) or not payload[field]
+    ]
+    if missing:
+        raise HTTPException(
+            422,
+            f"hive.player_event payload missing required field(s): {', '.join(missing)}",
+        )
+    client_ts = payload["client_ts"]
+    try:
+        datetime.fromisoformat(client_ts.replace("Z", "+00:00"))
+    except ValueError as e:
+        raise HTTPException(
+            422,
+            f"hive.player_event payload field 'client_ts' is not a valid ISO 8601 "
+            f"date-time: {client_ts!r}",
+        ) from e
+
+
 def get_latest_event_hash() -> str:
     """Get the hash of the latest event in the chain"""
     try:
@@ -432,6 +466,12 @@ def attest_event(request: AttestationRequest,
     if request.lab_source == HIVE_LAB_SOURCE:
         # Pseudonymous, unauthenticated lane (C-341) — no Bearer token to verify.
         _require_hive_civic_id(request.civic_id)
+        # Payload shape is checked before the throttle: a malformed payload
+        # must not burn the per-civic_id rate limit, or a client that fixes
+        # its payload and retries immediately gets a spurious 429 instead of
+        # another chance to succeed.
+        if request.event_type == HIVE_PLAYER_EVENT_TYPE:
+            _require_hive_player_event_payload(request.payload)
         _enforce_hive_rate_limit(request.civic_id)
     else:
         if not authorization or not authorization.startswith("Bearer "):
