@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-ee53d64307ea77c80649b0778131d06d8520b245",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:95da5444e09794f0:mesh-sync",
+    "source_hash": "95da5444e09794f02d86e8c1411dfd482051dcd9f52938f03a88d3c29c26cca5",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-08-24T10:32:07-04:00",
+    "author": "Michael",
+    "sha": "ee53d64307ea77c80649b0778131d06d8520b245",
+    "title": "Merge pull request #104 from kaizencycle/claude/c413-hive-ledger-reconcile-3irrg3\n\nfix(ledger): enforce hive.player_event payload contract (C-413 reconciliation)",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-122267034c7a5c34651fa06135091b57c20a1b6b",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:fbf1f1e919af3c3c:mesh-sync",
     "source_hash": "fbf1f1e919af3c3c0183ae24979525945ecd1d522be8f3bef562a11c88e57b4b",
