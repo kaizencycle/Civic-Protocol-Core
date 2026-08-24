@@ -41,14 +41,12 @@ jobs:
           LEDGER_ALLOW_EPHEMERAL: 'true'
           DATABASE_URL: 'sqlite:////tmp/ci_manifest.db'
           LEDGER_DATA_DIR: '/tmp'
+          # IDENTITY_API_BASE is intentionally unset. This job generates OpenAPI
+          # from local code. It cannot and must not attest production identity health.
         run: |
-          cp scripts/expected_routes.json /tmp/committed.json
-          python3 scripts/gen_route_manifest.py
-          if ! diff -u /tmp/committed.json scripts/expected_routes.json; then
-            echo "::error::expected_routes.json is stale. Run scripts/gen_route_manifest.py and commit."
-            exit 1
-          fi
-          echo "manifest matches current code ✓"
+          echo "::notice::IDENTITY_API_BASE is unset in manifest-selftest — expected CI isolation."
+          echo "::notice::Production identity health is unattested by this job (no live Identity probe)."
+          python3 scripts/gen_route_manifest.py --check
 
   drift-check:
     needs: manifest-selftest

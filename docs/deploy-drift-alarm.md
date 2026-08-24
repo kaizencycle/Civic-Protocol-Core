@@ -20,7 +20,11 @@ prompt, Render shim wiring, and operational notes.
 ## Local usage
 
 ```bash
-# Regenerate manifest after adding/removing routes
+# Check committed manifest against current OpenAPI (CI selftest)
+LEDGER_ALLOW_EPHEMERAL=true DATABASE_URL='sqlite:////tmp/manifest.db' LEDGER_DATA_DIR=/tmp \
+  python3 scripts/gen_route_manifest.py --check
+
+# Regenerate manifest after adding/removing routes, then commit
 LEDGER_ALLOW_EPHEMERAL=true DATABASE_URL='sqlite:////tmp/manifest.db' LEDGER_DATA_DIR=/tmp \
   python3 scripts/gen_route_manifest.py
 
@@ -28,6 +32,27 @@ LEDGER_ALLOW_EPHEMERAL=true DATABASE_URL='sqlite:////tmp/manifest.db' LEDGER_DAT
 python3 scripts/check_deploy_drift.py \
   --url https://civic-protocol-core-ledger.onrender.com
 ```
+
+`--check` reports additions, removals, and sort-only drift separately. A removal
+is never treated as a quiet JSON reorder: the tool prints `REFUSING silent route
+removal` and exits 1. Operations are stored in lexicographic `METHOD /path` order.
+
+## IDENTITY_API_BASE during CI selftest
+
+`manifest-selftest` imports `ledger.app.main` without `IDENTITY_API_BASE`. The
+import-time RuntimeWarning is **expected CI isolation**, not production identity
+drift:
+
+| Signal | Disposition |
+|--------|-------------|
+| Warning while `IDENTITY_API_BASE` unset in GitHub Actions | **expected** |
+| Warning while unset outside CI (local regen) | **degraded** for *this process* only |
+| `IDENTITY_API_BASE` set in CI selftest | **misconfigured** (looks like health without a probe) |
+
+CI **does not attest production identity health**. A passing selftest means the
+committed OpenAPI list matches local code. Live Identity (`/auth/introspect`)
+is a Render-env concern and remains unattested by this workflow until a
+dedicated read-only probe exists.
 
 ## Exit codes
 
