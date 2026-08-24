@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-10c01404c33e1e75a193a0fc50f86b520626733e",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:22cf6845233e99c0:mesh-sync",
+    "source_hash": "22cf6845233e99c054e8a3aec45f41e3d99dc95bfd7807ea938d34ee27c5442a",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-08-24T10:53:29-04:00",
+    "author": "Michael",
+    "sha": "10c01404c33e1e75a193a0fc50f86b520626733e",
+    "title": "Merge pull request #103 from kaizencycle/cursor/c413-cpc-route-manifest-drift-14ed\n\nfix(C-413): reconcile CPC route manifest sort-order drift",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-ee53d64307ea77c80649b0778131d06d8520b245",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:95da5444e09794f0:mesh-sync",
     "source_hash": "95da5444e09794f02d86e8c1411dfd482051dcd9f52938f03a88d3c29c26cca5",
