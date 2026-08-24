@@ -33,8 +33,10 @@ python3 scripts/check_deploy_drift.py \
   --url https://civic-protocol-core-ledger.onrender.com
 ```
 
-`--check` reports additions, removals, and sort-only drift separately. A removal
-is never treated as a quiet JSON reorder: the tool prints `REFUSING silent route
+`--check` reports additions, removals, and sort-only drift separately, then
+compares the full parsed document to `build_manifest(operations)` (including
+`generated_from`, `operation_count`, `path_count`, and `note`). A removal is
+never treated as a quiet JSON reorder: the tool prints `REFUSING silent route
 removal` and exits 1. Operations are stored in lexicographic `METHOD /path` order.
 
 ## IDENTITY_API_BASE during CI selftest

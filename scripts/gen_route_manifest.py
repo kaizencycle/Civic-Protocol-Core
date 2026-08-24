@@ -57,6 +57,21 @@ class ManifestDiff:
     match: bool
 
 
+@dataclass(frozen=True)
+class ManifestDocumentDiff:
+    operations: ManifestDiff
+    metadata_mismatch: tuple[str, ...]
+    serialization_match: bool
+
+    @property
+    def match(self) -> bool:
+        return (
+            self.operations.match
+            and not self.metadata_mismatch
+            and self.serialization_match
+        )
+
+
 def _assert_never(value: object) -> NoReturn:
     raise AssertionError(f"unhandled variant: {value!r}")
 
@@ -166,9 +181,20 @@ def format_identity_classification(result: IdentityClassification) -> str:
     )
 
 
+def encode_github_workflow_value(value: str) -> str:
+    """Percent-encode a GitHub Actions workflow-command message.
+
+    Commands are single-line. Unescaped newlines truncate the Checks UI
+    annotation at the first newline, dropping named add/remove operations.
+    Encode ``%`` first so later ``%0A`` / ``%0D`` sequences stay literal.
+    """
+    return value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
 def emit_status(message: str, *, level: Literal["notice", "warning", "error"] = "notice") -> None:
     if os.getenv("GITHUB_ACTIONS") == "true":
-        print(f"::{level}::{message}", file=sys.stderr)
+        encoded = encode_github_workflow_value(message)
+        print(f"::{level}::{encoded}", file=sys.stderr)
     print(message, file=sys.stderr)
 
 
@@ -189,7 +215,7 @@ def compare_operations(committed: list[str], generated: list[str]) -> ManifestDi
 
 def format_manifest_diff(diff: ManifestDiff) -> str:
     if diff.match:
-        return "manifest matches current code (no additions, removals, or method changes)"
+        return "operations match current code (no additions, removals, or method changes)"
     lines: list[str] = []
     if diff.removed:
         lines.append(
@@ -216,12 +242,77 @@ def format_manifest_diff(diff: ManifestDiff) -> str:
     return "\n".join(lines)
 
 
-def load_committed_operations(path: Path = MANIFEST) -> list[str]:
-    manifest = json.loads(path.read_text(encoding="utf-8"))
-    operations = manifest["operations"]
+def compare_manifest_documents(committed: dict, generated: dict) -> tuple[str, ...]:
+    """Return generator-owned keys whose parsed values differ."""
+    keys = set(committed) | set(generated)
+    mismatched = [key for key in sorted(keys) if committed.get(key) != generated.get(key)]
+    return tuple(mismatched)
+
+
+def serialize_manifest(document: dict) -> str:
+    return json.dumps(document, indent=2) + "\n"
+
+
+def compare_committed_to_generated(
+    committed_doc: dict,
+    committed_text: str,
+    generated_doc: dict,
+) -> ManifestDocumentDiff:
+    committed_ops = committed_doc.get("operations", [])
+    generated_ops = generated_doc.get("operations", [])
+    if not isinstance(committed_ops, list):
+        committed_ops = []
+    if not isinstance(generated_ops, list):
+        generated_ops = []
+    operations = compare_operations(
+        [op for op in committed_ops if isinstance(op, str)],
+        [op for op in generated_ops if isinstance(op, str)],
+    )
+    metadata_mismatch = tuple(
+        key for key in compare_manifest_documents(committed_doc, generated_doc) if key != "operations"
+    )
+    return ManifestDocumentDiff(
+        operations=operations,
+        metadata_mismatch=metadata_mismatch,
+        serialization_match=committed_text == serialize_manifest(generated_doc),
+    )
+
+
+def format_document_diff(diff: ManifestDocumentDiff) -> str:
+    if diff.match:
+        return (
+            "manifest matches current generator output "
+            "(operations and metadata; no additions, removals, or method changes)"
+        )
+    lines: list[str] = []
+    if not diff.operations.match:
+        lines.append(format_manifest_diff(diff.operations))
+    if diff.metadata_mismatch:
+        lines.append(
+            "Generator-owned metadata is stale or malformed: "
+            + ", ".join(diff.metadata_mismatch)
+            + ". Compare the committed document to build_manifest(operations)."
+        )
+    if diff.operations.match and not diff.metadata_mismatch and not diff.serialization_match:
+        lines.append(
+            "Committed JSON serialization differs from generator output "
+            "(key order or whitespace). Run scripts/gen_route_manifest.py and commit."
+        )
+    return "\n".join(lines)
+
+
+def load_committed_manifest(path: Path = MANIFEST) -> dict:
+    document = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(document, dict):
+        raise ValueError(f"{path} must be a JSON object")
+    operations = document.get("operations")
     if not isinstance(operations, list) or not all(isinstance(op, str) for op in operations):
         raise ValueError(f"{path} operations must be a list of strings")
-    return operations
+    return document
+
+
+def load_committed_operations(path: Path = MANIFEST) -> list[str]:
+    return load_committed_manifest(path)["operations"]
 
 
 def load_app_operations() -> tuple[list[str], IdentityClassification]:
@@ -277,9 +368,9 @@ def build_manifest(operations: list[str]) -> dict:
 
 
 def write_manifest(operations: list[str]) -> None:
-    manifest = build_manifest(operations)
-    MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    path_count = manifest["path_count"]
+    document = build_manifest(operations)
+    MANIFEST.write_text(serialize_manifest(document), encoding="utf-8")
+    path_count = document["path_count"]
     print(
         f"wrote {MANIFEST} — {len(operations)} operations across {path_count} paths",
         file=sys.stderr,
@@ -321,17 +412,19 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.check:
         try:
-            committed = load_committed_operations()
+            committed_doc = load_committed_manifest()
+            committed_text = MANIFEST.read_text(encoding="utf-8")
         except (OSError, json.JSONDecodeError, KeyError, ValueError) as exc:
             emit_status(f"cannot read committed manifest: {exc}", level="error")
             return 1
-        diff = compare_operations(committed, operations)
-        report = format_manifest_diff(diff)
+        generated_doc = build_manifest(operations)
+        diff = compare_committed_to_generated(committed_doc, committed_text, generated_doc)
+        report = format_document_diff(diff)
         if diff.match:
             emit_status(report, level="notice")
             return 0
         emit_status(report, level="error")
-        if diff.removed:
+        if diff.operations.removed:
             emit_status(
                 "expected_routes.json would drop routes. Refusing silent removal.",
                 level="error",
