@@ -296,6 +296,15 @@ def _require_hive_player_event_payload(payload: dict[str, Any]) -> None:
             422,
             f"hive.player_event payload missing required field(s): {', '.join(missing)}",
         )
+    client_ts = payload["client_ts"]
+    try:
+        datetime.fromisoformat(client_ts.replace("Z", "+00:00"))
+    except ValueError as e:
+        raise HTTPException(
+            422,
+            f"hive.player_event payload field 'client_ts' is not a valid ISO 8601 "
+            f"date-time: {client_ts!r}",
+        ) from e
 
 
 def get_latest_event_hash() -> str:

@@ -155,6 +155,14 @@ def test_hive_attest_payload_validation_scoped_to_player_event_type():
     assert resp.status_code == 200, resp.text
 
 
+def test_hive_attest_rejects_non_iso8601_client_ts():
+    """player_event.schema.json declares client_ts format=date-time — a non-empty
+    but non-ISO-8601 string must not be silently written to the ledger."""
+    resp = _attest(payload={**PAYLOAD, "client_ts": "not-a-date"})
+    assert resp.status_code == 422
+    assert "client_ts" in resp.json()["detail"]
+
+
 def test_hive_attest_invalid_payload_does_not_consume_rate_limit():
     """A malformed payload must not burn the per-civic_id throttle — otherwise a
     client that fixes its payload and retries immediately gets 429 instead of
