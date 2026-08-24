@@ -273,6 +273,31 @@ def clear_hive_rate_limit() -> None:
     _hive_last_attest.clear()
 
 
+HIVE_PLAYER_EVENT_TYPE = "hive.player_event"
+# Mirrors ledger/schemas/player_event.schema.json's "required" list. That file
+# was documentation only — nothing enforced it, so a hive.player_event payload
+# missing e.g. target_id/cycle_id was accepted and written into citizen_history
+# undetected. Scoped to event_type=="hive.player_event" only: the hive lane
+# itself is not restricted to a single event_type.
+_HIVE_PLAYER_EVENT_REQUIRED_FIELDS = (
+    "world", "zone", "action", "target_id", "cycle_id", "client_ts",
+)
+
+
+def _require_hive_player_event_payload(payload: dict[str, Any]) -> None:
+    """Enforce player_event.schema.json's required fields for hive.player_event."""
+    missing = [
+        field
+        for field in _HIVE_PLAYER_EVENT_REQUIRED_FIELDS
+        if not isinstance(payload.get(field), str) or not payload[field]
+    ]
+    if missing:
+        raise HTTPException(
+            422,
+            f"hive.player_event payload missing required field(s): {', '.join(missing)}",
+        )
+
+
 def get_latest_event_hash() -> str:
     """Get the hash of the latest event in the chain"""
     try:
@@ -433,6 +458,8 @@ def attest_event(request: AttestationRequest,
         # Pseudonymous, unauthenticated lane (C-341) — no Bearer token to verify.
         _require_hive_civic_id(request.civic_id)
         _enforce_hive_rate_limit(request.civic_id)
+        if request.event_type == HIVE_PLAYER_EVENT_TYPE:
+            _require_hive_player_event_payload(request.payload)
     else:
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(401, "Missing or invalid authorization header")
