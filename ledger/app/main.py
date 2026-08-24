@@ -457,9 +457,13 @@ def attest_event(request: AttestationRequest,
     if request.lab_source == HIVE_LAB_SOURCE:
         # Pseudonymous, unauthenticated lane (C-341) — no Bearer token to verify.
         _require_hive_civic_id(request.civic_id)
-        _enforce_hive_rate_limit(request.civic_id)
+        # Payload shape is checked before the throttle: a malformed payload
+        # must not burn the per-civic_id rate limit, or a client that fixes
+        # its payload and retries immediately gets a spurious 429 instead of
+        # another chance to succeed.
         if request.event_type == HIVE_PLAYER_EVENT_TYPE:
             _require_hive_player_event_payload(request.payload)
+        _enforce_hive_rate_limit(request.civic_id)
     else:
         if not authorization or not authorization.startswith("Bearer "):
             raise HTTPException(401, "Missing or invalid authorization header")

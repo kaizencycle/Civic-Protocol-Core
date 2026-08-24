@@ -155,6 +155,20 @@ def test_hive_attest_payload_validation_scoped_to_player_event_type():
     assert resp.status_code == 200, resp.text
 
 
+def test_hive_attest_invalid_payload_does_not_consume_rate_limit():
+    """A malformed payload must not burn the per-civic_id throttle — otherwise a
+    client that fixes its payload and retries immediately gets 429 instead of
+    another chance to succeed."""
+    civic_id = "mobius-anon-ratefix01"
+    bad_payload = {**PAYLOAD, "civic_id": civic_id, "target_id": ""}
+    bad = _attest(civic_id=civic_id, payload=bad_payload)
+    assert bad.status_code == 422
+
+    good_payload = {**PAYLOAD, "civic_id": civic_id}
+    good = _attest(civic_id=civic_id, payload=good_payload)
+    assert good.status_code == 200, good.text
+
+
 def test_ledger_events_without_since_keeps_legacy_descending_order():
     """Omitting `since` must behave exactly as before (newest first, offset pagination)."""
     civic_id = "mobius-anon-legacy01"
