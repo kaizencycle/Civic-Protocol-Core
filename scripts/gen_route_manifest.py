@@ -311,10 +311,6 @@ def load_committed_manifest(path: Path = MANIFEST) -> dict:
     return document
 
 
-def load_committed_operations(path: Path = MANIFEST) -> list[str]:
-    return load_committed_manifest(path)["operations"]
-
-
 def load_app_operations() -> tuple[list[str], IdentityClassification]:
     # Make the app importable in a stateless way (no Postgres, no persistent disk).
     os.environ.setdefault("LEDGER_ALLOW_EPHEMERAL", "true")
