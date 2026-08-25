@@ -356,10 +356,12 @@ def test_hive_operation_keys_migrates_legacy_primary_key(tmp_path, monkeypatch):
     monkeypatch.setenv("LEDGER_DATA_DIR", str(tmp_path))
     from ledger.app import db as db_module
 
-    db_module.DATA_DIR = db_module.get_data_dir()
-    db_module.LEDGER_DB_PATH = os.path.join(db_module.DATA_DIR, "ledger.db")
+    data_dir = db_module.get_data_dir()
+    ledger_db_path = os.path.join(data_dir, "ledger.db")
+    monkeypatch.setattr(db_module, "DATA_DIR", data_dir)
+    monkeypatch.setattr(db_module, "LEDGER_DB_PATH", ledger_db_path)
 
-    conn = sqlite3.connect(db_module.LEDGER_DB_PATH)
+    conn = sqlite3.connect(ledger_db_path)
     conn.execute(
         """
         CREATE TABLE hive_operation_keys (
