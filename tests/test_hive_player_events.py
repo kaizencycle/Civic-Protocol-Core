@@ -1,5 +1,6 @@
 """C-341 Brief D: lab_source=hive pseudonymous player-event lane."""
 
+import hashlib
 import os
 import tempfile
 
@@ -27,6 +28,20 @@ PAYLOAD = {
 }
 
 
+def _operation_id(
+    civic_id: str = VALID_CIVIC_ID,
+    *,
+    world: str = PAYLOAD["world"],
+    zone: str = PAYLOAD["zone"],
+    action: str = PAYLOAD["action"],
+    target_id: str = PAYLOAD["target_id"],
+    cycle_id: str = PAYLOAD["cycle_id"],
+) -> str:
+    material = "\0".join([civic_id, world, zone, action, target_id, cycle_id])
+    digest = hashlib.sha256(material.encode()).hexdigest()[:32]
+    return f"hive-op-{digest}"
+
+
 @pytest.fixture(autouse=True)
 def _reset_hive_rate_limit():
     main_module.clear_hive_rate_limit()
@@ -35,12 +50,28 @@ def _reset_hive_rate_limit():
 
 
 def _attest(civic_id: str = VALID_CIVIC_ID, **overrides):
+    payload = overrides.pop("payload", None)
+    payload_body = {**PAYLOAD, "civic_id": civic_id}
+    if payload is not None:
+        payload_body = payload
+    operation_id = overrides.pop("operation_id", None)
+    if operation_id is None and overrides.get("event_type", "hive.player_event") == "hive.player_event":
+        operation_id = _operation_id(
+            civic_id,
+            world=payload_body.get("world", PAYLOAD["world"]),
+            zone=payload_body.get("zone", PAYLOAD["zone"]),
+            action=payload_body.get("action", PAYLOAD["action"]),
+            target_id=payload_body.get("target_id", PAYLOAD["target_id"]),
+            cycle_id=payload_body.get("cycle_id", PAYLOAD["cycle_id"]),
+        )
     body = {
         "event_type": "hive.player_event",
         "civic_id": civic_id,
         "lab_source": "hive",
-        "payload": {**PAYLOAD, "civic_id": civic_id},
+        "payload": payload_body,
     }
+    if operation_id is not None:
+        body["operation_id"] = operation_id
     body.update(overrides)
     return client.post("/ledger/attest", json=body)
 
@@ -77,14 +108,17 @@ def test_hive_attest_does_not_grant_terminal_privileges():
 
 
 def test_hive_attest_rate_limited_per_civic_id():
-    first = _attest()
+    first = _attest(operation_id=_operation_id(VALID_CIVIC_ID, target_id="node-rate-a"))
     assert first.status_code == 200, first.text
 
-    second = _attest()
+    second = _attest(operation_id=_operation_id(VALID_CIVIC_ID, target_id="node-rate-b"))
     assert second.status_code == 429
 
     other_civic = "mobius-anon-deadbeef"
-    third = _attest(civic_id=other_civic)
+    third = _attest(
+        civic_id=other_civic,
+        operation_id=_operation_id(other_civic, target_id="node-rate-c"),
+    )
     assert third.status_code == 200, third.text
 
 
@@ -180,10 +214,18 @@ def test_hive_attest_invalid_payload_does_not_consume_rate_limit():
 def test_ledger_events_without_since_keeps_legacy_descending_order():
     """Omitting `since` must behave exactly as before (newest first, offset pagination)."""
     civic_id = "mobius-anon-legacy01"
-    first = _attest(civic_id=civic_id, payload={**PAYLOAD, "civic_id": civic_id, "target_id": "node-a"})
+    first = _attest(
+        civic_id=civic_id,
+        payload={**PAYLOAD, "civic_id": civic_id, "target_id": "node-a"},
+        operation_id=_operation_id(civic_id, target_id="node-a"),
+    )
     assert first.status_code == 200, first.text
     main_module.clear_hive_rate_limit()
-    second = _attest(civic_id=civic_id, payload={**PAYLOAD, "civic_id": civic_id, "target_id": "node-b"})
+    second = _attest(
+        civic_id=civic_id,
+        payload={**PAYLOAD, "civic_id": civic_id, "target_id": "node-b"},
+        operation_id=_operation_id(civic_id, target_id="node-b"),
+    )
     assert second.status_code == 200, second.text
 
     resp = client.get(
@@ -198,3 +240,98 @@ def test_ledger_events_without_since_keeps_legacy_descending_order():
         first.json()["event_id"],
         second.json()["event_id"],
     }
+
+
+def test_hive_player_event_requires_operation_id():
+    resp = client.post(
+        "/ledger/attest",
+        json={
+            "event_type": "hive.player_event",
+            "civic_id": VALID_CIVIC_ID,
+            "lab_source": "hive",
+            "payload": {**PAYLOAD, "civic_id": VALID_CIVIC_ID},
+        },
+    )
+    assert resp.status_code == 422
+    assert "operation_id" in resp.json()["detail"]
+
+
+def test_hive_player_event_retry_returns_original_outcome():
+    op_id = _operation_id("mobius-anon-retry01", target_id="node-retry")
+    civic_id = "mobius-anon-retry01"
+    first = _attest(
+        civic_id=civic_id,
+        payload={**PAYLOAD, "civic_id": civic_id, "target_id": "node-retry"},
+        operation_id=op_id,
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["idempotent"] is False
+
+    retry = _attest(
+        civic_id=civic_id,
+        payload={**PAYLOAD, "civic_id": civic_id, "target_id": "node-retry"},
+        operation_id=op_id,
+    )
+    assert retry.status_code == 200, retry.text
+    assert retry.json()["idempotent"] is True
+    assert retry.json()["event_id"] == first.json()["event_id"]
+
+
+def test_hive_player_event_same_operation_id_different_payload_fails_closed():
+    op_id = _operation_id("mobius-anon-conflict01", target_id="node-conflict")
+    civic_id = "mobius-anon-conflict01"
+    first = _attest(
+        civic_id=civic_id,
+        payload={**PAYLOAD, "civic_id": civic_id, "target_id": "node-conflict", "action": "channel_node"},
+        operation_id=op_id,
+    )
+    assert first.status_code == 200, first.text
+
+    conflict = _attest(
+        civic_id=civic_id,
+        payload={**PAYLOAD, "civic_id": civic_id, "target_id": "node-conflict", "action": "restore_beacon"},
+        operation_id=op_id,
+    )
+    assert conflict.status_code == 409
+
+
+def test_hive_player_event_separate_events_receive_distinct_operation_ids():
+    civic_id = "mobius-anon-distinct01"
+    op_a = _operation_id(civic_id, target_id="node-dist-a")
+    op_b = _operation_id(civic_id, target_id="node-dist-b")
+    assert op_a != op_b
+
+    first = _attest(
+        civic_id=civic_id,
+        payload={**PAYLOAD, "civic_id": civic_id, "target_id": "node-dist-a"},
+        operation_id=op_a,
+    )
+    assert first.status_code == 200, first.text
+    main_module.clear_hive_rate_limit()
+    second = _attest(
+        civic_id=civic_id,
+        payload={**PAYLOAD, "civic_id": civic_id, "target_id": "node-dist-b"},
+        operation_id=op_b,
+    )
+    assert second.status_code == 200, second.text
+    assert first.json()["event_id"] != second.json()["event_id"]
+
+
+def test_hive_player_event_idempotent_retry_does_not_consume_rate_limit():
+    civic_id = "mobius-anon-idemrate01"
+    op_id = _operation_id(civic_id, target_id="node-idem")
+    payload = {**PAYLOAD, "civic_id": civic_id, "target_id": "node-idem"}
+    first = _attest(civic_id=civic_id, payload=payload, operation_id=op_id)
+    assert first.status_code == 200, first.text
+
+    retry = _attest(civic_id=civic_id, payload=payload, operation_id=op_id)
+    assert retry.status_code == 200, retry.text
+    assert retry.json()["idempotent"] is True
+
+    main_module.clear_hive_rate_limit()
+    other = _attest(
+        civic_id=civic_id,
+        payload={**PAYLOAD, "civic_id": civic_id, "target_id": "node-other"},
+        operation_id=_operation_id(civic_id, target_id="node-other"),
+    )
+    assert other.status_code == 200, other.text
