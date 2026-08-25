@@ -543,8 +543,6 @@ def _attest_hive_player_event(request: AttestationRequest) -> EventResponse:
         if prior is not None:
             return prior
 
-    _enforce_hive_rate_limit(request.civic_id)
-
     event = create_ledger_event(
         event_type=request.event_type,
         civic_id=request.civic_id,
@@ -552,28 +550,34 @@ def _attest_hive_player_event(request: AttestationRequest) -> EventResponse:
         payload=request.payload,
         signature=request.signature,
     )
+
     with get_db_connection() as conn:
         conn.execute("BEGIN IMMEDIATE")
-        prior = _resolve_hive_player_event_idempotency(
-            conn,
-            operation_id=operation_id,
-            civic_id=request.civic_id,
-            event_type=request.event_type,
-            payload=request.payload,
-        )
-        if prior is not None:
+        try:
+            prior = _resolve_hive_player_event_idempotency(
+                conn,
+                operation_id=operation_id,
+                civic_id=request.civic_id,
+                event_type=request.event_type,
+                payload=request.payload,
+            )
+            if prior is not None:
+                conn.rollback()
+                return prior
+            _enforce_hive_rate_limit(request.civic_id)
+            _insert_ledger_event(conn, event)
+            _store_hive_operation_key(
+                conn,
+                operation_id=operation_id,
+                civic_id=request.civic_id,
+                event_type=request.event_type,
+                payload=request.payload,
+                event_id=event.event_id,
+            )
+            conn.commit()
+        except HTTPException:
             conn.rollback()
-            return prior
-        _insert_ledger_event(conn, event)
-        _store_hive_operation_key(
-            conn,
-            operation_id=operation_id,
-            civic_id=request.civic_id,
-            event_type=request.event_type,
-            payload=request.payload,
-            event_id=event.event_id,
-        )
-        conn.commit()
+            raise
     return EventResponse(
         event_id=event.event_id,
         event_type=event.event_type,

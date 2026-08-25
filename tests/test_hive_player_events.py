@@ -3,6 +3,7 @@
 import hashlib
 import os
 import secrets
+import sqlite3
 import tempfile
 
 import pytest
@@ -348,3 +349,59 @@ def test_hive_operation_id_scoped_per_civic_id():
     victim_retry = _attest(civic_id=victim, payload=victim_payload, operation_id=shared_op)
     assert victim_retry.status_code == 200, victim_retry.text
     assert victim_retry.json()["idempotent"] is True
+
+
+def test_hive_operation_keys_migrates_legacy_primary_key(tmp_path, monkeypatch):
+    """Legacy operation_id-only PK tables upgrade to (civic_id, operation_id)."""
+    monkeypatch.setenv("LEDGER_DATA_DIR", str(tmp_path))
+    from ledger.app import db as db_module
+
+    db_module.DATA_DIR = db_module.get_data_dir()
+    db_module.LEDGER_DB_PATH = os.path.join(db_module.DATA_DIR, "ledger.db")
+
+    conn = sqlite3.connect(db_module.LEDGER_DB_PATH)
+    conn.execute(
+        """
+        CREATE TABLE hive_operation_keys (
+            operation_id TEXT PRIMARY KEY,
+            civic_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            payload_fingerprint TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO hive_operation_keys
+            (operation_id, civic_id, event_type, payload_fingerprint, event_id)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            "hive-op-" + "cd" * 16,
+            "mobius-anon-legacypk1",
+            "hive.player_event",
+            "abc",
+            "evt_legacy_1",
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    with db_module.get_db_connection() as migrated:
+        row = migrated.execute(
+            """
+            SELECT civic_id, operation_id FROM hive_operation_keys
+            WHERE civic_id = ? AND operation_id = ?
+            """,
+            ("mobius-anon-legacypk1", "hive-op-" + "cd" * 16),
+        ).fetchone()
+        assert row is not None
+
+        pk_cols = [
+            r[1]
+            for r in migrated.execute("PRAGMA table_info(hive_operation_keys)").fetchall()
+            if r[5] > 0
+        ]
+        assert pk_cols == ["civic_id", "operation_id"]
