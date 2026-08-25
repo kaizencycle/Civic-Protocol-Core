@@ -28,7 +28,8 @@ logical write in localStorage (not derivable from public action fields).
 - `hive_operation_keys` table in `ledger/app/db.py`
 - Idempotency resolution in `ledger/app/main.py` (`_attest_hive_player_event`)
 - Extended `EventResponse.idempotent` flag
-- Tests in `tests/test_hive_player_events.py`
+- Composite primary key `(civic_id, operation_id)` prevents cross-citizen poisoning
+- Read-check + rate limit before `BEGIN IMMEDIATE` write lock
 
 ## Boundaries
 
