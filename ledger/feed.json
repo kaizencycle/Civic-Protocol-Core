@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-3fc08a8540eb79dd154f7de5c0bb39ff10b5eb08",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:cf85b4f2058eaa59:mesh-sync",
+    "source_hash": "cf85b4f2058eaa598c797182685cdad83a71b1eb9ef57211357ee95f0b068101",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-08-25T18:38:07-04:00",
+    "author": "Michael",
+    "sha": "3fc08a8540eb79dd154f7de5c0bb39ff10b5eb08",
+    "title": "Merge pull request #105 from kaizencycle/cursor/c414-hive-ledger-idempotency-0e02\n\nC-414: hive.player_event operation_id server deduplication (paired)",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-10c01404c33e1e75a193a0fc50f86b520626733e",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:22cf6845233e99c0:mesh-sync",
     "source_hash": "22cf6845233e99c054e8a3aec45f41e3d99dc95bfd7807ea938d34ee27c5442a",
