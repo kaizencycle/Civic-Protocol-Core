@@ -20,7 +20,8 @@ Add `operation_id` acceptance and deduplication for the pseudonymous
 ## Paired dependency
 
 **Must merge with:** [mobius-hive PR (paired)](https://github.com/kaizencycle/mobius-hive) —
-client emits stable `hive-op-<32 hex>` operation IDs.
+client emits stable random `hive-op-<32 hex>` operation IDs persisted per
+logical write in localStorage (not derivable from public action fields).
 
 ## Server changes (this repo)
 
@@ -40,7 +41,7 @@ client emits stable `hive-op-<32 hex>` operation IDs.
 ```intent
 epicon_id: EPICON_C-414_CODE_hive-ledger-idempotency_v1
 ledger_id: kaizencycle
-scope: code
+scope: core
 mode: normal
 issued_at: 2026-08-25T16:45:00Z
 expires_at: 2026-11-25T16:45:00Z

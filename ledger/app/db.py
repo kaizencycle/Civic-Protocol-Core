@@ -240,15 +240,16 @@ def get_db_connection() -> sqlite3.Connection:
             CREATE INDEX IF NOT EXISTS idx_dat_anchors_range_end
                 ON dat_hash_anchors(block_range_end);
             CREATE TABLE IF NOT EXISTS hive_operation_keys (
-                operation_id TEXT PRIMARY KEY,
                 civic_id TEXT NOT NULL,
+                operation_id TEXT NOT NULL,
                 event_type TEXT NOT NULL,
                 payload_fingerprint TEXT NOT NULL,
                 event_id TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (civic_id, operation_id)
             );
-            CREATE INDEX IF NOT EXISTS idx_hive_operation_keys_civic
-                ON hive_operation_keys(civic_id);
+            CREATE INDEX IF NOT EXISTS idx_hive_operation_keys_operation
+                ON hive_operation_keys(operation_id);
             """
         )
         _ensure_mesh_ipfs_columns(conn)

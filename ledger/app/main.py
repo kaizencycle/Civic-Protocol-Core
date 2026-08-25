@@ -295,7 +295,7 @@ def _require_hive_operation_id(operation_id: str | None) -> None:
 
 
 def _lookup_hive_operation(
-    conn: sqlite3.Connection, operation_id: str
+    conn: sqlite3.Connection, civic_id: str, operation_id: str
 ) -> sqlite3.Row | None:
     cursor = conn.execute(
         """
@@ -304,9 +304,9 @@ def _lookup_hive_operation(
                e.lab_source, e.timestamp, e.event_hash
         FROM hive_operation_keys h
         JOIN events e ON e.event_id = h.event_id
-        WHERE h.operation_id = ?
+        WHERE h.civic_id = ? AND h.operation_id = ?
         """,
-        (operation_id,),
+        (civic_id, operation_id),
     )
     return cursor.fetchone()
 
@@ -333,7 +333,7 @@ def _resolve_hive_player_event_idempotency(
     payload: dict[str, Any],
 ) -> EventResponse | None:
     """Return prior outcome for a retry, or None when this is a first-seen operation_id."""
-    existing = _lookup_hive_operation(conn, operation_id)
+    existing = _lookup_hive_operation(conn, civic_id, operation_id)
     if existing is None:
         return None
 
@@ -343,7 +343,7 @@ def _resolve_hive_player_event_idempotency(
             409,
             "operation_id already used with a different payload — fail closed",
         )
-    if existing["civic_id"] != civic_id or existing["event_type"] != event_type:
+    if existing["event_type"] != event_type:
         raise HTTPException(
             409,
             "operation_id scope mismatch — fail closed",
@@ -364,10 +364,10 @@ def _store_hive_operation_key(
     conn.execute(
         """
         INSERT INTO hive_operation_keys
-            (operation_id, civic_id, event_type, payload_fingerprint, event_id)
+            (civic_id, operation_id, event_type, payload_fingerprint, event_id)
         VALUES (?, ?, ?, ?, ?)
         """,
-        (operation_id, civic_id, event_type, fingerprint, event_id),
+        (civic_id, operation_id, event_type, fingerprint, event_id),
     )
 
 
@@ -528,7 +528,23 @@ def _insert_ledger_event(conn: sqlite3.Connection, event: LedgerEvent) -> None:
 
 def _attest_hive_player_event(request: AttestationRequest) -> EventResponse:
     """Transactional hive.player_event write with operation_id idempotency."""
-    assert request.operation_id is not None
+    operation_id = request.operation_id
+    if operation_id is None:
+        raise HTTPException(422, "hive.player_event requires operation_id")
+
+    with get_db_connection() as conn:
+        prior = _resolve_hive_player_event_idempotency(
+            conn,
+            operation_id=operation_id,
+            civic_id=request.civic_id,
+            event_type=request.event_type,
+            payload=request.payload,
+        )
+        if prior is not None:
+            return prior
+
+    _enforce_hive_rate_limit(request.civic_id)
+
     event = create_ledger_event(
         event_type=request.event_type,
         civic_id=request.civic_id,
@@ -540,7 +556,7 @@ def _attest_hive_player_event(request: AttestationRequest) -> EventResponse:
         conn.execute("BEGIN IMMEDIATE")
         prior = _resolve_hive_player_event_idempotency(
             conn,
-            operation_id=request.operation_id,
+            operation_id=operation_id,
             civic_id=request.civic_id,
             event_type=request.event_type,
             payload=request.payload,
@@ -548,11 +564,10 @@ def _attest_hive_player_event(request: AttestationRequest) -> EventResponse:
         if prior is not None:
             conn.rollback()
             return prior
-        _enforce_hive_rate_limit(request.civic_id)
         _insert_ledger_event(conn, event)
         _store_hive_operation_key(
             conn,
-            operation_id=request.operation_id,
+            operation_id=operation_id,
             civic_id=request.civic_id,
             event_type=request.event_type,
             payload=request.payload,
