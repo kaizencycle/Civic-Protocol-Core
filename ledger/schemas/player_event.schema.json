@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "HivePlayerEventPayload",
-  "description": "Payload shape for ledger event_type=hive.player_event (C-341 citizen_history write-back). Pseudonymous, unauthenticated lab_source=hive lane.",
+  "description": "Payload shape for ledger event_type=hive.player_event (C-341 citizen_history write-back). Pseudonymous, unauthenticated lab_source=hive lane. Top-level attestation also requires operation_id (C-414) for server-side idempotent deduplication.",
   "type": "object",
   "required": ["world", "zone", "action", "target_id", "cycle_id", "client_ts"],
   "additionalProperties": true,

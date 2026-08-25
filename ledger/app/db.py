@@ -152,6 +152,50 @@ def _ensure_mesh_ipfs_columns(conn: sqlite3.Connection) -> None:
     )
 
 
+def _ensure_hive_operation_keys_schema(conn: sqlite3.Connection) -> None:
+    """Migrate hive_operation_keys from legacy operation_id-only PK to (civic_id, operation_id)."""
+    cur = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='hive_operation_keys'"
+    )
+    if not cur.fetchone():
+        return
+
+    info = conn.execute("PRAGMA table_info(hive_operation_keys)").fetchall()
+    pk_cols = [row[1] for row in info if row[5] > 0]
+    if len(pk_cols) == 2 and "civic_id" in pk_cols and "operation_id" in pk_cols:
+        return
+
+    conn.execute(
+        """
+        CREATE TABLE hive_operation_keys_v2 (
+            civic_id TEXT NOT NULL,
+            operation_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            payload_fingerprint TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (civic_id, operation_id)
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO hive_operation_keys_v2
+            (civic_id, operation_id, event_type, payload_fingerprint, event_id, created_at)
+        SELECT civic_id, operation_id, event_type, payload_fingerprint, event_id, created_at
+        FROM hive_operation_keys
+        """
+    )
+    conn.execute("DROP TABLE hive_operation_keys")
+    conn.execute("ALTER TABLE hive_operation_keys_v2 RENAME TO hive_operation_keys")
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_hive_operation_keys_operation
+        ON hive_operation_keys(operation_id)
+        """
+    )
+
+
 def ledger_feed_json_path() -> str | None:
     for p in _FEED_PATH_CANDIDATES:
         if p and os.path.isfile(p):
@@ -239,9 +283,21 @@ def get_db_connection() -> sqlite3.Connection:
                 ON dat_hash_anchors(block_range_start, block_range_end);
             CREATE INDEX IF NOT EXISTS idx_dat_anchors_range_end
                 ON dat_hash_anchors(block_range_end);
+            CREATE TABLE IF NOT EXISTS hive_operation_keys (
+                civic_id TEXT NOT NULL,
+                operation_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                payload_fingerprint TEXT NOT NULL,
+                event_id TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (civic_id, operation_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_hive_operation_keys_operation
+                ON hive_operation_keys(operation_id);
             """
         )
         _ensure_mesh_ipfs_columns(conn)
+        _ensure_hive_operation_keys_schema(conn)
         conn.commit()
         return conn
     except Exception as e:

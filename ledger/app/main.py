@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import time
 import warnings
 from contextlib import asynccontextmanager
@@ -126,6 +127,7 @@ class AttestationRequest(BaseModel):
     lab_source: str
     payload: dict[str, Any]
     signature: str | None = None
+    operation_id: str | None = None
 
 
 class EventResponse(BaseModel):
@@ -137,6 +139,7 @@ class EventResponse(BaseModel):
     timestamp: str
     event_hash: str
     confirmed: bool
+    idempotent: bool = False
 
 
 def clear_token_cache() -> None:
@@ -273,6 +276,101 @@ def clear_hive_rate_limit() -> None:
     _hive_last_attest.clear()
 
 
+HIVE_OPERATION_ID_RE = re.compile(r"^hive-op-[a-f0-9]{32}$")
+
+
+def _hive_payload_fingerprint(payload: dict[str, Any]) -> str:
+    """Stable hash of hive.player_event payload for idempotency conflict detection."""
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def _require_hive_operation_id(operation_id: str | None) -> None:
+    if not operation_id or not HIVE_OPERATION_ID_RE.match(operation_id):
+        raise HTTPException(
+            422,
+            "hive.player_event requires operation_id matching 'hive-op-<32 hex chars>' "
+            "(client-generated, stable across retries)",
+        )
+
+
+def _lookup_hive_operation(
+    conn: sqlite3.Connection, civic_id: str, operation_id: str
+) -> sqlite3.Row | None:
+    cursor = conn.execute(
+        """
+        SELECT h.operation_id, h.civic_id, h.event_type, h.payload_fingerprint,
+               h.event_id, e.event_type AS stored_event_type, e.civic_id AS stored_civic_id,
+               e.lab_source, e.timestamp, e.event_hash
+        FROM hive_operation_keys h
+        JOIN events e ON e.event_id = h.event_id
+        WHERE h.civic_id = ? AND h.operation_id = ?
+        """,
+        (civic_id, operation_id),
+    )
+    return cursor.fetchone()
+
+
+def _event_response_from_row(row: sqlite3.Row, *, idempotent: bool) -> EventResponse:
+    return EventResponse(
+        event_id=row["event_id"],
+        event_type=row["stored_event_type"],
+        civic_id=row["stored_civic_id"],
+        lab_source=row["lab_source"],
+        timestamp=row["timestamp"],
+        event_hash=row["event_hash"],
+        confirmed=True,
+        idempotent=idempotent,
+    )
+
+
+def _resolve_hive_player_event_idempotency(
+    conn: sqlite3.Connection,
+    *,
+    operation_id: str,
+    civic_id: str,
+    event_type: str,
+    payload: dict[str, Any],
+) -> EventResponse | None:
+    """Return prior outcome for a retry, or None when this is a first-seen operation_id."""
+    existing = _lookup_hive_operation(conn, civic_id, operation_id)
+    if existing is None:
+        return None
+
+    fingerprint = _hive_payload_fingerprint(payload)
+    if existing["payload_fingerprint"] != fingerprint:
+        raise HTTPException(
+            409,
+            "operation_id already used with a different payload — fail closed",
+        )
+    if existing["event_type"] != event_type:
+        raise HTTPException(
+            409,
+            "operation_id scope mismatch — fail closed",
+        )
+    return _event_response_from_row(existing, idempotent=True)
+
+
+def _store_hive_operation_key(
+    conn: sqlite3.Connection,
+    *,
+    operation_id: str,
+    civic_id: str,
+    event_type: str,
+    payload: dict[str, Any],
+    event_id: str,
+) -> None:
+    fingerprint = _hive_payload_fingerprint(payload)
+    conn.execute(
+        """
+        INSERT INTO hive_operation_keys
+            (civic_id, operation_id, event_type, payload_fingerprint, event_id)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (civic_id, operation_id, event_type, fingerprint, event_id),
+    )
+
+
 HIVE_PLAYER_EVENT_TYPE = "hive.player_event"
 # Mirrors ledger/schemas/player_event.schema.json's "required" list. That file
 # was documentation only — nothing enforced it, so a hive.player_event payload
@@ -390,6 +488,108 @@ def create_ledger_event(event_type: str, civic_id: str, lab_source: str,
     return event
 
 
+def _insert_ledger_event(conn: sqlite3.Connection, event: LedgerEvent) -> None:
+    conn.execute(
+        """
+        INSERT INTO events (event_id, event_type, civic_id, lab_source,
+                          payload, timestamp, previous_hash, event_hash, signature)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            event.event_id,
+            event.event_type,
+            event.civic_id,
+            event.lab_source,
+            json.dumps(event.payload),
+            event.timestamp,
+            event.previous_hash,
+            event.event_hash,
+            event.signature,
+        ),
+    )
+    conn.execute(
+        """
+        INSERT OR REPLACE INTO identities (civic_id, lab_source, first_seen, last_seen, event_count)
+        VALUES (?, ?,
+                COALESCE((SELECT first_seen FROM identities WHERE civic_id = ?), ?),
+                ?,
+                COALESCE((SELECT event_count FROM identities WHERE civic_id = ?), 0) + 1)
+        """,
+        (
+            event.civic_id,
+            event.lab_source,
+            event.civic_id,
+            event.timestamp,
+            event.timestamp,
+            event.civic_id,
+        ),
+    )
+
+
+def _attest_hive_player_event(request: AttestationRequest) -> EventResponse:
+    """Transactional hive.player_event write with operation_id idempotency."""
+    operation_id = request.operation_id
+    if operation_id is None:
+        raise HTTPException(422, "hive.player_event requires operation_id")
+
+    with get_db_connection() as conn:
+        prior = _resolve_hive_player_event_idempotency(
+            conn,
+            operation_id=operation_id,
+            civic_id=request.civic_id,
+            event_type=request.event_type,
+            payload=request.payload,
+        )
+        if prior is not None:
+            return prior
+
+    event = create_ledger_event(
+        event_type=request.event_type,
+        civic_id=request.civic_id,
+        lab_source=request.lab_source,
+        payload=request.payload,
+        signature=request.signature,
+    )
+
+    with get_db_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            prior = _resolve_hive_player_event_idempotency(
+                conn,
+                operation_id=operation_id,
+                civic_id=request.civic_id,
+                event_type=request.event_type,
+                payload=request.payload,
+            )
+            if prior is not None:
+                conn.rollback()
+                return prior
+            _enforce_hive_rate_limit(request.civic_id)
+            _insert_ledger_event(conn, event)
+            _store_hive_operation_key(
+                conn,
+                operation_id=operation_id,
+                civic_id=request.civic_id,
+                event_type=request.event_type,
+                payload=request.payload,
+                event_id=event.event_id,
+            )
+            conn.commit()
+        except HTTPException:
+            conn.rollback()
+            raise
+    return EventResponse(
+        event_id=event.event_id,
+        event_type=event.event_type,
+        civic_id=event.civic_id,
+        lab_source=event.lab_source,
+        timestamp=event.timestamp,
+        event_hash=event.event_hash,
+        confirmed=True,
+        idempotent=False,
+    )
+
+
 @app.get("/")
 def root():
     return {
@@ -472,6 +672,8 @@ def attest_event(request: AttestationRequest,
         # another chance to succeed.
         if request.event_type == HIVE_PLAYER_EVENT_TYPE:
             _require_hive_player_event_payload(request.payload)
+            _require_hive_operation_id(request.operation_id)
+            return _attest_hive_player_event(request)
         _enforce_hive_rate_limit(request.civic_id)
     else:
         if not authorization or not authorization.startswith("Bearer "):
@@ -510,26 +712,7 @@ def attest_event(request: AttestationRequest,
     # Store in database
     try:
         with get_db_connection() as conn:
-            conn.execute("""
-                INSERT INTO events (event_id, event_type, civic_id, lab_source,
-                                  payload, timestamp, previous_hash, event_hash, signature)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                event.event_id, event.event_type, event.civic_id, event.lab_source,
-                json.dumps(event.payload), event.timestamp, event.previous_hash,
-                event.event_hash, event.signature
-            ))
-
-            # Update identity stats
-            conn.execute("""
-                INSERT OR REPLACE INTO identities (civic_id, lab_source, first_seen, last_seen, event_count)
-                VALUES (?, ?,
-                        COALESCE((SELECT first_seen FROM identities WHERE civic_id = ?), ?),
-                        ?,
-                        COALESCE((SELECT event_count FROM identities WHERE civic_id = ?), 0) + 1)
-            """, (event.civic_id, event.lab_source, event.civic_id, event.timestamp,
-                  event.timestamp, event.civic_id))
-
+            _insert_ledger_event(conn, event)
             conn.commit()
     except Exception as e:
         logger.exception("Database error while attesting event")
@@ -542,7 +725,8 @@ def attest_event(request: AttestationRequest,
         lab_source=event.lab_source,
         timestamp=event.timestamp,
         event_hash=event.event_hash,
-        confirmed=True
+        confirmed=True,
+        idempotent=False,
     )
 
 
