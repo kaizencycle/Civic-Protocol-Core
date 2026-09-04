@@ -1,12 +1,24 @@
 {
   "schema": "MNS_LEDGER_PULSE_SNAPSHOT_V1",
   "node_id": "civic-protocol-core",
-  "captured_at": "2026-09-04T19:37:04.562455+00:00",
+  "captured_at": "2026-09-04T22:21:48.301508+00:00",
   "ledger_base_url": "https://civic-protocol-core-ledger.onrender.com",
   "health": {
-    "ok": false,
-    "error": "<urlopen error [Errno 104] Connection reset by peer>",
-    "url": "https://civic-protocol-core-ledger.onrender.com/health"
+    "status": "ok",
+    "service": "civic-ledger-api",
+    "data_dir": "/var/lib/ledger",
+    "ephemeral_storage": false,
+    "vault_db": {
+      "ok": true,
+      "url_type": "sqlite",
+      "error": null
+    },
+    "ledger_db": {
+      "ok": true,
+      "path": "/var/lib/ledger/ledger.db",
+      "event_count": 66292,
+      "error": null
+    }
   },
   "epicon_feed": {
     "ok": true,
@@ -155,6 +167,6 @@
         "type": "mesh-commit"
       }
     ],
-    "timestamp": "2026-09-04T19:37:04.530101+00:00"
+    "timestamp": "2026-09-04T22:21:48.263656+00:00"
   }
 }
