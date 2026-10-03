@@ -1,7 +1,7 @@
 {
   "schema": "MNS_LEDGER_PULSE_SNAPSHOT_V1",
   "node_id": "civic-protocol-core",
-  "captured_at": "2026-10-02T22:59:07.066609+00:00",
+  "captured_at": "2026-10-03T02:00:23.043432+00:00",
   "ledger_base_url": "https://civic-protocol-core-ledger.onrender.com",
   "health": {
     "status": "ok",
@@ -16,7 +16,7 @@
     "ledger_db": {
       "ok": true,
       "path": "/var/lib/ledger/ledger.db",
-      "event_count": 100118,
+      "event_count": 100264,
       "error": null
     }
   },
@@ -26,6 +26,27 @@
     "node_id": "civic-protocol-core",
     "count": 10,
     "entries": [
+      {
+        "id": "EPICON-MCP-072ec00e",
+        "node_id": "civic-protocol-core",
+        "tier": "contributor",
+        "timestamp": "2026-10-03T00:44:10.187186+00:00",
+        "title": "MCP tool call: get_integrity_snapshot",
+        "sha": "",
+        "source": "mcp-bridge",
+        "agentOrigin": "HERMES",
+        "args": {},
+        "cycleId": "C-unknown",
+        "integrityDelta": 0,
+        "status": "committed",
+        "tags": [
+          "mcp",
+          "tool:get_integrity_snapshot",
+          "gi:unknown",
+          "result:ok"
+        ],
+        "type": "mcp-invocation"
+      },
       {
         "id": "EPICON-MCP-ac00c813",
         "node_id": "civic-protocol-core",
@@ -158,22 +179,8 @@
         "schema": "EPICON_ENTRY_V1",
         "source_hash": "70b398fcde5d6b76b570cc2ae0e88546d2f15dc6a27db494120ef7d3dff53bec",
         "type": "mesh-commit"
-      },
-      {
-        "id": "EPICON-CPC-044f583d04dac4e2ccd1be5a0ac074f703739193",
-        "node_id": "civic-protocol-core",
-        "tier": "contributor",
-        "timestamp": "2026-07-21T14:00:32-04:00",
-        "title": "Merge pull request #95 from kaizencycle/cursor/c379-item6-wallet-db-fix-0e02\n\nfix(infra): C-379 item 6 \u2014 wallet DATABASE_URL dashboard override fix",
-        "sha": "044f583d04dac4e2ccd1be5a0ac074f703739193",
-        "source": "mesh-node",
-        "author": "Michael Judan",
-        "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:b54f07f60d952350:mesh-sync",
-        "schema": "EPICON_ENTRY_V1",
-        "source_hash": "b54f07f60d9523500592e77d3762896d6860d2ee7080551eeb73d23c55094eaf",
-        "type": "mesh-commit"
       }
     ],
-    "timestamp": "2026-10-02T22:59:07.032322+00:00"
+    "timestamp": "2026-10-03T02:00:23.038801+00:00"
   }
 }
