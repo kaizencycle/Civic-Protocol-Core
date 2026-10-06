@@ -1,7 +1,7 @@
 {
   "schema": "MNS_LEDGER_PULSE_SNAPSHOT_V1",
   "node_id": "civic-protocol-core",
-  "captured_at": "2026-10-06T03:00:35.060773+00:00",
+  "captured_at": "2026-10-06T10:22:08.151061+00:00",
   "ledger_base_url": "https://civic-protocol-core-ledger.onrender.com",
   "health": {
     "status": "ok",
@@ -16,7 +16,7 @@
     "ledger_db": {
       "ok": true,
       "path": "/var/lib/ledger/ledger.db",
-      "event_count": 103890,
+      "event_count": 104312,
       "error": null
     }
   },
@@ -26,6 +26,27 @@
     "node_id": "civic-protocol-core",
     "count": 10,
     "entries": [
+      {
+        "id": "EPICON-MCP-2976f2c4",
+        "node_id": "civic-protocol-core",
+        "tier": "contributor",
+        "timestamp": "2026-10-06T04:49:51.594218+00:00",
+        "title": "MCP tool call: get_integrity_snapshot",
+        "sha": "",
+        "source": "mcp-bridge",
+        "agentOrigin": "HERMES",
+        "args": {},
+        "cycleId": "C-unknown",
+        "integrityDelta": 0,
+        "status": "committed",
+        "tags": [
+          "mcp",
+          "tool:get_integrity_snapshot",
+          "gi:unknown",
+          "result:ok"
+        ],
+        "type": "mcp-invocation"
+      },
       {
         "id": "EPICON-MCP-97b4844f",
         "node_id": "civic-protocol-core",
@@ -179,22 +200,8 @@
         "schema": "EPICON_ENTRY_V1",
         "source_hash": "aa2c92cc0d903db8845b7078a86a73cf6522aebf2fd8879243a21feaa9c81e13",
         "type": "mesh-commit"
-      },
-      {
-        "id": "EPICON-CPC-048eda2bc10a07d3ae5ec7d98803e2414a471bd6",
-        "node_id": "civic-protocol-core",
-        "tier": "contributor",
-        "timestamp": "2026-07-21T18:39:15-04:00",
-        "title": "Merge pull request #98 from kaizencycle/cursor/c379-wallet-fail-closed-disk-0e02\n\nfix(mic-wallet): fail closed on missing disk (Codex P1/P2)",
-        "sha": "048eda2bc10a07d3ae5ec7d98803e2414a471bd6",
-        "source": "mesh-node",
-        "author": "Michael Judan",
-        "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:681a2bbea9798b76:mesh-sync",
-        "schema": "EPICON_ENTRY_V1",
-        "source_hash": "681a2bbea9798b76f7536784206614cc1082c3e31fe691dae267c58947e05f99",
-        "type": "mesh-commit"
       }
     ],
-    "timestamp": "2026-10-06T03:00:35.034923+00:00"
+    "timestamp": "2026-10-06T10:22:08.124139+00:00"
   }
 }
