@@ -1,7 +1,7 @@
 {
   "schema": "MNS_LEDGER_PULSE_SNAPSHOT_V1",
   "node_id": "civic-protocol-core",
-  "captured_at": "2026-10-07T01:34:21.637295+00:00",
+  "captured_at": "2026-10-07T08:42:55.280834+00:00",
   "ledger_base_url": "https://civic-protocol-core-ledger.onrender.com",
   "health": {
     "status": "ok",
@@ -16,7 +16,7 @@
     "ledger_db": {
       "ok": true,
       "path": "/var/lib/ledger/ledger.db",
-      "event_count": 105084,
+      "event_count": 105502,
       "error": null
     }
   },
@@ -26,6 +26,27 @@
     "node_id": "civic-protocol-core",
     "count": 10,
     "entries": [
+      {
+        "id": "EPICON-MCP-0ca05fc2",
+        "node_id": "civic-protocol-core",
+        "tier": "contributor",
+        "timestamp": "2026-10-07T05:18:18.176519+00:00",
+        "title": "MCP tool call: get_integrity_snapshot",
+        "sha": "",
+        "source": "mcp-bridge",
+        "agentOrigin": "HERMES",
+        "args": {},
+        "cycleId": "C-unknown",
+        "integrityDelta": 0,
+        "status": "committed",
+        "tags": [
+          "mcp",
+          "tool:get_integrity_snapshot",
+          "gi:unknown",
+          "result:ok"
+        ],
+        "type": "mcp-invocation"
+      },
       {
         "id": "EPICON-MCP-2976f2c4",
         "node_id": "civic-protocol-core",
@@ -186,22 +207,8 @@
         "schema": "EPICON_ENTRY_V1",
         "source_hash": "52d8ca1c86d885204d1697516f1c23f3693288a1bf554ddd0d88e0dabbfe2410",
         "type": "mesh-commit"
-      },
-      {
-        "id": "EPICON-CPC-3333cfc5a92a5ee30b433614f098dd2e31675b30",
-        "node_id": "civic-protocol-core",
-        "tier": "contributor",
-        "timestamp": "2026-07-21T22:43:45Z",
-        "title": "merge: C-379 item 6 partial closeout docs (post-#97)\n\nDurability redeploy-survival blocking per Codex P1 \u2014 landed after #97 merged.\n\nCo-authored-by: michaeljjudan <michaeljjudan@gmail.com>",
-        "sha": "3333cfc5a92a5ee30b433614f098dd2e31675b30",
-        "source": "mesh-node",
-        "author": "Cursor Agent",
-        "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:aa2c92cc0d903db8:mesh-sync",
-        "schema": "EPICON_ENTRY_V1",
-        "source_hash": "aa2c92cc0d903db8845b7078a86a73cf6522aebf2fd8879243a21feaa9c81e13",
-        "type": "mesh-commit"
       }
     ],
-    "timestamp": "2026-10-07T01:34:21.620817+00:00"
+    "timestamp": "2026-10-07T08:42:55.272452+00:00"
   }
 }
