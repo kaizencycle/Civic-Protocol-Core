@@ -1,7 +1,7 @@
 {
   "schema": "MNS_LEDGER_PULSE_SNAPSHOT_V1",
   "node_id": "civic-protocol-core",
-  "captured_at": "2026-10-09T02:12:06.000850+00:00",
+  "captured_at": "2026-10-09T09:11:34.649586+00:00",
   "ledger_base_url": "https://civic-protocol-core-ledger.onrender.com",
   "health": {
     "status": "ok",
@@ -16,7 +16,7 @@
     "ledger_db": {
       "ok": true,
       "path": "/var/lib/ledger/ledger.db",
-      "event_count": 107471,
+      "event_count": 107860,
       "error": null
     }
   },
@@ -26,6 +26,27 @@
     "node_id": "civic-protocol-core",
     "count": 10,
     "entries": [
+      {
+        "id": "EPICON-MCP-727206f2",
+        "node_id": "civic-protocol-core",
+        "tier": "contributor",
+        "timestamp": "2026-10-09T07:49:59.856391+00:00",
+        "title": "MCP tool call: get_integrity_snapshot",
+        "sha": "",
+        "source": "mcp-bridge",
+        "agentOrigin": "HERMES",
+        "args": {},
+        "cycleId": "C-unknown",
+        "integrityDelta": 0,
+        "status": "committed",
+        "tags": [
+          "mcp",
+          "tool:get_integrity_snapshot",
+          "gi:unknown",
+          "result:ok"
+        ],
+        "type": "mcp-invocation"
+      },
       {
         "id": "EPICON-MCP-aeb3ae45",
         "node_id": "civic-protocol-core",
@@ -200,22 +221,8 @@
         "schema": "EPICON_ENTRY_V1",
         "source_hash": "bc26d445169c77a4911e9ce49b48d504f9d191407e26db9614d9960abab5d923",
         "type": "mesh-commit"
-      },
-      {
-        "id": "EPICON-CPC-934253bafa57994e30bbd39b9870a605c7ea9d3c",
-        "node_id": "civic-protocol-core",
-        "tier": "contributor",
-        "timestamp": "2026-07-21T23:06:58Z",
-        "title": "Merge pull request #100 from kaizencycle/cursor/c379-wallet-codex-review-fix-0e02\n\nfix(mic-wallet): Codex P1 starter plan + P2 ismount disk probe (C-379)",
-        "sha": "934253bafa57994e30bbd39b9870a605c7ea9d3c",
-        "source": "mesh-node",
-        "author": "cursor[bot]",
-        "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:e94c3e292840620c:mesh-sync",
-        "schema": "EPICON_ENTRY_V1",
-        "source_hash": "e94c3e292840620c701b3d58b70340e839d15ec8be0c6a56a34ac73a091e33b5",
-        "type": "mesh-commit"
       }
     ],
-    "timestamp": "2026-10-09T02:12:05.968178+00:00"
+    "timestamp": "2026-10-09T09:11:34.644455+00:00"
   }
 }
