@@ -1,7 +1,7 @@
 {
   "schema": "MNS_LEDGER_PULSE_SNAPSHOT_V1",
   "node_id": "civic-protocol-core",
-  "captured_at": "2026-10-20T18:28:18.691535+00:00",
+  "captured_at": "2026-10-20T22:18:52.828515+00:00",
   "ledger_base_url": "https://civic-protocol-core-ledger.onrender.com",
   "health": {
     "status": "ok",
@@ -16,7 +16,7 @@
     "ledger_db": {
       "ok": true,
       "path": "/var/lib/ledger/ledger.db",
-      "event_count": 121247,
+      "event_count": 121436,
       "error": null
     }
   },
@@ -26,6 +26,27 @@
     "node_id": "civic-protocol-core",
     "count": 10,
     "entries": [
+      {
+        "id": "EPICON-MCP-3812f1cd",
+        "node_id": "civic-protocol-core",
+        "tier": "contributor",
+        "timestamp": "2026-10-20T20:03:10.528149+00:00",
+        "title": "MCP tool call: get_integrity_snapshot",
+        "sha": "",
+        "source": "mcp-bridge",
+        "agentOrigin": "HERMES",
+        "args": {},
+        "cycleId": "C-unknown",
+        "integrityDelta": 0,
+        "status": "committed",
+        "tags": [
+          "mcp",
+          "tool:get_integrity_snapshot",
+          "gi:unknown",
+          "result:ok"
+        ],
+        "type": "mcp-invocation"
+      },
       {
         "id": "EPICON-MCP-0c95b6b2",
         "node_id": "civic-protocol-core",
@@ -214,29 +235,8 @@
           "result:ok"
         ],
         "type": "mcp-invocation"
-      },
-      {
-        "id": "EPICON-MCP-94887a4b",
-        "node_id": "civic-protocol-core",
-        "tier": "contributor",
-        "timestamp": "2026-10-10T09:55:22.863407+00:00",
-        "title": "MCP tool call: get_integrity_snapshot",
-        "sha": "",
-        "source": "mcp-bridge",
-        "agentOrigin": "HERMES",
-        "args": {},
-        "cycleId": "C-unknown",
-        "integrityDelta": 0,
-        "status": "committed",
-        "tags": [
-          "mcp",
-          "tool:get_integrity_snapshot",
-          "gi:unknown",
-          "result:ok"
-        ],
-        "type": "mcp-invocation"
       }
     ],
-    "timestamp": "2026-10-20T18:28:18.659829+00:00"
+    "timestamp": "2026-10-20T22:18:52.805333+00:00"
   }
 }
