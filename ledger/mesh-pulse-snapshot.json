@@ -1,7 +1,7 @@
 {
   "schema": "MNS_LEDGER_PULSE_SNAPSHOT_V1",
   "node_id": "civic-protocol-core",
-  "captured_at": "2026-10-28T02:18:06.163898+00:00",
+  "captured_at": "2026-10-28T09:42:47.843119+00:00",
   "ledger_base_url": "https://civic-protocol-core-ledger.onrender.com",
   "health": {
     "status": "ok",
@@ -16,7 +16,7 @@
     "ledger_db": {
       "ok": true,
       "path": "/var/lib/ledger/ledger.db",
-      "event_count": 129821,
+      "event_count": 130186,
       "error": null
     }
   },
@@ -26,6 +26,69 @@
     "node_id": "civic-protocol-core",
     "count": 10,
     "entries": [
+      {
+        "id": "EPICON-MCP-341f1433",
+        "node_id": "civic-protocol-core",
+        "tier": "contributor",
+        "timestamp": "2026-10-28T04:56:14.076657+00:00",
+        "title": "MCP tool call: get_integrity_snapshot",
+        "sha": "",
+        "source": "mcp-bridge",
+        "agentOrigin": "HERMES",
+        "args": {},
+        "cycleId": "C-unknown",
+        "integrityDelta": 0,
+        "status": "committed",
+        "tags": [
+          "mcp",
+          "tool:get_integrity_snapshot",
+          "gi:unknown",
+          "result:ok"
+        ],
+        "type": "mcp-invocation"
+      },
+      {
+        "id": "EPICON-MCP-a469e34e",
+        "node_id": "civic-protocol-core",
+        "tier": "contributor",
+        "timestamp": "2026-10-28T04:56:14.218021+00:00",
+        "title": "MCP tool call: get_reserve_block_index",
+        "sha": "",
+        "source": "mcp-bridge",
+        "agentOrigin": "HERMES",
+        "args": {},
+        "cycleId": "C-unknown",
+        "integrityDelta": 0,
+        "status": "committed",
+        "tags": [
+          "mcp",
+          "tool:get_reserve_block_index",
+          "gi:unknown",
+          "result:ok"
+        ],
+        "type": "mcp-invocation"
+      },
+      {
+        "id": "EPICON-MCP-380184e6",
+        "node_id": "civic-protocol-core",
+        "tier": "contributor",
+        "timestamp": "2026-10-28T04:56:14.339608+00:00",
+        "title": "MCP tool call: get_vault_status",
+        "sha": "",
+        "source": "mcp-bridge",
+        "agentOrigin": "HERMES",
+        "args": {},
+        "cycleId": "C-unknown",
+        "integrityDelta": 0,
+        "status": "committed",
+        "tags": [
+          "mcp",
+          "tool:get_vault_status",
+          "gi:unknown",
+          "result:ok"
+        ],
+        "type": "mcp-invocation"
+      },
       {
         "id": "EPICON-MCP-1ac97311",
         "node_id": "civic-protocol-core",
@@ -176,71 +239,8 @@
           "result:ok"
         ],
         "type": "mcp-invocation"
-      },
-      {
-        "id": "EPICON-MCP-0c61a279",
-        "node_id": "civic-protocol-core",
-        "tier": "contributor",
-        "timestamp": "2026-10-25T01:37:32.548947+00:00",
-        "title": "MCP tool call: get_mic_readiness",
-        "sha": "",
-        "source": "mcp-bridge",
-        "agentOrigin": "HERMES",
-        "args": {},
-        "cycleId": "C-unknown",
-        "integrityDelta": 0,
-        "status": "committed",
-        "tags": [
-          "mcp",
-          "tool:get_mic_readiness",
-          "gi:unknown",
-          "result:error"
-        ],
-        "type": "mcp-invocation"
-      },
-      {
-        "id": "EPICON-MCP-b64ee164",
-        "node_id": "civic-protocol-core",
-        "tier": "contributor",
-        "timestamp": "2026-10-25T01:37:32.670250+00:00",
-        "title": "MCP tool call: get_reserve_block_index",
-        "sha": "",
-        "source": "mcp-bridge",
-        "agentOrigin": "HERMES",
-        "args": {},
-        "cycleId": "C-unknown",
-        "integrityDelta": 0,
-        "status": "committed",
-        "tags": [
-          "mcp",
-          "tool:get_reserve_block_index",
-          "gi:unknown",
-          "result:ok"
-        ],
-        "type": "mcp-invocation"
-      },
-      {
-        "id": "EPICON-MCP-c565e3e7",
-        "node_id": "civic-protocol-core",
-        "tier": "contributor",
-        "timestamp": "2026-10-24T01:03:06.287619+00:00",
-        "title": "MCP tool call: get_integrity_snapshot",
-        "sha": "",
-        "source": "mcp-bridge",
-        "agentOrigin": "HERMES",
-        "args": {},
-        "cycleId": "C-unknown",
-        "integrityDelta": 0,
-        "status": "committed",
-        "tags": [
-          "mcp",
-          "tool:get_integrity_snapshot",
-          "gi:unknown",
-          "result:ok"
-        ],
-        "type": "mcp-invocation"
       }
     ],
-    "timestamp": "2026-10-28T02:18:06.140361+00:00"
+    "timestamp": "2026-10-28T09:42:47.798501+00:00"
   }
 }
