@@ -9,8 +9,12 @@ from unittest import mock
 import pytest
 
 from scripts.ledger_pulse_probe import (
+    NON_OBJECT_JSON_ERROR,
+    PulseProbeResult,
     UnsafeProbeUrlError,
+    build_pulse_snapshot_dict,
     classify_probe,
+    decode_endpoint_json,
     probe_json_url,
     validate_probe_url,
 )
@@ -203,3 +207,80 @@ def test_probe_render_suspend_html(mock_read: mock.MagicMock) -> None:
     snap = result.to_snapshot_dict()
     assert snap["classification"] == "render_suspend"
     assert snap["ok"] is False
+
+
+@pytest.mark.parametrize(
+    "body,expected_classification",
+    [
+        (b"[1, 2, 3]", "invalid_json_shape"),
+        (b'"hello"', "invalid_json_shape"),
+        (b"42", "invalid_json_shape"),
+        (b"null", "invalid_json_shape"),
+    ],
+)
+@mock.patch("scripts.ledger_pulse_probe._read_http_response")
+def test_probe_non_object_json_never_crashes(
+    mock_read: mock.MagicMock, body: bytes, expected_classification: str
+) -> None:
+    mock_read.return_value = (200, {"content-type": "application/json"}, body)
+    result = probe_json_url("https://example.com/health")
+    assert result.classification == expected_classification
+    assert result.ok is False
+    assert result.parsed_json is None
+    snap = result.to_snapshot_dict()
+    assert snap["ok"] is False
+    assert snap["error"] == NON_OBJECT_JSON_ERROR
+    assert "ledger_db" not in snap
+
+
+@mock.patch("scripts.ledger_pulse_probe._read_http_response")
+def test_probe_http_200_html_includes_error(mock_read: mock.MagicMock) -> None:
+    mock_read.return_value = (
+        200,
+        {"content-type": "text/html; charset=utf-8"},
+        b"<html>ok</html>",
+    )
+    result = probe_json_url("https://example.com/health")
+    assert result.classification == "unreachable_or_non_json"
+    snap = result.to_snapshot_dict()
+    assert snap["error"] == NON_OBJECT_JSON_ERROR
+
+
+@mock.patch("scripts.ledger_pulse_probe._read_http_response")
+def test_probe_malformed_json_includes_error(mock_read: mock.MagicMock) -> None:
+    mock_read.return_value = (
+        200,
+        {"content-type": "application/json"},
+        b"{not-json",
+    )
+    result = probe_json_url("https://example.com/health")
+    snap = result.to_snapshot_dict()
+    assert snap["error"] == NON_OBJECT_JSON_ERROR
+
+
+def test_decode_endpoint_json_array():
+    parsed, err, invalid = decode_endpoint_json(b"[1]")
+    assert parsed is None
+    assert err == NON_OBJECT_JSON_ERROR
+    assert invalid is True
+
+
+@mock.patch("scripts.ledger_pulse_probe.probe_json_url")
+def test_build_pulse_snapshot_dict_does_not_crash_on_bad_json(
+    mock_probe: mock.MagicMock,
+) -> None:
+    bad = PulseProbeResult(
+        url="https://example.com/health",
+        ok=False,
+        classification="invalid_json_shape",
+        http_status=200,
+        x_render_routing=None,
+        content_type="application/json",
+        parsed_json=None,
+        error=NON_OBJECT_JSON_ERROR,
+    )
+    mock_probe.return_value = bad
+    out = build_pulse_snapshot_dict(base_url="https://example.com")
+    assert out["health"]["classification"] == "invalid_json_shape"
+    assert out["health"]["error"] == NON_OBJECT_JSON_ERROR
+    assert out["schema"] == "MNS_LEDGER_PULSE_SNAPSHOT_V1"

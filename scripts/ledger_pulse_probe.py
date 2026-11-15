@@ -14,6 +14,10 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
 
+NON_OBJECT_JSON_ERROR = (
+    "Expected JSON object response; received non-JSON or non-object JSON."
+)
+
 
 class UnsafeProbeUrlError(ValueError):
     """Raised when a probe URL is outside the allowed http(s) contract."""
@@ -47,12 +51,7 @@ class PulseProbeResult:
             out["x_render_routing"] = self.x_render_routing
         if self.content_type is not None:
             out["content_type"] = self.content_type
-        if (
-            self.parsed_json is None
-            and "url" not in out
-            or self.parsed_json is not None
-            and "url" not in out
-        ):
+        if "url" not in out:
             out["url"] = self.url
         return out
 
@@ -84,16 +83,42 @@ def validate_ledger_public_base(base: str, *, allow_http: bool = False) -> str:
     return validate_probe_url(base.rstrip("/"), allow_http=allow_http)
 
 
+def decode_endpoint_json(
+    raw: bytes,
+) -> tuple[dict[str, Any] | None, str | None, bool]:
+    """
+    Parse response body as JSON object for snapshot merge.
+
+    Returns (parsed_object, error_message, invalid_json_shape).
+    invalid_json_shape is True when JSON decoded but was not a JSON object
+    (array, primitive, or null).
+    """
+    try:
+        text = raw.decode()
+    except UnicodeDecodeError:
+        return None, NON_OBJECT_JSON_ERROR, False
+    try:
+        loaded: Any = json.loads(text)
+    except json.JSONDecodeError:
+        return None, NON_OBJECT_JSON_ERROR, False
+    if not isinstance(loaded, dict):
+        return None, NON_OBJECT_JSON_ERROR, True
+    return loaded, None, False
+
+
 def classify_probe(
     *,
     http_status: int,
     x_render_routing: str | None,
     content_type: str | None,
     parsed_json: dict[str, Any] | None,
+    invalid_json_shape: bool = False,
 ) -> tuple[bool, str]:
     routing = (x_render_routing or "").strip().lower()
     if routing == "suspend":
         return False, "render_suspend"
+    if invalid_json_shape:
+        return False, "invalid_json_shape"
     if http_status >= 500 and (content_type or "").startswith("text/html"):
         return False, "platform_error_html"
     if parsed_json is not None and http_status == 200:
@@ -105,6 +130,67 @@ def classify_probe(
     if parsed_json is not None:
         return http_status < 400, "http_json"
     return False, "unreachable_or_non_json"
+
+
+def _probe_error_message(
+    *,
+    classification: str,
+    parsed_json: dict[str, Any] | None,
+    decode_error: str | None,
+    raw: bytes,
+    http_reason: str | None = None,
+) -> str | None:
+    if classification == "render_suspend":
+        return "Render service suspended (x-render-routing: suspend)"
+    if decode_error is not None and parsed_json is None:
+        return decode_error
+    if not parsed_json and classification in (
+        "unreachable_or_non_json",
+        "invalid_json_shape",
+        "platform_error_html",
+    ):
+        if decode_error:
+            return decode_error
+        snippet = raw.decode(errors="replace")[:120].strip()
+        return snippet or http_reason or NON_OBJECT_JSON_ERROR
+    return None
+
+
+def _result_from_http(
+    *,
+    safe_url: str,
+    http_status: int,
+    headers: dict[str, str],
+    raw: bytes,
+    http_reason: str | None = None,
+) -> PulseProbeResult:
+    x_render_routing = headers.get("x-render-routing")
+    content_type = headers.get("content-type")
+    parsed, decode_error, invalid_shape = decode_endpoint_json(raw)
+    ok, classification = classify_probe(
+        http_status=http_status,
+        x_render_routing=x_render_routing,
+        content_type=content_type,
+        parsed_json=parsed,
+        invalid_json_shape=invalid_shape,
+    )
+    err = _probe_error_message(
+        classification=classification,
+        parsed_json=parsed,
+        decode_error=decode_error,
+        raw=raw,
+        http_reason=http_reason,
+    )
+    return PulseProbeResult(
+        url=safe_url,
+        ok=ok,
+        classification=classification,
+        http_status=http_status,
+        x_render_routing=x_render_routing,
+        content_type=content_type,
+        parsed_json=parsed,
+        error=err,
+    )
 
 
 def _read_http_response(
@@ -125,6 +211,29 @@ def _read_http_error(exc: urllib.error.HTTPError) -> tuple[int, dict[str, str], 
     raw = exc.read()
     headers = {k.lower(): v for k, v in exc.headers.items()}
     return int(exc.code), headers, raw
+
+
+def build_pulse_snapshot_dict(
+    *,
+    base_url: str,
+    health_path: str = "/health",
+    feed_path: str = "/epicon/feed?limit=10",
+    allow_http: bool = False,
+) -> dict[str, Any]:
+    """Shape written by the ledger-pulse-snapshot workflow (for contract tests)."""
+    from datetime import UTC, datetime
+
+    base = validate_ledger_public_base(base_url, allow_http=allow_http)
+    health = probe_json_url(f"{base}{health_path}", allow_http=allow_http)
+    feed = probe_json_url(f"{base}{feed_path}", allow_http=allow_http)
+    return {
+        "schema": "MNS_LEDGER_PULSE_SNAPSHOT_V1",
+        "node_id": "civic-protocol-core",
+        "captured_at": datetime.now(UTC).isoformat(),
+        "ledger_base_url": base,
+        "health": health.to_snapshot_dict(),
+        "epicon_feed": feed.to_snapshot_dict(),
+    }
 
 
 def probe_json_url(
@@ -150,59 +259,20 @@ def probe_json_url(
 
     try:
         http_status, headers, raw = _read_http_response(safe_url, timeout=timeout)
-        x_render_routing = headers.get("x-render-routing")
-        content_type = headers.get("content-type")
-        parsed: dict[str, Any] | None = None
-        try:
-            parsed = json.loads(raw.decode())
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            parsed = None
-        ok, classification = classify_probe(
+        return _result_from_http(
+            safe_url=safe_url,
             http_status=http_status,
-            x_render_routing=x_render_routing,
-            content_type=content_type,
-            parsed_json=parsed,
-        )
-        return PulseProbeResult(
-            url=safe_url,
-            ok=ok,
-            classification=classification,
-            http_status=http_status,
-            x_render_routing=x_render_routing,
-            content_type=content_type,
-            parsed_json=parsed,
-            error=None,
+            headers=headers,
+            raw=raw,
         )
     except urllib.error.HTTPError as exc:
         http_status, headers, raw = _read_http_error(exc)
-        x_render_routing = headers.get("x-render-routing")
-        content_type = headers.get("content-type")
-        parsed: dict[str, Any] | None = None
-        try:
-            parsed = json.loads(raw.decode())
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            parsed = None
-        ok, classification = classify_probe(
+        return _result_from_http(
+            safe_url=safe_url,
             http_status=http_status,
-            x_render_routing=x_render_routing,
-            content_type=content_type,
-            parsed_json=parsed,
-        )
-        err: str | None = None
-        if not ok and classification == "render_suspend":
-            err = "Render service suspended (x-render-routing: suspend)"
-        elif not ok and parsed is None:
-            snippet = raw.decode(errors="replace")[:120].strip()
-            err = snippet or exc.reason
-        return PulseProbeResult(
-            url=safe_url,
-            ok=ok,
-            classification=classification,
-            http_status=http_status,
-            x_render_routing=x_render_routing,
-            content_type=content_type,
-            parsed_json=parsed,
-            error=err,
+            headers=headers,
+            raw=raw,
+            http_reason=exc.reason,
         )
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         return PulseProbeResult(
