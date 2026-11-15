@@ -38,12 +38,18 @@ jobs:
           from pathlib import Path
 
           sys.path.insert(0, str(Path.cwd()))
-          from scripts.ledger_pulse_probe import probe_json_url
+          from scripts.ledger_pulse_probe import (
+              UnsafeProbeUrlError,
+              probe_json_url,
+              validate_ledger_public_base,
+          )
 
-          base = (
-              os.environ.get("LEDGER_PUBLIC_URL") or ""
-          ).strip() or "https://civic-protocol-core-ledger.onrender.com"
-          base = base.rstrip("/")
+          default_base = "https://civic-protocol-core-ledger.onrender.com"
+          raw_base = (os.environ.get("LEDGER_PUBLIC_URL") or "").strip() or default_base
+          try:
+              base = validate_ledger_public_base(raw_base)
+          except UnsafeProbeUrlError as exc:
+              raise SystemExit(f"Invalid LEDGER_PUBLIC_URL: {exc}") from exc
 
           health = probe_json_url(f"{base}/health").to_snapshot_dict()
           feed = probe_json_url(f"{base}/epicon/feed?limit=10").to_snapshot_dict()

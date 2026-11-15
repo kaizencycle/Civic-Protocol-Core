@@ -107,10 +107,10 @@ python3 -m pytest tests/test_ledger_pulse_probe.py -q
 
 ---
 
-## 7. Draft PR or proposed patch
+## 7. PR (ready for review — merge withheld)
 
 Branch: `cursor/c496-job33-render-suspend-diagnostic-8197`  
-**Draft PR** — diagnostic only; does not unsuspend Render or deploy ledger fixes.
+**PR #106** — diagnostic only; **WITHHOLD MERGE** until EPICON Guard, Ruff, contract tests, and ZEUS review pass. Does not unsuspend Render or deploy ledger fixes.
 
 ---
 
