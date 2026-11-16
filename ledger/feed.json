@@ -1,5 +1,18 @@
 [
   {
+    "id": "EPICON-CPC-d28d35b257dbaff308966b3f90dc3a6c6feb5346",
+    "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:cbfe083d4b737184:mesh-sync",
+    "source_hash": "cbfe083d4b7371849a9f93f3122503173f9bcb6ffb1df092300c0b121d3c5f60",
+    "node_id": "civic-protocol-core",
+    "timestamp": "2026-11-15T19:44:10-05:00",
+    "author": "Michael",
+    "sha": "d28d35b257dbaff308966b3f90dc3a6c6feb5346",
+    "title": "Merge pull request #106 from kaizencycle/cursor/c496-job33-render-suspend-diagnostic-8197",
+    "source": "mesh-node",
+    "type": "mesh-commit",
+    "schema": "EPICON_ENTRY_V1"
+  },
+  {
     "id": "EPICON-CPC-3fc08a8540eb79dd154f7de5c0bb39ff10b5eb08",
     "idempotency_key": "civic-protocol-core:EPICON_ENTRY_V1:C-\u2014:cf85b4f2058eaa59:mesh-sync",
     "source_hash": "cf85b4f2058eaa598c797182685cdad83a71b1eb9ef57211357ee95f0b068101",
