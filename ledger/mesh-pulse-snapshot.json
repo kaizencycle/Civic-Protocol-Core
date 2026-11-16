@@ -1,16 +1,24 @@
 {
   "schema": "MNS_LEDGER_PULSE_SNAPSHOT_V1",
   "node_id": "civic-protocol-core",
-  "captured_at": "2026-11-15T22:51:01.474226+00:00",
+  "captured_at": "2026-11-16T02:45:23.301055+00:00",
   "ledger_base_url": "https://civic-protocol-core-ledger.onrender.com",
   "health": {
     "ok": false,
-    "error": "HTTP Error 503: Service Unavailable",
-    "url": "https://civic-protocol-core-ledger.onrender.com/health"
+    "url": "https://civic-protocol-core-ledger.onrender.com/health",
+    "error": "Render service suspended (x-render-routing: suspend)",
+    "classification": "render_suspend",
+    "http_status": 503,
+    "x_render_routing": "suspend",
+    "content_type": "text/html; charset=utf-8"
   },
   "epicon_feed": {
     "ok": false,
-    "error": "HTTP Error 503: Service Unavailable",
-    "url": "https://civic-protocol-core-ledger.onrender.com/epicon/feed?limit=10"
+    "url": "https://civic-protocol-core-ledger.onrender.com/epicon/feed?limit=10",
+    "error": "Render service suspended (x-render-routing: suspend)",
+    "classification": "render_suspend",
+    "http_status": 503,
+    "x_render_routing": "suspend",
+    "content_type": "text/html; charset=utf-8"
   }
 }
